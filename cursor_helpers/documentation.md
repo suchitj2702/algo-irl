@@ -6,42 +6,60 @@
 - [Database Schemas](#database-schemas)
 - [API Endpoints](#api-endpoints)
 - [Function Specifications](#function-specifications)
+- [UI Components](#ui-components)
+- [Authentication and Authorization](#authentication-and-authorization)
+- [Code Execution Environment](#code-execution-environment)
+- [Mock Interview System](#mock-interview-system)
 - [Architecture Decisions](#architecture-decisions)
 - [Security Considerations](#security-considerations)
+- [Accessibility Implementation](#accessibility-implementation)
 - [Monitoring and Operations](#monitoring-and-operations)
-- [AWS Migration Plan](#aws-migration-plan)
 
 ## Project Overview
 
-AlgoIRL (Algorithms In Real Life) transforms abstract LeetCode algorithm problems into realistic, company-specific interview scenarios. The platform takes LeetCode problems (starting with a subset of the Blind 75 collection) and uses AI to contextualize them as real-world challenges a developer might face at companies like Meta, Amazon, or Google.
+AlgoIRL (Algorithms In Real Life) transforms abstract LeetCode algorithm problems into realistic, company-specific interview scenarios. The platform takes LeetCode problems (starting with a selected subset of the Blind 75 collection) and uses AI to contextualize them as real-world challenges a developer might face at specific companies like Google, Amazon, or Microsoft.
 
 ### Key Features
 - Company-specific problem contextualization
-- Curated problem repository (initially 20 selected problems)
+- Interactive code editor with execution environment
+- AI-powered mock interview system with realistic follow-up questions
+- Curated problem repository (40 selected problems)
+- User progress tracking and performance analytics
 - Custom company support
 - Scenario caching for performance
-- User history tracking
+- Comprehensive user authentication and profile management
+
+### Target Audience
+- Software engineering candidates preparing for technical interviews
+- Educators teaching algorithm concepts with real-world context
+- Experienced engineers looking to practice problem-solving skills
 
 ## System Architecture
 
-AlgoIRL MVP is built using Firebase and Vercel with a modern serverless approach for rapid development, with plans to migrate to AWS in a later phase.
+AlgoIRL is built using Firebase and Vercel with a modern serverless approach for rapid development.
 
 ### Infrastructure Diagram
 ```
-                   ┌─────────────────────┐
-                   │     Vercel Edge     │
-                   │   (Next.js Host)    │
-                   └─────────┬───────────┘
-                             │
-                             ▼
-┌───────────────┐   ┌─────────────────┐   ┌──────────────────┐
-│  Firebase Auth │◄──│  Next.js App   │──►│ OpenAI/Anthropic │
-└───────────────┘   │   (Frontend +   │   │       API        │
-                    │ Serverless API) │   └──────────────────┘
-┌───────────────┐   │                 │
-│   Firestore   │◄──│                 │
-│   Database    │   └─────────────────┘
-└───────────────┘          
+                       ┌─────────────────────┐
+                       │     Vercel Edge     │
+                       │   (Next.js Host)    │
+                       └─────────┬───────────┘
+                                 │
+                                 ▼
+    ┌───────────────┐   ┌─────────────────────┐   ┌──────────────────┐
+    │  Firebase Auth │◄──│  Next.js App       │──►│ OpenAI/Anthropic │
+    └───────────────┘   │   (Frontend +       │   │       API        │
+                        │   Serverless API)   │   └──────────────────┘
+    ┌───────────────┐   │                     │
+    │   Firestore   │◄──│                     │
+    │   Database    │   │                     │
+    └───────────────┘   └────────┬────────────┘
+                                 │
+                                 ▼
+                      ┌─────────────────────┐
+                      │ Code Execution API  │
+                      │  (Serverless)       │
+                      └─────────────────────┘
 ```
 
 ### Core Technologies
@@ -49,7 +67,19 @@ AlgoIRL MVP is built using Firebase and Vercel with a modern serverless approach
 - **Firebase Auth**: User authentication and management
 - **Firestore**: NoSQL database for data storage
 - **Vercel**: Hosting and serverless functions platform
-- **OpenAI/Anthropic API**: AI service for problem transformation
+- **OpenAI/Anthropic API**: AI service for problem transformation and mock interviews
+- **Monaco Editor**: Code editor for interactive coding environment
+- **Serverless Code Execution API**: For executing user code in a secure environment
+
+### Application Flow
+1. User authenticates with Firebase Authentication
+2. User selects a coding problem from the curated repository
+3. User selects a target company (e.g., Google, Amazon) 
+4. System generates a company-specific scenario using AI
+5. User writes code solution in the integrated editor
+6. Code is executed against test cases with runtime/memory metrics
+7. Optionally, user engages with mock interviewer to discuss their solution
+8. Performance history and progress are tracked in user profile
 
 ## Database Schemas
 
@@ -61,22 +91,40 @@ AlgoIRL uses Firestore for data storage with the following collection designs:
   "problemId": "two-sum", // Document ID
   "title": "Two Sum",
   "difficulty": "Easy",
-  "category": "Array",
+  "categories": ["Array", "Hash Table"],
   "description": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+  "constraints": ["2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9"],
   "leetcodeLink": "https://leetcode.com/problems/two-sum/",
-  "isBlind75": true
+  "isBlind75": true,
+  "testCases": [
+    {
+      "input": {"nums": [2, 7, 11, 15], "target": 9},
+      "output": [0, 1],
+      "explanation": "Because nums[0] + nums[1] == 9, we return [0, 1]."
+    },
+    // More test cases...
+  ],
+  "solutionApproach": "Use a hash map to store complements of each number for O(n) time complexity",
+  "timeComplexity": "O(n)",
+  "spaceComplexity": "O(n)",
+  "createdAt": "2025-05-01T10:30:00Z",
+  "updatedAt": "2025-05-01T10:30:00Z"
 }
 ```
 
 ### Companies Collection
 ```javascript
 {
-  "companyId": "meta", // Document ID
-  "name": "Meta",
-  "description": "Social media and technology company focused on connecting people",
-  "domain": "Social networking, VR/AR, advertising",
-  "products": ["Facebook", "Instagram", "WhatsApp", "Oculus"],
-  "technologies": ["React", "GraphQL", "PyTorch", "Distributed systems"]
+  "companyId": "google", // Document ID
+  "name": "Google",
+  "description": "Technology company specializing in search, cloud computing, and software services",
+  "domain": "Search, Cloud, Software Services",
+  "products": ["Google Search", "Gmail", "Google Cloud", "Android"],
+  "technologies": ["Go", "Java", "Python", "Kubernetes", "TensorFlow"],
+  "interviewFocus": ["System Design", "Algorithm Efficiency", "Code Quality"],
+  "logoUrl": "https://example.com/google-logo.png",
+  "createdAt": "2025-05-01T10:30:00Z",
+  "updatedAt": "2025-05-01T10:30:00Z"
 }
 ```
 
@@ -85,9 +133,11 @@ AlgoIRL uses Firestore for data storage with the following collection designs:
 {
   "scenarioId": "550e8400-e29b-41d4-a716-446655440000", // Document ID
   "problemId": "two-sum",
-  "companyId": "meta",
-  "scenario": "You're working on the Instagram Explore page algorithm. Given a user's liked posts with engagement scores, find two posts whose engagement scores sum to the target threshold for recommended content.",
-  "createdAt": "2025-05-01T12:34:56Z"
+  "companyId": "google",
+  "scenario": "You're working on Google Search's autocomplete feature. Given a list of previously searched terms with their popularity scores, find two terms whose popularity scores sum to the target threshold for promoting to the suggestions list.",
+  "createdAt": "2025-05-01T12:34:56Z",
+  "updatedAt": "2025-05-01T12:34:56Z",
+  "cacheExpiry": "2025-08-01T12:34:56Z"
 }
 ```
 
@@ -96,7 +146,19 @@ AlgoIRL uses Firestore for data storage with the following collection designs:
 {
   "uid": "user123", // Document ID (from Firebase Auth)
   "email": "user@example.com",
-  "createdAt": "2025-05-01T10:20:30Z"
+  "displayName": "Jane Doe",
+  "photoURL": "https://example.com/profile.jpg",
+  "preferences": {
+    "theme": "dark",
+    "codeEditorTheme": "vs-dark",
+    "defaultLanguage": "python",
+    "fontSize": 14,
+    "tabSize": 2,
+    "showLineNumbers": true
+  },
+  "createdAt": "2025-05-01T10:20:30Z",
+  "updatedAt": "2025-05-01T15:45:22Z",
+  "lastLoginAt": "2025-05-03T08:12:45Z"
 }
 ```
 
@@ -105,16 +167,156 @@ AlgoIRL uses Firestore for data storage with the following collection designs:
 {
   "historyId": "7f6c74a0-8e9b-4ae0-a699-55e5fdca0001", // Document ID
   "userId": "user123",
+  "problemId": "two-sum",
+  "companyId": "google",
   "scenarioId": "550e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-05-02T15:22:10Z",
+  "code": "def two_sum(nums, target):\n    map = {}\n    for i, n in enumerate(nums):\n        if target - n in map:\n            return [map[target - n], i]\n        map[n] = i\n    return []",
+  "language": "python",
+  "executionResults": {
+    "passed": true,
+    "testCasesPassed": 5,
+    "testCasesTotal": 5,
+    "executionTime": 5, // in milliseconds
+    "memoryUsage": 12.4, // in MB
+    "error": null
+  },
   "notes": "Used a hash map to track complements, O(n) time complexity",
-  "completed": true
+  "completed": true,
+  "createdAt": "2025-05-02T15:22:10Z",
+  "updatedAt": "2025-05-02T15:26:45Z"
+}
+```
+
+### Interviews Collection
+```javascript
+{
+  "interviewId": "8a7b6c5d-4e3f-2a1b-0c9d-8e7f", // Document ID
+  "userId": "user123",
+  "problemId": "two-sum",
+  "companyId": "google",
+  "scenarioId": "550e8400-e29b-41d4-a716-446655440000",
+  "messages": [
+    {
+      "role": "interviewer",
+      "content": "Can you walk me through how you approached this problem?",
+      "timestamp": "2025-05-02T15:30:00Z"
+    },
+    {
+      "role": "user",
+      "content": "I used a hash map to store the numbers I've seen so far...",
+      "timestamp": "2025-05-02T15:30:45Z"
+    },
+    // More messages...
+  ],
+  "evaluation": {
+    "technicalUnderstanding": 4, // 1-5 scale
+    "communicationClarity": 4,
+    "approachEfficiency": 5,
+    "edgeCaseHandling": 3,
+    "overallRating": 4.2,
+    "strengths": ["Efficient algorithm choice", "Clear explanation"],
+    "improvementAreas": ["Consider edge cases more thoroughly"]
+  },
+  "duration": 720, // in seconds
+  "completed": true,
+  "createdAt": "2025-05-02T15:30:00Z",
+  "updatedAt": "2025-05-02T15:42:30Z"
+}
+```
+
+### Collections Collection
+```javascript
+{
+  "collectionId": "array-problems", // Document ID
+  "name": "Array Problems",
+  "description": "Curated collection of array manipulation problems",
+  "problemIds": ["two-sum", "3sum", "container-with-most-water"],
+  "isPublic": true,
+  "creatorId": "admin", // or userId for user-created collections
+  "order": 1,
+  "difficulty": "Mixed",
+  "createdAt": "2025-05-01T10:30:00Z",
+  "updatedAt": "2025-05-01T10:30:00Z"
+}
+```
+
+### Favorites Collection
+```javascript
+{
+  "favoriteId": "9a8b7c6d-5e4f-3a2b-1c0d", // Document ID
+  "userId": "user123",
+  "itemType": "problem", // "problem", "company", "scenario"
+  "itemId": "two-sum",
+  "createdAt": "2025-05-03T09:15:30Z"
 }
 ```
 
 ## API Endpoints
 
 AlgoIRL uses Next.js API routes for serverless backend functionality:
+
+### Authentication API
+
+#### POST /api/auth/register
+Registers a new user.
+
+**Request:**
+```json
+{
+  "email": "user@example.com",
+  "password": "securePassword123",
+  "displayName": "Jane Doe"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "uid": "user123",
+  "email": "user@example.com",
+  "displayName": "Jane Doe"
+}
+```
+
+#### POST /api/auth/login
+Authenticates a user.
+
+**Request:**
+```json
+{
+  "email": "user@example.com",
+  "password": "securePassword123"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "uid": "user123",
+  "token": "jwt-token-here",
+  "expiresAt": "2025-05-03T11:30:45Z"
+}
+```
+
+#### POST /api/auth/password-reset
+Initiates a password reset.
+
+**Request:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Password reset email sent"
+}
+```
 
 ### Problems API
 
@@ -125,6 +327,7 @@ Retrieves a list of problems with optional filtering.
 - `category` (optional): Filter by problem category
 - `difficulty` (optional): Filter by difficulty level
 - `limit` (optional): Maximum number of items to return
+- `page` (optional): Page number for pagination
 
 **Response:**
 ```json
@@ -134,11 +337,17 @@ Retrieves a list of problems with optional filtering.
       "problemId": "two-sum",
       "title": "Two Sum",
       "difficulty": "Easy",
-      "category": "Array",
+      "categories": ["Array", "Hash Table"],
       "isBlind75": true
     },
     // More problems...
-  ]
+  ],
+  "pagination": {
+    "total": 40,
+    "page": 1,
+    "pageSize": 10,
+    "totalPages": 4
+  }
 }
 ```
 
@@ -152,12 +361,24 @@ Retrieves details for a specific problem.
 ```json
 {
   "problemId": "two-sum",
-  "leetcodeLink": "https://leetcode.com/problems/two-sum/",
   "title": "Two Sum",
   "difficulty": "Easy",
-  "category": "Array",
+  "categories": ["Array", "Hash Table"],
   "description": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
-  "isBlind75": true
+  "constraints": ["2 <= nums.length <= 10^4", "-10^9 <= nums[i] <= 10^9"],
+  "leetcodeLink": "https://leetcode.com/problems/two-sum/",
+  "isBlind75": true,
+  "testCases": [
+    {
+      "input": {"nums": [2, 7, 11, 15], "target": 9},
+      "output": [0, 1],
+      "explanation": "Because nums[0] + nums[1] == 9, we return [0, 1]."
+    },
+    // More test cases...
+  ],
+  "solutionApproach": "Use a hash map to store complements of each number for O(n) time complexity",
+  "timeComplexity": "O(n)",
+  "spaceComplexity": "O(n)"
 }
 ```
 
@@ -171,9 +392,10 @@ Retrieves a list of available companies.
 {
   "companies": [
     {
-      "companyId": "meta",
-      "name": "Meta",
-      "description": "Social media and technology company"
+      "companyId": "google",
+      "name": "Google",
+      "description": "Technology company specializing in search, cloud computing, and software services",
+      "logoUrl": "https://example.com/google-logo.png"
     },
     // More companies...
   ]
@@ -189,12 +411,14 @@ Retrieves details for a specific company.
 **Response:**
 ```json
 {
-  "companyId": "meta",
-  "name": "Meta",
-  "description": "Social media and technology company focused on connecting people",
-  "domain": "Social networking, VR/AR, advertising",
-  "products": ["Facebook", "Instagram", "WhatsApp", "Oculus"],
-  "technologies": ["React", "GraphQL", "PyTorch", "Distributed systems"]
+  "companyId": "google",
+  "name": "Google",
+  "description": "Technology company specializing in search, cloud computing, and software services",
+  "domain": "Search, Cloud, Software Services",
+  "products": ["Google Search", "Gmail", "Google Cloud", "Android"],
+  "technologies": ["Go", "Java", "Python", "Kubernetes", "TensorFlow"],
+  "interviewFocus": ["System Design", "Algorithm Efficiency", "Code Quality"],
+  "logoUrl": "https://example.com/google-logo.png"
 }
 ```
 
@@ -207,7 +431,7 @@ Generates a company-specific problem scenario.
 ```json
 {
   "problemId": "two-sum",
-  "companyId": "meta"
+  "companyId": "google"
 }
 ```
 
@@ -216,8 +440,8 @@ Generates a company-specific problem scenario.
 {
   "scenarioId": "550e8400-e29b-41d4-a716-446655440000",
   "problemId": "two-sum",
-  "companyId": "meta",
-  "scenario": "You're working on the Instagram Explore page algorithm. Given a user's liked posts with engagement scores, find two posts whose engagement scores sum to the target threshold for recommended content.",
+  "companyId": "google",
+  "scenario": "You're working on Google Search's autocomplete feature. Given a list of previously searched terms with their popularity scores, find two terms whose popularity scores sum to the target threshold for promoting to the suggestions list.",
   "createdAt": "2025-05-01T12:34:56Z"
 }
 ```
@@ -229,7 +453,12 @@ Generates a scenario for a custom company.
 ```json
 {
   "problemId": "two-sum",
-  "customCompany": "Spotify"
+  "customCompany": {
+    "name": "Spotify",
+    "domain": "Music Streaming",
+    "products": ["Spotify Music App", "Spotify Podcasts"],
+    "technologies": ["Python", "React", "Machine Learning"]
+  }
 }
 ```
 
@@ -244,33 +473,343 @@ Generates a scenario for a custom company.
 }
 ```
 
-### User History API
+### Code Execution API
 
-#### POST /api/history
-Records a practice session.
+#### POST /api/code/execute
+Executes user code against test cases.
 
 **Request:**
 ```json
 {
-  "scenarioId": "550e8400-e29b-41d4-a716-446655440000",
-  "notes": "Used a hash map to track complements, O(n) time complexity",
-  "completed": true
+  "problemId": "two-sum",
+  "language": "python",
+  "code": "def two_sum(nums, target):\n    map = {}\n    for i, n in enumerate(nums):\n        if target - n in map:\n            return [map[target - n], i]\n        map[n] = i\n    return []",
+  "testCases": [
+    {"input": {"nums": [2, 7, 11, 15], "target": 9}, "expectedOutput": [0, 1]},
+    // Optional custom test cases
+  ]
 }
 ```
 
 **Response:**
 ```json
 {
-  "historyId": "7f6c74a0-8e9b-4ae0-a699-55e5fdca0001",
-  "userId": "user123",
-  "scenarioId": "550e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2025-05-02T15:22:10Z",
-  "notes": "Used a hash map to track complements, O(n) time complexity",
-  "completed": true
+  "executionId": "exec-12345",
+  "results": {
+    "passed": true,
+    "testResults": [
+      {
+        "input": {"nums": [2, 7, 11, 15], "target": 9},
+        "expectedOutput": [0, 1],
+        "actualOutput": [0, 1],
+        "passed": true,
+        "executionTime": 3.2 // in milliseconds
+      },
+      // More test results...
+    ],
+    "summary": {
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "executionTime": 12.5, // total in milliseconds
+      "memoryUsage": 10.2 // in MB
+    }
+  }
+}
+```
+
+### Mock Interview API
+
+#### POST /api/interview/start
+Starts a new mock interview session.
+
+**Request:**
+```json
+{
+  "problemId": "two-sum",
+  "companyId": "google",
+  "interviewerPersona": "technical", // "technical", "friendly", "challenging"
+  "difficulty": "medium" // "easy", "medium", "hard"
+}
+```
+
+**Response:**
+```json
+{
+  "interviewId": "8a7b6c5d-4e3f-2a1b-0c9d-8e7f",
+  "initialMessage": {
+    "role": "interviewer",
+    "content": "Hi there! I'll be your interviewer today. We'll be working on the Two Sum problem in the context of Google's autocomplete feature. Could you start by explaining your approach to solving this problem?",
+    "timestamp": "2025-05-02T15:30:00Z"
+  }
+}
+```
+
+#### POST /api/interview/message
+Sends a message in the mock interview.
+
+**Request:**
+```json
+{
+  "interviewId": "8a7b6c5d-4e3f-2a1b-0c9d-8e7f",
+  "message": "I decided to use a hash map approach to achieve O(n) time complexity..."
+}
+```
+
+**Response:**
+```json
+{
+  "response": {
+    "role": "interviewer",
+    "content": "That's a good approach for optimizing time complexity. Can you explain how the hash map helps you solve this problem efficiently? And what would be the space complexity of your solution?",
+    "timestamp": "2025-05-02T15:31:30Z"
+  },
+  "messages": [
+    // Updated message history...
+  ]
+}
+```
+
+#### POST /api/interview/evaluate
+Completes the interview and generates evaluation.
+
+**Request:**
+```json
+{
+  "interviewId": "8a7b6c5d-4e3f-2a1b-0c9d-8e7f"
+}
+```
+
+**Response:**
+```json
+{
+  "evaluation": {
+    "technicalUnderstanding": 4,
+    "communicationClarity": 4,
+    "approachEfficiency": 5,
+    "edgeCaseHandling": 3,
+    "overallRating": 4.2,
+    "strengths": ["Efficient algorithm choice", "Clear explanation"],
+    "improvementAreas": ["Consider edge cases more thoroughly"],
+    "feedback": "You demonstrated excellent understanding of the problem and chose an optimal O(n) approach. Your explanation was clear and you articulated the tradeoffs well. In future interviews, try to proactively address potential edge cases like empty arrays or no valid solution exists."
+  }
+}
+```
+
+### User Data API
+
+#### GET /api/user/profile
+Retrieves current user's profile.
+
+**Response:**
+```json
+{
+  "uid": "user123",
+  "email": "user@example.com",
+  "displayName": "Jane Doe",
+  "photoURL": "https://example.com/profile.jpg",
+  "preferences": {
+    "theme": "dark",
+    "codeEditorTheme": "vs-dark",
+    "defaultLanguage": "python",
+    "fontSize": 14,
+    "tabSize": 2,
+    "showLineNumbers": true
+  },
+  "createdAt": "2025-05-01T10:20:30Z"
+}
+```
+
+#### PUT /api/user/profile
+Updates user profile.
+
+**Request:**
+```json
+{
+  "displayName": "Jane Smith",
+  "preferences": {
+    "theme": "light",
+    "defaultLanguage": "javascript"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "user": {
+    "uid": "user123",
+    "displayName": "Jane Smith",
+    "preferences": {
+      "theme": "light",
+      "codeEditorTheme": "vs-dark",
+      "defaultLanguage": "javascript",
+      "fontSize": 14,
+      "tabSize": 2,
+      "showLineNumbers": true
+    },
+    "updatedAt": "2025-05-03T14:25:10Z"
+  }
+}
+```
+
+#### GET /api/user/history
+Retrieves user's practice history.
+
+**Query Parameters:**
+- `limit` (optional): Maximum number of items to return
+- `page` (optional): Page number for pagination
+- `problemId` (optional): Filter by problem
+- `companyId` (optional): Filter by company
+
+**Response:**
+```json
+{
+  "history": [
+    {
+      "historyId": "7f6c74a0-8e9b-4ae0-a699-55e5fdca0001",
+      "problemId": "two-sum",
+      "companyId": "google",
+      "completed": true,
+      "passed": true,
+      "createdAt": "2025-05-02T15:22:10Z"
+    },
+    // More history items...
+  ],
+  "pagination": {
+    "total": 24,
+    "page": 1,
+    "pageSize": 10,
+    "totalPages": 3
+  }
+}
+```
+
+#### POST /api/user/favorites/toggle
+Toggles favorite status for an item.
+
+**Request:**
+```json
+{
+  "itemType": "problem",
+  "itemId": "two-sum"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "status": "added", // or "removed"
+  "favorite": {
+    "favoriteId": "9a8b7c6d-5e4f-3a2b-1c0d",
+    "itemType": "problem",
+    "itemId": "two-sum",
+    "createdAt": "2025-05-03T09:15:30Z"
+  }
 }
 ```
 
 ## Function Specifications
+
+### Authentication Functions
+
+#### registerUser
+Registers a new user with Firebase Auth and creates a user profile.
+
+**Input:**
+- `email`: User's email address
+- `password`: User's password
+- `displayName` (optional): User's display name
+
+**Output:**
+- User object with UID and profile information
+
+**Implementation:**
+```javascript
+export async function registerUser(email, password, displayName = '') {
+  try {
+    // Create user in Firebase Auth
+    const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+    
+    // Update profile if display name provided
+    if (displayName) {
+      await user.updateProfile({ displayName });
+    }
+    
+    // Create user document in Firestore
+    const userDoc = {
+      uid: user.uid,
+      email: user.email,
+      displayName: displayName || '',
+      photoURL: '',
+      preferences: {
+        theme: 'light',
+        codeEditorTheme: 'vs',
+        defaultLanguage: 'javascript',
+        fontSize: 14,
+        tabSize: 2,
+        showLineNumbers: true
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    };
+    
+    await firestore.collection('users').doc(user.uid).set(userDoc);
+    
+    return {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || '',
+      preferences: userDoc.preferences
+    };
+  } catch (error) {
+    console.error('Error registering user:', error);
+    throw error;
+  }
+}
+```
+
+#### loginUser
+Authenticates a user with Firebase Auth.
+
+**Input:**
+- `email`: User's email address
+- `password`: User's password
+
+**Output:**
+- User object with authentication token
+
+**Implementation:**
+```javascript
+export async function loginUser(email, password) {
+  try {
+    const userCredential = await firebase.auth().signInWithEmailAndPassword(email, password);
+    const user = userCredential.user;
+    
+    // Update last login timestamp
+    await firestore.collection('users').doc(user.uid).update({
+      lastLoginAt: new Date().toISOString()
+    });
+    
+    // Get ID token for client-side use
+    const token = await user.getIdToken();
+    
+    return {
+      uid: user.uid,
+      email: user.email,
+      token,
+      expiresAt: new Date(Date.now() + 3600 * 1000).toISOString() // Token valid for 1 hour
+    };
+  } catch (error) {
+    console.error('Error logging in:', error);
+    throw error;
+  }
+}
+```
 
 ### Problem Repository Functions
 
@@ -278,33 +817,60 @@ Records a practice session.
 Retrieves a list of problems with optional filtering.
 
 **Input:**
-- `category` (optional): Filter by category
-- `difficulty` (optional): Filter by difficulty
-- `limit` (optional): Maximum number of items to return
+- `options`: Object containing filter parameters
+  - `category` (optional): Filter by category
+  - `difficulty` (optional): Filter by difficulty
+  - `limit` (optional): Maximum number of items to return
+  - `page` (optional): Page number for pagination
 
 **Output:**
-- Array of problem objects
+- Array of problem objects with pagination data
 
 **Implementation:**
 ```javascript
 export async function getProblemsList(options = {}) {
-  const { category, difficulty, limit = 10 } = options;
+  const { category, difficulty, limit = 10, page = 1 } = options;
   
-  let query = firestore.collection('problems');
-  
-  if (category) {
-    query = query.where('category', '==', category);
+  try {
+    let query = firestore.collection('problems');
+    
+    if (category) {
+      query = query.where('categories', 'array-contains', category);
+    }
+    
+    if (difficulty) {
+      query = query.where('difficulty', '==', difficulty);
+    }
+    
+    // Get total count for pagination
+    const countSnapshot = await query.count().get();
+    const total = countSnapshot.data().count;
+    
+    // Apply pagination
+    const offset = (page - 1) * limit;
+    const snapshot = await query.orderBy('title').limit(limit).offset(offset).get();
+    
+    const problems = snapshot.docs.map(doc => ({ 
+      problemId: doc.id, 
+      title: doc.data().title,
+      difficulty: doc.data().difficulty,
+      categories: doc.data().categories,
+      isBlind75: doc.data().isBlind75
+    }));
+    
+    return {
+      problems,
+      pagination: {
+        total,
+        page,
+        pageSize: limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  } catch (error) {
+    console.error('Error fetching problems:', error);
+    throw error;
   }
-  
-  if (difficulty) {
-    query = query.where('difficulty', '==', difficulty);
-  }
-  
-  const snapshot = await query.limit(limit).get();
-  return snapshot.docs.map(doc => ({ 
-    problemId: doc.id, 
-    ...doc.data() 
-  }));
 }
 ```
 
@@ -320,64 +886,92 @@ Retrieves a specific problem by ID.
 **Implementation:**
 ```javascript
 export async function getProblemById(problemId) {
-  const doc = await firestore.collection('problems').doc(problemId).get();
-  
-  if (!doc.exists) {
-    throw new Error('Problem not found');
+  try {
+    const doc = await firestore.collection('problems').doc(problemId).get();
+    
+    if (!doc.exists) {
+      throw new Error('Problem not found');
+    }
+    
+    return {
+      problemId: doc.id,
+      ...doc.data()
+    };
+  } catch (error) {
+    console.error(`Error fetching problem ${problemId}:`, error);
+    throw error;
   }
-  
-  return {
-    problemId: doc.id,
-    ...doc.data()
-  };
 }
 ```
 
-### Company Functions
+### Code Execution Functions
 
-#### getCompaniesList
-Retrieves a list of available companies.
+#### executeCode
+Executes user code against test cases for a problem.
 
 **Input:**
-- `limit` (optional): Maximum number of items to return
+- `code`: String containing user's code solution
+- `language`: Programming language (e.g., 'javascript', 'python')
+- `problemId`: Problem identifier
+- `customTestCases` (optional): Array of user-defined test cases
 
 **Output:**
-- Array of company objects
+- Execution results with test case outcomes
 
 **Implementation:**
 ```javascript
-export async function getCompaniesList(limit = 10) {
-  const snapshot = await firestore.collection('companies').limit(limit).get();
-  
-  return snapshot.docs.map(doc => ({
-    companyId: doc.id,
-    ...doc.data()
-  }));
-}
-```
-
-#### getCompanyById
-Retrieves a specific company by ID.
-
-**Input:**
-- `companyId`: String identifier of the company
-
-**Output:**
-- Company details object
-
-**Implementation:**
-```javascript
-export async function getCompanyById(companyId) {
-  const doc = await firestore.collection('companies').doc(companyId).get();
-  
-  if (!doc.exists) {
-    throw new Error('Company not found');
+export async function executeCode(code, language, problemId, customTestCases = []) {
+  try {
+    // Get problem test cases
+    const problem = await getProblemById(problemId);
+    const testCases = [...problem.testCases];
+    
+    // Add custom test cases if provided
+    if (customTestCases.length > 0) {
+      testCases.push(...customTestCases);
+    }
+    
+    // Prepare execution payload
+    const payload = {
+      code,
+      language,
+      testCases,
+      timeLimit: 5000, // 5 seconds
+      memoryLimit: 128 // 128 MB
+    };
+    
+    // Call code execution API
+    const response = await fetch(process.env.CODE_EXECUTION_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.CODE_EXECUTION_API_KEY}`
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Execution failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const executionResults = await response.json();
+    
+    // Record execution in history
+    if (auth.currentUser) {
+      await recordCodeExecution(
+        auth.currentUser.uid,
+        problemId,
+        code,
+        language,
+        executionResults
+      );
+    }
+    
+    return executionResults;
+  } catch (error) {
+    console.error('Code execution error:', error);
+    throw error;
   }
-  
-  return {
-    companyId: doc.id,
-    ...doc.data()
-  };
 }
 ```
 
@@ -396,135 +990,547 @@ Generates a company-specific problem scenario.
 **Implementation:**
 ```javascript
 export async function generateScenario(problemId, companyId) {
-  // Check cache first
-  const cachedScenario = await checkScenarioCache(problemId, companyId);
-  if (cachedScenario) {
-    return cachedScenario;
+  try {
+    // Check cache first
+    const cachedScenario = await checkScenarioCache(problemId, companyId);
+    if (cachedScenario) {
+      return cachedScenario;
+    }
+    
+    // Get problem and company details
+    const problem = await getProblemById(problemId);
+    const company = await getCompanyById(companyId);
+    
+    // Generate scenario using AI
+    const scenario = await callAIService(problem, company);
+    
+    // Store the scenario
+    const cacheExpiryDate = new Date();
+    cacheExpiryDate.setMonth(cacheExpiryDate.getMonth() + 3); // Cache for 3 months
+    
+    const scenarioData = {
+      problemId,
+      companyId,
+      scenario,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      cacheExpiry: cacheExpiryDate.toISOString()
+    };
+    
+    const scenarioRef = await firestore.collection('scenarios').add(scenarioData);
+    
+    return {
+      scenarioId: scenarioRef.id,
+      ...scenarioData
+    };
+  } catch (error) {
+    console.error('Error generating scenario:', error);
+    throw error;
   }
-  
-  // Get problem and company details
-  const problem = await getProblemById(problemId);
-  const company = await getCompanyById(companyId);
-  
-  // Generate scenario using AI
-  const scenario = await callAIService(problem, company);
-  
-  // Store the scenario
-  const scenarioData = {
-    problemId,
-    companyId,
-    scenario,
-    createdAt: new Date().toISOString()
-  };
-  
-  const scenarioRef = await firestore.collection('scenarios').add(scenarioData);
-  
-  return {
-    scenarioId: scenarioRef.id,
-    ...scenarioData
-  };
 }
 ```
 
-#### checkScenarioCache
-Checks if a scenario already exists for a problem-company combination.
+### Mock Interview Functions
+
+#### startMockInterview
+Initiates a new mock interview session.
 
 **Input:**
-- `problemId`: String identifier of the problem
-- `companyId`: String identifier of the company
+- `userId`: User identifier
+- `problemId`: Problem identifier
+- `companyId`: Company identifier
+- `options`: Interview options
+  - `interviewerPersona`: Type of interviewer (e.g., 'technical', 'friendly')
+  - `difficulty`: Interview difficulty level
 
 **Output:**
-- Cached scenario or null if not found
+- Interview session object with initial message
 
 **Implementation:**
 ```javascript
-export async function checkScenarioCache(problemId, companyId) {
-  const snapshot = await firestore.collection('scenarios')
-    .where('problemId', '==', problemId)
-    .where('companyId', '==', companyId)
-    .limit(1)
-    .get();
+export async function startMockInterview(userId, problemId, companyId, options = {}) {
+  try {
+    const { interviewerPersona = 'technical', difficulty = 'medium' } = options;
     
-  if (snapshot.empty) {
-    return null;
+    // Get problem and scenario information
+    const problem = await getProblemById(problemId);
+    let scenario;
+    
+    // Get or generate scenario
+    try {
+      scenario = await generateScenario(problemId, companyId);
+    } catch (error) {
+      console.error('Error getting scenario, falling back to problem description:', error);
+      scenario = { scenario: problem.description };
+    }
+    
+    // Generate initial message using AI
+    const initialMessage = await generateInterviewerMessage(
+      problem,
+      scenario,
+      interviewerPersona,
+      difficulty,
+      'initial'
+    );
+    
+    // Create interview session
+    const interview = {
+      userId,
+      problemId,
+      companyId,
+      scenarioId: scenario.scenarioId,
+      interviewerPersona,
+      difficulty,
+      messages: [
+        {
+          role: 'interviewer',
+          content: initialMessage,
+          timestamp: new Date().toISOString()
+        }
+      ],
+      evaluation: null,
+      duration: 0,
+      completed: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    const interviewRef = await firestore.collection('interviews').add(interview);
+    
+    return {
+      interviewId: interviewRef.id,
+      initialMessage: interview.messages[0]
+    };
+  } catch (error) {
+    console.error('Error starting mock interview:', error);
+    throw error;
   }
-  
-  const doc = snapshot.docs[0];
-  return {
-    scenarioId: doc.id,
-    ...doc.data()
-  };
 }
 ```
 
-### AI Service Function
-
-#### callAIService
-Calls the OpenAI/Anthropic API to generate a company-specific scenario.
+#### sendInterviewMessage
+Processes a user message in the interview and generates interviewer response.
 
 **Input:**
+- `interviewId`: Interview session identifier
+- `message`: User message text
+
+**Output:**
+- Interviewer response and updated message history
+
+**Implementation:**
+```javascript
+export async function sendInterviewMessage(interviewId, message) {
+  try {
+    // Get current interview state
+    const interviewRef = firestore.collection('interviews').doc(interviewId);
+    const interviewDoc = await interviewRef.get();
+    
+    if (!interviewDoc.exists) {
+      throw new Error('Interview not found');
+    }
+    
+    const interview = interviewDoc.data();
+    
+    if (interview.completed) {
+      throw new Error('Interview is already completed');
+    }
+    
+    // Add user message to history
+    const userMessage = {
+      role: 'user',
+      content: message,
+      timestamp: new Date().toISOString()
+    };
+    
+    const updatedMessages = [...interview.messages, userMessage];
+    
+    // Get context for AI response
+    const problem = await getProblemById(interview.problemId);
+    const company = await getCompanyById(interview.companyId);
+    
+    // Generate interviewer response
+    const interviewerResponse = await generateInterviewerResponse(
+      problem,
+      company,
+      interview.interviewerPersona,
+      interview.difficulty,
+      updatedMessages
+    );
+    
+    // Add interviewer response to history
+    const interviewerMessage = {
+      role: 'interviewer',
+      content: interviewerResponse.message,
+      timestamp: new Date().toISOString()
+    };
+    
+    const finalMessages = [...updatedMessages, interviewerMessage];
+    
+    // Update interview in database
+    await interviewRef.update({
+      messages: finalMessages,
+      updatedAt: new Date().toISOString()
+    });
+    
+    return {
+      response: interviewerMessage,
+      messages: finalMessages
+    };
+  } catch (error) {
+    console.error('Error processing interview message:', error);
+    throw error;
+  }
+}
+```
+
+## UI Components
+
+### Core Components
+
+#### AppLayout
+The main application layout wrapper used across all pages.
+
+**Props:**
+- `children`: React nodes to be rendered within the layout
+- `showNavigation` (optional): Boolean to control navigation visibility
+
+**Features:**
+- Responsive header with authentication status
+- Main navigation menu
+- Theme-aware styling
+- Toast notification system integration
+
+#### CodeEditor
+Monaco-based code editor component with language support.
+
+**Props:**
+- `value`: Current code string
+- `onChange`: Function called when code changes
+- `language`: Programming language for syntax highlighting
+- `theme` (optional): Editor theme ('vs', 'vs-dark', 'hc-black')
+- `readOnly` (optional): Boolean to make editor read-only
+- `height` (optional): Editor height (default: '400px')
+
+**Features:**
+- Syntax highlighting for multiple languages
+- Line numbers and minimap
+- Auto-save functionality
+- Keyboard shortcuts
+
+#### TestCaseRunner
+Component for executing code against test cases.
+
+**Props:**
+- `problemId`: Problem identifier
+- `code`: Current code solution
+- `language`: Programming language
+- `onExecutionComplete`: Callback when execution completes
+
+**Features:**
+- Test case visualization
+- Execution results display
+- Performance metrics
+- Custom test case input
+
+### Authentication Components
+
+#### SignInForm
+User authentication form component.
+
+**Props:**
+- `onSuccess`: Callback function when sign-in is successful
+- `showRegisterLink` (optional): Boolean to show registration link
+
+**Features:**
+- Email/password authentication
+- Validation
+- Error handling
+- Password reset option
+
+#### SignUpForm
+User registration form component.
+
+**Props:**
+- `onSuccess`: Callback function when registration is successful
+- `showLoginLink` (optional): Boolean to show sign-in link
+
+**Features:**
+- New user registration
+- Form validation
+- Terms acceptance
+- Profile setup
+
+### Problem Components
+
+#### ProblemCard
+Card component for displaying problem summaries in lists.
+
+**Props:**
 - `problem`: Problem object with details
-- `company`: Company object with details
+- `onClick`: Function to handle card click
+- `isFavorite` (optional): Boolean indicating favorite status
 
-**Output:**
-- Generated scenario text
+**Features:**
+- Difficulty indicator
+- Category tags
+- Favorite toggle
 
-**Implementation:**
-```javascript
-export async function callAIService(problem, company) {
-  const prompt = `
-    Transform this coding problem into a realistic interview scenario for ${company.name}:
-    
-    Problem: ${problem.title}
-    Description: ${problem.description}
-    
-    Company information:
-    Name: ${company.name}
-    Business domain: ${company.domain || "Unknown"}
-    Products: ${company.products ? company.products.join(", ") : "Various products"}
-    
-    Create a real-world scenario that:
-    1. Relates to ${company.name}'s business or products
-    2. Requires solving the underlying algorithm problem (${problem.title})
-    3. Is presented as an open-ended interview question without explicitly mentioning the algorithm name
-    4. Includes relevant context a candidate might face in a real interview
-  `;
-  
-  const response = await fetch('https://api.openai.com/v1/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'gpt-4',
-      prompt,
-      max_tokens: 500,
-      temperature: 0.7
-    })
-  });
-  
-  const data = await response.json();
-  return data.choices[0].text.trim();
-}
-```
+#### ProblemDetail
+Component for displaying problem details and description.
+
+**Props:**
+- `problem`: Problem object with complete details
+- `scenario` (optional): Scenario object if available
+
+**Features:**
+- Rich problem description rendering
+- Constraints and examples display
+- Company-specific scenario integration
+
+### Mock Interview Components
+
+#### ChatInterface
+Real-time chat interface for mock interviews.
+
+**Props:**
+- `interviewId`: Interview session identifier
+- `initialMessages`: Array of initial messages
+- `onSendMessage`: Function to send user messages
+- `onComplete`: Function called when interview is completed
+
+**Features:**
+- Message history display
+- Real-time updates
+- Code snippet formatting
+- Markdown support
+- Accessibility features
+
+#### InterviewFeedback
+Component for displaying interview evaluation and feedback.
+
+**Props:**
+- `evaluation`: Evaluation object with ratings and feedback
+- `onClose`: Function called when feedback is closed
+
+**Features:**
+- Rating visualizations
+- Strength and improvement areas
+- Detailed feedback
+- Next steps recommendations
+
+## Authentication and Authorization
+
+### Authentication Flow
+
+AlgoIRL uses Firebase Authentication for user management with the following flow:
+
+1. **Registration**:
+   - User provides email, password, and optional display name
+   - System creates Firebase Auth account and Firestore user profile
+   - Email verification is sent to the user
+
+2. **Authentication**:
+   - User signs in with email and password
+   - Firebase returns authentication token
+   - Client stores token in secure storage (HttpOnly cookie or localStorage)
+   - Application establishes authenticated session
+
+3. **Session Management**:
+   - Firebase tokens include expiration time (1 hour by default)
+   - Client refreshes tokens automatically before expiration
+   - Session persists across browser sessions when enabled
+
+4. **Password Recovery**:
+   - User requests password reset via email
+   - System sends secure reset link
+   - User creates new password
+
+### Authorization Implementation
+
+1. **Client-Side Protection**:
+   - React Context provides authentication state
+   - Protected route components redirect unauthenticated users
+   - UI elements adapt based on authentication status
+
+2. **Server-Side Validation**:
+   - API routes verify Firebase ID tokens
+   - User claims checked for role-based permissions
+   - Resource ownership verified for user-specific operations
+
+3. **Database Security**:
+   - Firestore security rules enforce access control:
+     - Public data (problems, companies) readable by all users
+     - User data only accessible by the owning user
+     - Admin operations restricted to admin users
+
+### Security Implementation
+
+1. **Token Validation**:
+   - All API calls validate Firebase JWT tokens
+   - Tokens checked for expiration and signature validity
+   - User claims validated for required permissions
+
+2. **CSRF Protection**:
+   - Anti-CSRF tokens for sensitive operations
+   - Same-site cookie policy for session cookies
+
+3. **Rate Limiting**:
+   - API rate limiting for authentication attempts
+   - Graduated cooldowns for repeated failures
+   - IP-based and user-based rate limits
+
+## Code Execution Environment
+
+### Architecture
+
+The code execution environment is implemented as a secure serverless function that:
+
+1. Receives code submissions from the client
+2. Executes the code in an isolated sandbox
+3. Runs the code against test cases
+4. Measures performance metrics
+5. Returns results to the client
+
+### Execution Flow
+
+1. **Code Submission**:
+   - User writes code in Monaco Editor
+   - Client submits code, language, and problem ID
+   - API validates inputs and retrieves problem test cases
+
+2. **Secure Execution**:
+   - Code is executed in an isolated environment
+   - Resource limits enforce time and memory constraints
+   - System captures stdout, stderr, and return values
+
+3. **Test Validation**:
+   - System runs code against all test cases
+   - Output is compared to expected results
+   - Performance metrics are captured (execution time, memory usage)
+
+4. **Result Processing**:
+   - System compiles test case results
+   - Performance metrics are formatted
+   - Results are returned to client and stored in history
+
+### Supported Languages
+
+The code execution environment supports the following languages:
+
+1. **JavaScript (Node.js)**:
+   - Runtime: Node.js 16.x
+   - Test execution: Function invocation with JSON input/output
+
+2. **Python**:
+   - Runtime: Python 3.9
+   - Test execution: Function invocation with JSON input/output
+
+3. **Java**:
+   - Runtime: Java 11
+   - Test execution: Method invocation with parameter mapping
+
+4. **C++**:
+   - Runtime: GCC 11.x
+   - Test execution: Function invocation with input/output adapters
+
+5. **Go**:
+   - Runtime: Go 1.18
+   - Test execution: Function invocation with JSON marshaling
+
+6. **Ruby**:
+   - Runtime: Ruby 3.0
+   - Test execution: Method invocation with parameter mapping
+
+### Security Measures
+
+1. **Execution Sandboxing**:
+   - Containerized execution environment
+   - No network access
+   - No file system access outside designated directories
+   - Limited execution time (5 seconds default)
+   - Memory limits (128MB default)
+
+2. **Code Validation**:
+   - Static analysis for potentially harmful operations
+   - Function signature validation
+   - Input sanitization
+
+3. **Resource Monitoring**:
+   - CPU usage tracking
+   - Memory consumption monitoring
+   - Execution time tracking
+
+## Mock Interview System
+
+### Conversation Model
+
+The mock interview system uses a sophisticated conversation model:
+
+1. **Context Awareness**:
+   - Maintains problem and company context
+   - Tracks discussion topics and covered concepts
+   - Adapts to user's demonstrated skill level
+
+2. **Interviewer Personas**:
+   - Technical: Focuses on algorithmic details and optimization
+   - Friendly: Emphasizes collaboration and guided discovery
+   - Challenging: Pushes for edge cases and optimal solutions
+
+3. **Conversation Flow**:
+   - Initial question about approach
+   - Follow-up questions based on responses
+   - Guided exploration of implementation details
+   - Edge case discussions
+   - Time and space complexity analysis
+   - Optimization suggestions
+   - Closing and evaluation
+
+### AI Integration
+
+The mock interview system leverages AI for realistic conversation:
+
+1. **Prompt Engineering**:
+   - Context-rich system prompts with problem and company details
+   - Conversation history included in each request
+   - Specific instructions for follow-up generation
+   - Personality consistency guidance
+
+2. **Response Processing**:
+   - Natural language generation for interviewer messages
+   - Dynamic question formulation based on context
+   - Technical accuracy verification
+
+3. **Evaluation Generation**:
+   - Holistic assessment of technical performance
+   - Communication quality evaluation
+   - Strengths and improvement areas identification
+   - Personalized feedback generation
+
+### Performance Tracking
+
+The system tracks and analyzes interview performance:
+
+1. **Interview Metrics**:
+   - Technical understanding score
+   - Communication clarity score
+   - Approach efficiency score
+   - Edge case handling score
+   - Overall rating
+
+2. **Progress Tracking**:
+   - Historical performance visualization
+   - Skill improvement over time
+   - Concept mastery tracking
+   - Comparative performance analysis
+
+3. **Recommendation Engine**:
+   - Personalized problem recommendations
+   - Skill improvement suggestions
+   - Study focus recommendations
+   - Practice strategy optimization
 
 ## Architecture Decisions
-
-### Accelerated MVP Approach with Firebase + Vercel
-**Decision:** Implement AlgoIRL using Firebase and Vercel for the initial MVP before migrating to AWS.
-
-**Rationale:**
-- Rapid development: Firebase and Vercel enable much faster implementation (2-week timeline)
-- Simplified architecture: Fewer moving parts than a full AWS implementation
-- Built-in authentication: Firebase Auth provides ready-made authentication
-- Serverless by default: Next.js API routes and Vercel serverless functions are pre-configured
-- Cost-effectiveness: Free tiers cover early development and testing
-
-**Trade-offs:**
-- Future migration effort to AWS will be required
-- Less control over infrastructure compared to AWS
-- Some features might need to be rebuilt during migration
 
 ### Next.js Full-Stack Approach
 **Decision:** Use Next.js for both frontend and backend (API routes).
@@ -541,107 +1547,175 @@ export async function callAIService(problem, company) {
 - Less flexibility than separate frontend/backend services
 - Potential cold start issues with serverless functions
 
-### Firestore for Database
-**Decision:** Use Firebase Firestore for data storage.
+### Firebase for Authentication and Database
+**Decision:** Use Firebase for authentication and Firestore for data storage.
 
 **Rationale:**
-- Serverless database: No configuration or management required
-- Real-time capabilities: Can add real-time updates in the future
-- JSON document model: Natural fit for the application data
-- Free tier: Generous free tier for MVP development
-- Firebase integration: Seamless integration with other Firebase services
+- Rapid implementation: Pre-built authentication system
+- Real-time capabilities: Potential for collaborative features
+- Serverless architecture: No backend server management
+- Security rules: Declarative security model
+- Free tier: Cost-effective for early development
 
 **Trade-offs:**
-- More complex queries compared to SQL databases
-- Limited transaction capabilities
-- Migration effort to DynamoDB later
+- Limited query capabilities compared to SQL
+- Vendor lock-in considerations
+- May require migration for very large scale
 
-### OpenAI/Anthropic API for AI
-**Decision:** Use OpenAI or Anthropic API directly for scenario generation.
+### Monaco Editor for Code Editing
+**Decision:** Use Monaco Editor (VS Code's editor) for the coding environment.
 
 **Rationale:**
-- Quality results: State-of-the-art text generation capabilities
-- Simple integration: RESTful API with clear documentation
-- Prompt engineering flexibility: Direct control over prompts
-- Pay-per-use: Only pay for what you use
+- Production-quality editor with rich features
+- Syntax highlighting for multiple languages
+- IntelliSense and auto-completion support
+- Customizable themes and settings
+- Active community and regular updates
 
 **Trade-offs:**
-- API costs scale with usage
-- External dependency with potential rate limits
-- Future migration to Amazon Bedrock required
+- Larger bundle size
+- Initial load performance impact
+- More complex integration than simpler editors
+
+### Serverless Code Execution
+**Decision:** Implement code execution in serverless functions.
+
+**Rationale:**
+- Scalability: Can handle varying load
+- Isolation: Each execution runs in isolated environment
+- Security: Sandboxed execution prevents system access
+- Cost-effective: Pay only for actual usage
+- Simplified operations: No dedicated servers to maintain
+
+**Trade-offs:**
+- Cold start latency
+- Execution time limits
+- More complex implementation for some languages
+- Limited environment control
+
+### AI-Powered Features
+**Decision:** Use OpenAI/Anthropic APIs for scenario generation and mock interviews.
+
+**Rationale:**
+- Advanced natural language capabilities
+- Realistic interview simulation
+- High-quality scenario generation
+- Adaptability to different contexts
+- Continuous improvement with API updates
+
+**Trade-offs:**
+- API cost scaling with usage
+- External dependency
+- Potential latency for responses
+- Limited control over model behavior
 
 ## Security Considerations
 
 ### Authentication and Authorization
 - **User Authentication:** Firebase Authentication handles user sign-up, sign-in, and token management
-- **Session Management:** Client-side session management with Firebase Auth tokens
-- **Authorization Checks:** Firestore security rules enforce user-level access control
+- **Token Validation:** Server-side verification of Firebase ID tokens
+- **Password Security:** Enforced password complexity, secure reset flow
+- **Session Management:** Secure token storage, automatic refresh
+- **Authorization Checks:** Firestore security rules and API route validation
 
 ### Data Protection
-- **Data Encryption:** Firestore data is encrypted at rest by default
+- **Data Encryption:** Firestore data encrypted at rest by default
 - **Transmission Security:** All API calls use HTTPS
-- **Input Validation:** Server-side validation of all user inputs
-- **Output Sanitization:** Careful handling of AI-generated content
+- **Sensitive Data Handling:** PII minimization, secure storage
+- **Data Deletion:** User data deletion capability for GDPR compliance
+- **Backup Strategy:** Regular Firestore backups
 
 ### API Security
-- **Rate Limiting:** Implement basic rate limiting for API endpoints
-- **CORS Configuration:** Proper CORS headers to restrict access to authorized domains
-- **Environment Variables:** Secure storage of API keys as environment variables in Vercel
+- **Input Validation:** Server-side validation of all API inputs
+- **Rate Limiting:** Tiered rate limiting for authentication and API endpoints
+- **CORS Configuration:** Restrictive CORS policy for API routes
+- **Error Handling:** Sanitized error responses without sensitive information
+- **API Keys:** Secure management of third-party API keys (OpenAI, etc.)
+
+### Code Execution Security
+- **Sandboxed Execution:** Isolated environments for running user code
+- **Resource Limitations:** Strict CPU, memory, and time constraints
+- **Code Analysis:** Static analysis to prevent harmful operations
+- **Input Sanitization:** Validation of all code inputs
+- **Output Filtering:** Sanitization of execution outputs
 
 ### Frontend Security
-- **CSP Headers:** Content Security Policy to prevent XSS attacks
-- **Authentication State:** Proper handling of authentication state in React
-- **Error Handling:** Careful error handling to prevent information leakage
+- **Content Security Policy:** Strict CSP headers
+- **XSS Prevention:** React's built-in XSS protection, output encoding
+- **Clickjacking Protection:** X-Frame-Options headers
+- **Secure Dependencies:** Regular vulnerability scanning
+- **Error Handling:** Client-side error boundaries with safe fallbacks
+
+### Compliance Considerations
+- **GDPR Compliance:** User data export and deletion capabilities
+- **Cookie Consent:** Clear consent mechanism for cookies
+- **Privacy Policy:** Comprehensive privacy disclosure
+- **Terms of Service:** Clear usage terms and conditions
+- **Age Restrictions:** Age verification for account creation
+
+## Accessibility Implementation
+
+### Standards Compliance
+- **WCAG 2.1 AA Compliance:** Design and implementation targeting Level AA conformance
+- **Semantic HTML:** Proper HTML structure with appropriate elements
+- **Keyboard Navigation:** Complete keyboard accessibility throughout the application
+- **Focus Management:** Visible focus indicators and logical tab order
+- **ARIA Attributes:** Appropriate ARIA roles and attributes where needed
+
+### Screen Reader Support
+- **Alternative Text:** Descriptive alt text for all images
+- **Semantic Structure:** Proper headings and landmarks
+- **Form Labels:** Explicitly associated labels for all form controls
+- **Error Announcements:** Screen reader notifications for errors and status updates
+- **Custom Component Accessibility:** ARIA roles for custom UI elements
+
+### Visual Considerations
+- **Color Contrast:** AA-compliant contrast ratios for all text
+- **Text Resizing:** Support for browser text resizing
+- **Dark Mode:** Complete dark theme implementation
+- **Motion Reduction:** Respects reduced motion preferences
+- **Visible Focus:** Clear focus indicators for keyboard users
+
+### Assistive Features
+- **Keyboard Shortcuts:** Documented keyboard shortcuts for common actions
+- **Error Recovery:** Clear error messages with recovery instructions
+- **Auto-save:** Automatic saving to prevent data loss
+- **Time Allowances:** No strict time limits for operations
+- **Simplified Views:** Options to reduce interface complexity
 
 ## Monitoring and Operations
 
 ### Logging Strategy
-- **Client-side Logging:** Basic error tracking in the browser
-- **Server-side Logging:** Vercel function logs for API routes
-- **Firebase Logging:** Firebase console for authentication and database events
+- **Client-side Logging:** Error and event tracking in browser
+- **API Logging:** Request/response logging for API routes
+- **Authentication Logging:** Security events from Firebase Auth
+- **Code Execution Logging:** Execution attempts and results
+- **AI Interaction Logging:** Prompts and responses for improvement
 
-### Monitoring
-- **Vercel Analytics:** Basic monitoring of application performance
-- **Error Tracking:** Implementation of a simple error tracking mechanism
-- **Usage Metrics:** Track key user actions and API calls
+### Performance Monitoring
+- **Core Web Vitals:** LCP, FID, CLS tracking for user experience
+- **API Response Times:** Monitoring of API endpoint performance
+- **Code Execution Metrics:** Execution time and resource usage
+- **Database Performance:** Query performance monitoring
+- **Client-Side Rendering:** Component render timing
 
-### Deployment
-- **Continuous Deployment:** Automatic deployments from GitHub via Vercel
-- **Environment Strategy:** Development and production environments
-- **Rollback Capability:** Vercel's deployment history for quick rollbacks
+### Error Tracking
+- **Client Error Logging:** Frontend errors with source maps
+- **API Error Monitoring:** Backend error collection and reporting
+- **Error Categorization:** Automatic categorization of issues
+- **User Impact Analysis:** Correlation of errors with user sessions
+- **Resolution Workflow:** Clear path from detection to resolution
 
-### Cost Management
-- **Usage Monitoring:** Regular monitoring of Firebase and AI API usage
-- **Caching Strategy:** Firestore caching to reduce redundant AI calls
-- **Free Tier Utilization:** Stay within free tiers during MVP development
+### Analytics Implementation
+- **User Journey Tracking:** Path analysis through application
+- **Feature Usage Metrics:** Adoption and engagement with features
+- **Code Execution Analytics:** Language preferences and success rates
+- **Mock Interview Analytics:** Engagement and completion rates
+- **Conversion Tracking:** Registration and user retention metrics
 
-## AWS Migration Plan
-
-The MVP will be built using Firebase and Vercel for rapid development, with a planned migration to AWS in Phase 3. The migration will include:
-
-### Infrastructure Migration
-- Deploy frontend to S3 + CloudFront
-- Migrate authentication to Amazon Cognito
-- Set up API Gateway and Lambda functions
-- Implement DynamoDB for data storage
-- Integrate with Amazon Bedrock for AI functionality
-
-### Data Migration Strategy
-- Export Firestore data to JSON
-- Transform data for DynamoDB format
-- Import data to DynamoDB tables
-- Validate data integrity after migration
-
-### Authentication Migration
-- Export users from Firebase Auth
-- Import users to Amazon Cognito
-- Implement token migration strategy
-- Update frontend to use Cognito authentication
-
-### Code Adaptation
-- Refactor API routes to Lambda functions
-- Update database queries for DynamoDB
-- Adapt AI service to use Amazon Bedrock
-- Update frontend API client code
-
-This migration approach allows for rapid initial development while providing a path to an enterprise-grade AWS architecture.
+### Deployment Strategy
+- **Continuous Integration:** Automated testing on code push
+- **Continuous Deployment:** Automated deployment pipeline
+- **Environment Strategy:** Development, staging, and production environments
+- **Feature Flags:** Controlled feature rollout capability
+- **Rollback Mechanism:** Quick rollback for problematic deployments

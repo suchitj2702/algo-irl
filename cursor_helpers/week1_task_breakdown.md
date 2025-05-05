@@ -1,9 +1,9 @@
 # AlgoIRL: Week 1 Task Breakdown
 
 ## Overview
-This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP development using Firebase and Vercel. Tasks are organized by day and separated into manual setup tasks and implementable coding tasks suitable for Cursor AI assistance.
+This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP development using Firebase and Vercel. This is a hyper-focused week to deliver the essential MVP with a coding environment in just seven days.
 
-## Day 1: Project Initialization and Environment Setup
+## Day 1: Project Setup & Infrastructure
 
 ### Manual Setup Tasks
 1. **Create Firebase Project**
@@ -34,7 +34,6 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
    - **Testing**: 
      - Run `npm run dev` and verify the app starts without errors
      - Check browser console for JavaScript errors
-     - Intentionally introduce a TypeScript error and verify it's caught
      - **Verification**: App loads at localhost:3000 with no console errors
 
 2. **Firebase Client Configuration**
@@ -47,34 +46,7 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
      - Check browser console for Firebase initialization messages
      - **Verification**: No Firebase initialization errors in console
 
-## Day 2: Authentication and Basic Layout
-
-### Coding Tasks (Cursor AI)
-1. **Implement Basic Authentication**
-   - Create authentication context
-   - Implement sign-in page with email
-   - Setup authentication state management
-   - **Input for Cursor AI**: "Create a basic authentication system using Firebase Auth in a Next.js app with a sign-in page and context provider"
-   - **Output**: Authentication components and context
-   - **Testing**:
-     - Test sign-in flow with valid credentials
-     - Test sign-in with invalid credentials
-     - Verify authentication state persists on page reload
-     - **Verification**: Successfully sign in and observe authentication state change
-
-2. **Create Basic Application Layout**
-   - Implement header with navigation
-   - Create responsive layout structure
-   - Add minimal styling using CSS or Tailwind
-   - **Input for Cursor AI**: "Create a basic responsive application layout for a Next.js app with a header, navigation menu, and main content area using Tailwind CSS"
-   - **Output**: Layout components with styling
-   - **Testing**:
-     - Test responsiveness by resizing browser window
-     - Check layout on mobile using browser dev tools
-     - Verify navigation links work correctly
-     - **Verification**: Layout correctly adapts to different screen sizes
-
-## Day 3-4: Data Model and Repository
+## Day 2: Problem Repository & Data Foundation
 
 ### Coding Tasks (Cursor AI)
 1. **Define Data Models**
@@ -90,8 +62,8 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
 2. **Problem Repository Functionality**
    - Create data import utility for problems
    - Implement problem fetching functions
-   - Define 20 selected problems from Blind 75
-   - **Input for Cursor AI**: "Create a utility function to import and fetch a curated list of 20 LeetCode problems from the Blind 75 collection into a Firestore database"
+   - Define 10 selected problems from Blind 75
+   - **Input for Cursor AI**: "Create a utility function to import and fetch a curated list of 10 LeetCode problems from the Blind 75 collection into a Firestore database"
    - **Output**: Import utility and problem data JSON
    - **Testing**:
      - Run import function and check Firestore for correct data
@@ -99,16 +71,117 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
      - **Verification**: Successfully fetch sample problems from Firestore
 
 3. **Company Data Setup**
-   - Create company profiles for 5 major tech companies
+   - Create company profiles for 3 major tech companies
    - Implement company data retrieval functions
-   - **Input for Cursor AI**: "Create a utility to initialize and retrieve data for 5 major tech companies (Meta, Google, Amazon, Microsoft, Apple) in Firestore with fields for company description, domain, and core technologies"
+   - **Input for Cursor AI**: "Create a utility to initialize and retrieve data for 3 major tech companies (Google, Amazon, Microsoft) in Firestore with fields for company description, domain, and core technologies"
    - **Output**: Company data functions and JSON data
    - **Testing**:
      - Verify company data appears correctly in Firestore
      - Fetch a company and check all fields are present
      - **Verification**: View company data in Firebase console and via fetch functions
 
-## Day 5: API Integration and Routes
+4. **Basic Authentication Implementation**
+   - Create authentication context
+   - Implement sign-in page with email
+   - Setup authentication state management
+   - **Input for Cursor AI**: "Create a basic authentication system using Firebase Auth in a Next.js app with a sign-in page and context provider"
+   - **Output**: Authentication components and context
+   - **Testing**:
+     - Test sign-in flow with valid credentials
+     - Test sign-in with invalid credentials
+     - Verify authentication state persists on page reload
+     - **Verification**: Successfully sign in and observe authentication state change
+
+## Day 3: Coding Environment Basic Implementation
+
+### Coding Tasks (Cursor AI)
+1. **Implement Monaco Editor**
+   - Create code editor component using Monaco Editor
+   - Implement basic language support
+   - Add settings configuration
+   - **Input for Cursor AI**: "Create a React component that integrates Monaco Editor for code editing in a Next.js application, with support for multiple programming languages"
+   - **Output**: Monaco Editor integration component
+   - **Testing**:
+     - Verify editor loads and displays correctly
+     - Test basic code editing functionality
+     - Check syntax highlighting for basic languages
+     - **Verification**: Editor allows code input with proper formatting
+
+2. **Language Selection Implementation**
+   - Create language selection dropdown
+   - Implement language switching
+   - Add initial language configurations
+   - **Input for Cursor AI**: "Create a language selection component for a code editor that changes the Monaco Editor's language mode and provides appropriate configurations for JavaScript, Python, and Java"
+   - **Output**: Language selection component
+   - **Testing**:
+     - Test language switching functionality
+     - Verify syntax highlighting changes with language
+     - Check that configurations are applied correctly
+     - **Verification**: Editor properly handles different programming languages
+
+3. **Code Submission Interface & UI Components**
+   - Implement code submission function
+   - Create submission button component
+   - Add loading state handling
+   - Implement reusable notification system
+   - Create UI feedback components
+   - Add form validation utilities
+   - **Input for Cursor AI**: "Create a code submission interface with reusable notification, loading, and feedback components that provide consistent user experience across the application"
+   - **Output**: Code submission and UI feedback components
+   - **Testing**:
+     - Test submission button functionality
+     - Verify loading state displays correctly
+     - Check that code is properly collected from editor
+     - Test notifications for success/error states
+     - Verify form validation functionality
+     - **Verification**: Interface provides comprehensive user feedback
+
+## Day 4: Code Execution & Test Cases
+
+### Manual Setup Tasks
+1. **Set Up Serverless Code Execution**
+   - Create Next.js API route for code execution
+   - Configure execution environment
+   - **Verification**: API route responds to test requests
+
+### Coding Tasks (Cursor AI)
+1. **Implement Code Execution Function**
+   - Create serverless function for code execution
+   - Implement language-specific execution logic
+   - Add basic security sandboxing
+   - **Input for Cursor AI**: "Create a Next.js API route that executes submitted code in JavaScript, Python, and Java, with appropriate security measures and error handling"
+   - **Output**: Code execution API implementation
+   - **Testing**:
+     - Submit test code in different languages
+     - Verify execution results are returned
+     - Test error handling with invalid code
+     - **Verification**: API successfully executes code and returns results
+
+2. **Test Case Implementation**
+   - Create test case data model
+   - Implement test case execution logic
+   - Add results comparison functionality
+   - **Input for Cursor AI**: "Create a system to define test cases for coding problems, execute user code against those test cases, and compare the results with expected outputs"
+   - **Output**: Test case execution implementation
+   - **Testing**:
+     - Run test cases with valid solutions
+     - Test with incorrect solutions
+     - Verify comparison logic works correctly
+     - **Verification**: Test cases correctly identify valid and invalid solutions
+
+3. **Results Display Component**
+   - Create execution results component
+   - Implement test case results display
+   - Add runtime and memory usage metrics
+   - **Input for Cursor AI**: "Create a React component that displays code execution results, including test case outputs, runtime metrics, and memory usage, with appropriate formatting for both successful and failed cases"
+   - **Output**: Results display component
+   - **Testing**:
+     - Test display with various execution results
+     - Verify metrics are displayed correctly
+     - Check formatting for different result types
+     - **Verification**: Component clearly displays execution results and metrics
+
+## Day 5: AI Integration
 
 ### Manual Setup Tasks
 1. **Setup OpenAI/Anthropic API Access**
@@ -118,114 +191,134 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
    - **Verification**: API key configured in Vercel dashboard
 
 ### Coding Tasks (Cursor AI)
-1. **API Route Implementation**
-   - Create API routes for problem fetching
-   - Create API routes for company fetching
-   - Implement scenario generation endpoint
-   - **Input for Cursor AI**: "Create Next.js API routes for a coding problem app that allows: 1) fetching problems by ID, 2) fetching companies by ID, and 3) generating a scenario by sending a problem ID and company ID"
-   - **Output**: API route files with handlers
+1. **Implement AI Service**
+   - Create AI service wrapper
+   - Implement prompt template for scenario generation
+   - Add error handling and retry logic
+   - **Input for Cursor AI**: "Create a service that integrates with OpenAI/Anthropic API to transform a coding problem into a company-specific interview scenario, with appropriate error handling and retry mechanisms"
+   - **Output**: AI service implementation
    - **Testing**:
-     - Use browser or Postman to call each API endpoint
-     - Test with valid and invalid parameters
-     - Create simple test script that calls all endpoints
-     - **Verification**: Endpoints return expected JSON responses
+     - Test with sample problem and company data
+     - Verify scenario generation quality
+     - Check error handling functionality
+     - **Verification**: Service generates contextual scenarios without errors
 
-2. **AI Integration Setup**
-   - Implement AI service wrapper
-   - Create prompt template for scenario generation
-   - Add basic error handling
-   - **Input for Cursor AI**: "Create a service that integrates with OpenAI/Anthropic API to transform a coding problem into a company-specific interview scenario. The service should accept a problem description and company information and return a contextual scenario"
-   - **Output**: AI service module with prompt template
+2. **Scenario Generation Implementation**
+   - Create scenario generation endpoint
+   - Implement company-specific context enhancement
+   - Add basic caching mechanism
+   - **Input for Cursor AI**: "Create a Next.js API route that generates company-specific scenarios for coding problems using AI, with a caching mechanism to avoid redundant generations"
+   - **Output**: Scenario generation API endpoint
    - **Testing**:
-     - Create test page that calls the AI service with sample inputs
-     - Test with different problem/company combinations
-     - Verify response format and content quality
-     - **Verification**: AI service returns contextual scenarios without errors
+     - Generate scenarios for different problem-company combinations
+     - Verify caching works for repeated requests
+     - Test with various problem types
+     - **Verification**: Endpoint returns high-quality, company-specific scenarios
 
-## Day 6: Core UI Components
+3. **Problem Transformation Logic**
+   - Implement context extraction from problems
+   - Create company background formatter
+   - Add scenario quality verification
+   - **Input for Cursor AI**: "Create a utility that extracts key information from coding problems and company profiles to enhance AI prompt quality, resulting in more relevant scenario generation"
+   - **Output**: Problem transformation utilities
+   - **Testing**:
+     - Test with various problem types
+     - Verify context extraction accuracy
+     - Check enhanced prompt quality
+     - **Verification**: Utilities improve scenario generation relevance and quality
+
+## Day 6: UI Integration & Core Flow
 
 ### Coding Tasks (Cursor AI)
-1. **Problem Selection Component**
-   - Create problem list component
-   - Implement problem card component
-   - Add minimal filtering capability
-   - **Input for Cursor AI**: "Create React components for displaying and selecting from a list of coding problems, with each problem showing title, difficulty, and category"
-   - **Output**: Problem selection components
+1. **Problem Display Component**
+   - Create unified problem display component
+   - Integrate coding environment
+   - Add scenario display section
+   - **Input for Cursor AI**: "Create a comprehensive problem display component that shows the problem details, company-specific scenario, and integrated code editor with test execution capability"
+   - **Output**: Unified problem display component
    - **Testing**:
-     - Render component with test data
-     - Verify problems display correctly in the list
-     - Test selection and filtering functionality
-     - **Verification**: Problems display correctly and can be selected
+     - Test component with sample problem and scenario
+     - Verify all sections display correctly
+     - Check interactions between sections
+     - **Verification**: Component displays complete problem-solving experience
 
-2. **Company Selection Component**
-   - Create company selection dropdown
+2. **Company Selection Interface**
+   - Create company selection component
    - Implement company information display
-   - **Input for Cursor AI**: "Create a company selection dropdown component that displays information about the selected company once chosen"
-   - **Output**: Company selection components
+   - Add company selection handling
+   - **Input for Cursor AI**: "Create a company selection component that allows users to choose a company, displays relevant company information, and triggers scenario generation for the selected problem-company combination"
+   - **Output**: Company selection component
    - **Testing**:
-     - Test dropdown functionality with sample data
-     - Verify company information displays when selected
-     - Test edge cases (no selection, multiple selections)
-     - **Verification**: Companies display in dropdown and can be selected
+     - Test company selection functionality
+     - Verify company information displays correctly
+     - Check that selection triggers scenario generation
+     - **Verification**: Users can select companies and see relevant scenarios
 
-3. **Scenario Display Component**
-   - Create scenario display component
-   - Add loading state handling
-   - Implement basic error handling
-   - **Input for Cursor AI**: "Create a component to display an AI-generated interview scenario with loading states and error handling, plus a button to regenerate the scenario if needed"
-   - **Output**: Scenario display component
-   - **Testing**:
-     - Test with sample scenario data
-     - Simulate loading states with setTimeout
-     - Trigger error states to verify error handling
-     - Test regenerate functionality
-     - **Verification**: Component handles loading, errors, and content display correctly
-
-## Day 7: Integration and Testing
-
-### Coding Tasks (Cursor AI)
-1. **Implement Main Application Flow**
+3. **Main Application Flow**
    - Connect all components in main page
-   - Add state management for selected problem/company
-   - Implement scenario generation flow
-   - **Input for Cursor AI**: "Create the main page for a coding interview prep application that allows users to select a problem, choose a company, and then displays a company-specific scenario for that problem"
-   - **Output**: Main page implementation with flow between components
+   - Implement state management for selected problem/company
+   - Add navigation between problems
+   - **Input for Cursor AI**: "Create the main page for a coding interview prep application that connects problem selection, company selection, scenario display, and code execution components into a coherent user flow"
+   - **Output**: Main application flow implementation
    - **Testing**:
-     - Walk through complete flow: select problem → select company → generate scenario
-     - Test flow with different problem/company combinations
+     - Walk through complete flow: select problem → select company → view scenario → write code → execute tests
+     - Test flow with different problem-company combinations
+     - Check state persistence during navigation
      - **Verification**: Complete application flow works without errors
 
-2. **Create Basic Caching Mechanism**
-   - Implement simple caching in Firestore
-   - Add cache lookup before generation
-   - **Input for Cursor AI**: "Implement a simple caching mechanism that stores generated scenarios in Firestore and checks for existing scenarios before generating new ones"
-   - **Output**: Caching implementation code
-   - **Testing**:
-     - Generate a scenario, then request the same scenario again
-     - Verify second request uses cached data (should be faster)
-     - Check Firestore for stored scenarios
-     - **Verification**: Second generation of same scenario uses cache and is faster
+## Day 7: Testing & MVP Launch
 
-3. **Add Basic Error Handling**
-   - Implement error boundary
-   - Add user-friendly error messages
-   - **Input for Cursor AI**: "Add comprehensive error handling to a Next.js application, including error boundaries and user-friendly error messages"
-   - **Output**: Error handling components and utilities
+### Coding Tasks (Cursor AI)
+1. **Error Handling & Application Shell**
+   - Create comprehensive error boundaries
+   - Implement user-friendly error messages
+   - Add error recovery strategies
+   - Create application layout component
+   - Implement navigation header and footer
+   - Add responsive layout container
+   - **Input for Cursor AI**: "Implement a complete application shell with responsive layout, navigation, and comprehensive error handling including error boundaries, user-friendly messages, and recovery mechanisms"
+   - **Output**: Application shell and error handling implementation
    - **Testing**:
-     - Intentionally break API calls to trigger errors
-     - Test offline scenarios by disabling network
+     - Test layout on various screen sizes
+     - Verify navigation functionality
+     - Intentionally trigger various errors
      - Verify error messages are user-friendly
-     - **Verification**: Application displays appropriate error messages in all test cases
+     - Check recovery mechanisms work correctly
+     - **Verification**: Application provides consistent layout with graceful error handling
+
+2. **Performance Optimization**
+   - Implement code splitting
+   - Add loading state indicators
+   - Optimize component rendering
+   - **Input for Cursor AI**: "Optimize a Next.js application's performance by implementing code splitting, efficient loading states, and React component optimizations"
+   - **Output**: Performance optimization implementation
+   - **Testing**:
+     - Measure application load times
+     - Test component render performance
+     - Check loading state behavior
+     - **Verification**: Application demonstrates improved load and interaction performance
+
+3. **Final Integration Testing**
+   - Create end-to-end test script
+   - Implement critical path verification
+   - Add user flow validation
+   - **Input for Cursor AI**: "Create a comprehensive testing script for a coding interview preparation application that verifies all critical user flows and functionality"
+   - **Output**: Testing script and documentation
+   - **Testing**:
+     - Execute complete test script
+     - Verify all critical paths function correctly
+     - Check edge cases and error scenarios
+     - **Verification**: Application passes all critical tests
 
 ### Manual Testing Tasks
 1. **Perform End-to-End Testing**
    - Test full authentication flow
    - Verify problem and company selection
    - Test scenario generation with multiple combinations
-   - Verify caching works across sessions
+   - Test code execution with various solutions
    - **Verification**: All flows work together without errors
 
-2. **Deploy Test Version**
+2. **Deploy MVP Version**
    - Push code to GitHub
    - Verify Vercel deployment
    - Test application on multiple devices
@@ -240,32 +333,26 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
 | 1 | Setup Development Environment | Manual | Not Started | |
 | 1 | Initialize Next.js Project | Coding | Not Started | |
 | 1 | Firebase Client Configuration | Coding | Not Started | |
-| 2 | Implement Basic Authentication | Coding | Not Started | |
-| 2 | Create Basic Application Layout | Coding | Not Started | |
-| 3-4 | Define Data Models | Coding | Not Started | |
-| 3-4 | Problem Repository Functionality | Coding | Not Started | |
-| 3-4 | Company Data Setup | Coding | Not Started | |
+| 2 | Define Data Models | Coding | Not Started | |
+| 2 | Problem Repository Functionality | Coding | Not Started | |
+| 2 | Company Data Setup | Coding | Not Started | |
+| 2 | Basic Authentication Implementation | Coding | Not Started | |
+| 3 | Implement Monaco Editor | Coding | Not Started | |
+| 3 | Language Selection Implementation | Coding | Not Started | |
+| 3 | Code Submission Interface | Coding | Not Started | |
+| 4 | Set Up Serverless Code Execution | Manual | Not Started | |
+| 4 | Implement Code Execution Function | Coding | Not Started | |
+| 4 | Test Case Implementation | Coding | Not Started | |
+| 4 | Results Display Component | Coding | Not Started | |
 | 5 | Setup OpenAI/Anthropic API Access | Manual | Not Started | |
-| 5 | API Route Implementation | Coding | Not Started | |
-| 5 | AI Integration Setup | Coding | Not Started | |
-| 6 | Problem Selection Component | Coding | Not Started | |
-| 6 | Company Selection Component | Coding | Not Started | |
-| 6 | Scenario Display Component | Coding | Not Started | |
-| 7 | Implement Main Application Flow | Coding | Not Started | |
-| 7 | Create Basic Caching Mechanism | Coding | Not Started | |
-| 7 | Add Basic Error Handling | Coding | Not Started | |
+| 5 | Implement AI Service | Coding | Not Started | |
+| 5 | Scenario Generation Implementation | Coding | Not Started | |
+| 5 | Problem Transformation Logic | Coding | Not Started | |
+| 6 | Problem Display Component | Coding | Not Started | |
+| 6 | Company Selection Interface | Coding | Not Started | |
+| 6 | Main Application Flow | Coding | Not Started | |
+| 7 | Error Handling Implementation | Coding | Not Started | |
+| 7 | Performance Optimization | Coding | Not Started | |
+| 7 | Final Integration Testing | Coding | Not Started | |
 | 7 | Perform End-to-End Testing | Manual | Not Started | |
-| 7 | Deploy Test Version | Manual | Not Started | |
-
-## Additional Test Files (Optional)
-
-You could ask Cursor AI to generate simple test files for key functionality:
-
-1. **Authentication Tests**
-   - Input: "Create a simple Jest test file for Firebase authentication in a Next.js app"
-
-2. **API Route Tests**
-   - Input: "Create a test file that validates the scenario generation API endpoint using Jest"
-
-3. **Component Tests**
-   - Input: "Create React Testing Library tests for the problem selection and company selection components"
+| 7 | Deploy MVP Version | Manual | Not Started | |
