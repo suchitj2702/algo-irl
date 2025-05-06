@@ -45,19 +45,25 @@ This document outlines the detailed tasks for Week 2 of the AlgoIRL development,
      - Check that enhanced metadata is correctly stored
      - **Verification**: Repository contains 8 total companies with rich metadata
 
-2. **Enhance Company Display**
+2. **Enhance Company Display & Add Custom Company Support**
    - Create detailed company profile component
    - Implement company information modal
    - Add company-specific problem recommendations
-   - **Input for Cursor AI**: "Create an enhanced company profile display that shows detailed information about a company's technology stack, products, and includes recommended problems based on company focus areas"
-   - **Output**: Enhanced company display components
+   - Create custom company input form
+   - Implement custom company scenario generation
+   - Add custom company storage and management
+   - **Input for Cursor AI**: "Create an enhanced company profile system that shows detailed company information, includes problem recommendations, and allows users to create custom company profiles for personalized scenarios"
+   - **Output**: Enhanced company display and custom company components
    - **Testing**:
      - Test company profile display with sample data
      - Verify modal functionality
      - Check recommendation relevance
-     - **Verification**: Company information displayed with rich detail and relevant recommendations
+     - Test custom company creation
+     - Verify custom scenario generation
+     - Check custom company persistence
+     - **Verification**: System provides rich company profiles and custom company support
 
-## Day 3: Coding Environment Enhancements
+## Day 3: Advanced Features Implementation
 
 ### Coding Tasks (Cursor AI)
 1. **Expand Language Support**
@@ -83,6 +89,22 @@ This document outlines the detailed tasks for Week 2 of the AlgoIRL development,
      - Verify version history tracking
      - Check indicator displays correct status
      - **Verification**: Code auto-saves reliably with appropriate user feedback
+
+3. **Enhance Authentication with Social Options**
+   - Implement Google authentication
+   - Add GitHub sign-in for developers
+   - Create unified auth provider
+   - Implement account linking functionality
+   - Add social profile data integration
+   - **Input for Cursor AI**: "Enhance the authentication system with social login options (Google, GitHub) including account linking and social profile data integration for a developer-focused application"
+   - **Output**: Social authentication implementation
+   - **Testing**:
+     - Test Google sign-in flow
+     - Verify GitHub authentication
+     - Check account linking functionality
+     - Test social profile data retrieval
+     - Verify seamless switching between auth methods
+     - **Verification**: Complete social authentication system works reliably
 
 ## Day 4: Test Case Enhancements
 
@@ -111,7 +133,41 @@ This document outlines the detailed tasks for Week 2 of the AlgoIRL development,
      - Check comparison view clarity
      - **Verification**: Results display provides clear, comprehensive information
 
-## Day 5: User Profile and History
+## Day 5: Performance and Optimization
+
+### Coding Tasks (Cursor AI)
+1. **Database Performance Optimization**
+   - Implement Firestore indexing strategy
+   - Create composite indexes for complex queries
+   - Add query optimization for common operations
+   - Implement data denormalization where needed
+   - Set up automated index deployment
+   - **Input for Cursor AI**: "Create a comprehensive Firestore performance optimization implementation including indexing strategy, query optimization, and data structure improvements for a coding practice application"
+   - **Output**: Database performance optimization implementation
+   - **Testing**:
+     - Measure query performance before/after
+     - Test complex query execution times
+     - Verify index utilization
+     - Check data access patterns optimization
+     - **Verification**: Database operations demonstrate improved performance
+
+2. **Comprehensive Caching Strategy**
+   - Implement browser caching configuration
+   - Create API response caching
+   - Add client-side data caching
+   - Implement server-side result caching
+   - Create cache invalidation strategy
+   - Add cache monitoring and metrics
+   - **Input for Cursor AI**: "Implement a comprehensive caching strategy for a Next.js application including browser caching, API response caching, client and server-side data caching, with appropriate invalidation and monitoring"
+   - **Output**: Caching strategy implementation
+   - **Testing**:
+     - Measure response times with/without cache
+     - Test cache hit/miss scenarios
+     - Verify cache invalidation functionality
+     - Check cache monitoring accuracy
+     - **Verification**: Application demonstrates improved performance through caching
+
+## Day 6: User Experience Enhancements
 
 ### Coding Tasks (Cursor AI)
 1. **Implement User Profiles & Settings**
@@ -152,7 +208,25 @@ This document outlines the detailed tasks for Week 2 of the AlgoIRL development,
      - Verify data export functionality
      - **Verification**: System provides complete activity tracking and insights
 
-## Day 6: Favorites and Problem Collections
+3. **Enhanced Mobile Experience**
+   - Implement progressive web app configuration
+   - Create mobile-specific UI optimizations
+   - Add offline capability for core features
+   - Implement touch-optimized interactions
+   - Create responsive editor experience for mobile
+   - Add mobile-specific navigation patterns
+   - Implement mobile performance optimizations
+   - **Input for Cursor AI**: "Create enhanced mobile experience features for a coding practice PWA, including offline capability, touch optimizations, responsive design for small screens, and mobile-specific UX patterns"
+   - **Output**: Mobile experience implementation
+   - **Testing**:
+     - Test on various mobile devices
+     - Verify PWA installation flow
+     - Check offline functionality
+     - Test touch interactions
+     - Verify code editor usability on mobile
+     - **Verification**: Application provides excellent experience on mobile devices
+
+## Day 7: Organization and Performance
 
 ### Coding Tasks (Cursor AI)
 1. **Implement Favorites System**
@@ -179,10 +253,7 @@ This document outlines the detailed tasks for Week 2 of the AlgoIRL development,
      - Check problem grouping logic
      - **Verification**: Collections provide organized access to problems
 
-## Day 7: Responsive Design and Performance
-
-### Coding Tasks (Cursor AI)
-1. **Implement Responsive Design**
+3. **Implement Responsive Design**
    - Create responsive layout components
    - Implement mobile-friendly navigation
    - Add responsive coding environment
@@ -194,7 +265,7 @@ This document outlines the detailed tasks for Week 2 of the AlgoIRL development,
      - Check editor usability on mobile
      - **Verification**: Application works well across device sizes
 
-2. **Performance Optimization**
+4. **Performance Optimization**
    - Implement lazy loading for components
    - Add caching strategies for API calls
    - Optimize rendering performance
@@ -226,15 +297,19 @@ This document outlines the detailed tasks for Week 2 of the AlgoIRL development,
 | 1 | Expand Problem Repository | Coding | Not Started | |
 | 1 | Implement Problem Categorization | Coding | Not Started | |
 | 2 | Expand Company Repository | Coding | Not Started | |
-| 2 | Enhance Company Display | Coding | Not Started | |
+| 2 | Enhance Company Display & Add Custom Company Support | Coding | Not Started | |
 | 3 | Expand Language Support | Coding | Not Started | |
 | 3 | Implement Auto-Save Functionality | Coding | Not Started | |
+| 3 | Enhance Authentication with Social Options | Coding | Not Started | |
 | 4 | Implement Custom Test Cases | Coding | Not Started | |
 | 4 | Enhance Execution Results Display | Coding | Not Started | |
-| 5 | Implement User Profiles | Coding | Not Started | |
-| 5 | Basic History Tracking | Coding | Not Started | |
-| 6 | Implement Favorites System | Coding | Not Started | |
-| 6 | Create Problem Collections | Coding | Not Started | |
+| 5 | Database Performance Optimization | Coding | Not Started | |
+| 5 | Comprehensive Caching Strategy | Coding | Not Started | |
+| 6 | Implement User Profiles & Settings | Coding | Not Started | |
+| 6 | User Activity & History Tracking | Coding | Not Started | |
+| 6 | Enhanced Mobile Experience | Coding | Not Started | |
+| 7 | Implement Favorites System | Coding | Not Started | |
+| 7 | Create Problem Collections | Coding | Not Started | |
 | 7 | Implement Responsive Design | Coding | Not Started | |
 | 7 | Performance Optimization | Coding | Not Started | |
 | 7 | Comprehensive Feature Testing | Manual | Not Started | |

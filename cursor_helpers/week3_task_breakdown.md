@@ -115,10 +115,29 @@ This document outlines the detailed tasks for Week 3 of the AlgoIRL development,
      - Check optimization suggestion relevance
      - **Verification**: System accurately analyzes and explains solution complexity
 
-## Day 4: Interview Experience Implementation
+## Day 4: Chat Interface Development
 
 ### Coding Tasks (Cursor AI)
-1. **Create Chat Interface & Accessibility**
+1. **Implement WebSocket Integration for Real-time Chat**
+   - Set up WebSocket server infrastructure
+   - Create WebSocket client implementation
+   - Add real-time message delivery
+   - Implement connection management
+   - Add fallback for connection failures
+   - Create typing indicators
+   - Implement read receipts
+   - Add presence indicators
+   - **Input for Cursor AI**: "Implement WebSocket integration for a real-time chat interface in a Next.js application, including message delivery, typing indicators, read receipts, and presence functionality"
+   - **Output**: WebSocket chat implementation
+   - **Testing**:
+     - Test real-time message delivery
+     - Verify typing indicator functionality
+     - Check read receipt accuracy
+     - Test presence indicators
+     - Verify connection resilience
+     - **Verification**: Chat interface provides true real-time communication experience
+
+2. **Create Chat Interface & Accessibility**
    - Implement real-time chat component
    - Create message rendering system
    - Add user input handling
@@ -137,7 +156,7 @@ This document outlines the detailed tasks for Week 3 of the AlgoIRL development,
      - Verify chat export and search features
      - **Verification**: Interface provides accessible, feature-complete experience
 
-2. **Implement Interviewer Persona Options**
+3. **Implement Interviewer Persona Options**
    - Create interviewer personality profiles
    - Implement persona selection interface
    - Add personality-specific prompt modifications
@@ -148,18 +167,6 @@ This document outlines the detailed tasks for Week 3 of the AlgoIRL development,
      - Verify personality consistency
      - Check questioning style differences
      - **Verification**: System provides distinct, consistent interviewer personas
-
-3. **Develop Interview Session Management**
-   - Create session initialization flow
-   - Implement session settings configuration
-   - Add session persistence
-   - **Input for Cursor AI**: "Implement a session management system for mock technical interviews that handles initialization, configuration, and persistence of interview sessions"
-   - **Output**: Session management implementation
-   - **Testing**:
-     - Test session initialization
-     - Verify configuration options
-     - Check persistence across page refreshes
-     - **Verification**: System maintains coherent interview sessions
 
 ## Day 5: Performance Tracking and Analytics
 
@@ -304,9 +311,9 @@ This document outlines the detailed tasks for Week 3 of the AlgoIRL development,
 | 3 | Implement Code Solution Evaluation | Coding | Not Started | |
 | 3 | Create Feedback Generation System | Coding | Not Started | |
 | 3 | Develop Time and Space Complexity Analysis | Coding | Not Started | |
-| 4 | Create Chat Interface | Coding | Not Started | |
+| 4 | Implement WebSocket Integration for Chat | Coding | Not Started | |
+| 4 | Create Chat Interface & Accessibility | Coding | Not Started | |
 | 4 | Implement Interviewer Persona Options | Coding | Not Started | |
-| 4 | Develop Interview Session Management | Coding | Not Started | |
 | 5 | Implement Interview History | Coding | Not Started | |
 | 5 | Create Performance Metrics | Coding | Not Started | |
 | 5 | Develop Recommendation Engine | Coding | Not Started | |
