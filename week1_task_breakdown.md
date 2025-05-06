@@ -6,26 +6,26 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
 ## Day 1: Project Setup & Infrastructure
 
 ### Manual Setup Tasks
-1. **Create Firebase Project**
+1. **Create Firebase Project** ✅
    - Create new Firebase project in console
    - Enable Authentication (email only for MVP)
    - Enable Firestore database
    - Note down Firebase project config details
    - **Verification**: Screenshot of Firebase console with project created
 
-2. **Setup Vercel Account**
+2. **Setup Vercel Account** ✅
    - Create/login to Vercel account
    - Connect to GitHub repository
    - **Verification**: Vercel dashboard access
 
-3. **Setup Development Environment**
+3. **Setup Development Environment** ✅
    - Install Node.js and npm/yarn
    - Install Firebase CLI
    - Install Git
    - **Verification**: Run `node -v`, `npm -v`, `firebase -v` commands successfully
 
 ### Coding Tasks (Cursor AI)
-1. **Initialize Next.js Project**
+1. **Initialize Next.js Project** ✅
    - Create new Next.js project with TypeScript
    - Configure project structure (pages, components, lib folders)
    - Initialize Git repository
@@ -36,7 +36,7 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
      - Check browser console for JavaScript errors
      - **Verification**: App loads at localhost:3000 with no console errors
 
-2. **Firebase Client Configuration**
+2. **Firebase Client Configuration** ✅
    - Create Firebase config file
    - Initialize Firebase in application
    - **Input for Cursor AI**: "Create a Firebase configuration file for a Next.js app that initializes Firebase Auth and Firestore"
@@ -49,7 +49,7 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
 ## Day 2: Problem Repository & Data Foundation
 
 ### Coding Tasks (Cursor AI)
-1. **Define Data Models**
+1. **Define Data Models** ✅
    - Create TypeScript interfaces for Problem, Company, and Scenario
    - Define Firestore schema structure
    - **Input for Cursor AI**: "Create TypeScript interfaces and Firestore schema for a coding problem preparation app with three main entities: Problem (id, title, difficulty, description, leetcodeLink), Company (id, name, description, domain), and Scenario (id, problemId, companyId, scenario, createdAt)"
@@ -59,18 +59,27 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
      - Write simple TypeScript tests with the interfaces
      - **Verification**: No TypeScript errors when creating model objects
 
-2. **Problem Repository Functionality**
-   - Create data import utility for problems
-   - Implement problem fetching functions
-   - Define 10 selected problems from Blind 75
-   - **Input for Cursor AI**: "Create a utility function to import and fetch a curated list of 10 LeetCode problems from the Blind 75 collection into a Firestore database"
-   - **Output**: Import utility and problem data JSON
+2. **Problem Repository Functionality** ✅
+   - Create smart problem import utility that only requires LeetCode URLs
+   - Implement automatic data extraction from LeetCode
+   - Define list of 10 selected problems from Blind 75 (URLs only)
+   - **Implementation Details**:
+     - Created `extractSlugFromUrl` function for parsing LeetCode URLs
+     - Implemented Firestore converter (`problemConverter`) for proper data handling
+     - Integrated the `leetcode-query` library to fetch problem data
+     - Created `fetchAndImportProblemByUrl` function for individual imports
+     - Built `importProblemsFromUrls` function with rate limiting for batch imports
+     - Updated Problem interface to handle null values for optional fields
+     - Fixed Firestore errors related to undefined values
+   - **Input for Cursor AI**: "Create a smart utility function that imports problems into Firestore by only requiring LeetCode URLs. The utility should automatically extract problem details (title, difficulty, description, constraints, test cases, etc.) directly from LeetCode to populate the database schema. Include appropriate error handling and rate limiting."
+   - **Output**: Smart import utility that minimizes maintenance
    - **Testing**:
-     - Run import function and check Firestore for correct data
-     - Fetch a specific problem and verify all fields are present
-     - **Verification**: Successfully fetch sample problems from Firestore
+     - Run import function with sample LeetCode URLs
+     - Verify automatic extraction of problem details
+     - Check that all schema fields are correctly populated
+     - **Verification**: Successfully populate Firestore with complete problem data using only URLs
 
-3. **Company Data Setup**
+3. **Company Data Setup** ✅
    - Create company profiles for 3 major tech companies
    - Implement company data retrieval functions
    - **Input for Cursor AI**: "Create a utility to initialize and retrieve data for 3 major tech companies (Google, Amazon, Microsoft) in Firestore with fields for company description, domain, and core technologies"
@@ -80,26 +89,17 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
      - Fetch a company and check all fields are present
      - **Verification**: View company data in Firebase console and via fetch functions
 
-4. **Complete Authentication Implementation**
+4. **Basic Authentication Implementation** ✅
    - Create authentication context
-   - Implement sign-in page with email/password
-   - Create sign-up page with validation
-   - Implement password reset functionality
-   - Add protected route handling
-   - Setup authentication state persistence
-   - Implement email verification flow
-   - Add email verification status checks
-   - Create email templates for verification
-   - **Input for Cursor AI**: "Create a complete authentication system using Firebase Auth in a Next.js app with sign-in, sign-up, password reset, email verification flow, protected routes, and persistent authentication state"
+   - Implement sign-in page with email
+   - Setup authentication state management
+   - **Input for Cursor AI**: "Create a basic authentication system using Firebase Auth in a Next.js app with a sign-in page and context provider"
    - **Output**: Authentication components and context
    - **Testing**:
-     - Test sign-in flow with valid/invalid credentials
-     - Test sign-up with email verification
-     - Verify email verification process
-     - Test password reset functionality
-     - Test protected route access control
-     - Check authentication state persists on page reload
-     - **Verification**: Complete authentication system works reliably
+     - Test sign-in flow with valid credentials
+     - Test sign-in with invalid credentials
+     - Verify authentication state persists on page reload
+     - **Verification**: Successfully sign in and observe authentication state change
 
 ## Day 3: Coding Environment Basic Implementation
 
@@ -307,23 +307,7 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
      - Check loading state behavior
      - **Verification**: Application demonstrates improved load and interaction performance
 
-3. **Comprehensive Testing Setup**
-   - Create test strategy document
-   - Implement unit testing framework setup
-   - Add component test infrastructure
-   - Create test utilities and mocks
-   - Implement critical path test cases
-   - Add automated test workflows
-   - **Input for Cursor AI**: "Create a comprehensive testing strategy and implementation for a Next.js application, including unit testing, component testing, test utilities, and CI integration"
-   - **Output**: Testing infrastructure implementation
-   - **Testing**:
-     - Verify test framework functionality
-     - Run sample unit and component tests
-     - Check test coverage reporting
-     - Test automation workflow execution
-     - **Verification**: Testing framework properly integrated with essential test coverage
-
-4. **Final Integration Testing**
+3. **Final Integration Testing**
    - Create end-to-end test script
    - Implement critical path verification
    - Add user flow validation
@@ -349,22 +333,113 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
    - Test application on multiple devices
    - **Verification**: Working application URL from Vercel that functions on mobile and desktop
 
+## API Testing with Postman
+
+### Setup Postman for API Testing
+1. **Download and Install Postman** ✅
+   - Download Postman from [postman.com](https://www.postman.com/downloads/)
+   - Create a free Postman account if needed
+   - **Verification**: Postman runs and can create collections
+
+2. **Create AlgoIRL API Collection** ✅
+   - Create a new collection named "AlgoIRL API"
+   - Set up environment variables for:
+     - `baseUrl`: Your development server URL (e.g., `http://localhost:3000`)
+     - `authToken`: For authenticated requests (if implemented)
+   - **Verification**: Collection created with environment variables
+
+### Problem Import API Testing
+
+1. **Single Problem Import** ✅
+   - **Request Setup**:
+     - Method: `POST`
+     - URL: `{{baseUrl}}/api/import-problem`
+     - Headers:
+       - Content-Type: `application/json`
+     - Body (raw JSON):
+       ```json
+       {
+         "url": "https://leetcode.com/problems/two-sum/"
+       }
+       ```
+   - **Expected Response**:
+     ```json
+     {
+       "success": true,
+       "slug": "two-sum"
+     }
+     ```
+   - **Testing**:
+     - Verify response structure matches expected format
+     - Check Firestore to confirm problem was imported correctly
+     - Test with invalid URLs to verify error handling
+     - **Verification**: Problem successfully imported into Firestore
+
+2. **Batch Problem Import** ✅
+   - **Request Setup**:
+     - Method: `POST`
+     - URL: `{{baseUrl}}/api/import-problems`
+     - Headers:
+       - Content-Type: `application/json`
+     - Body (raw JSON):
+       ```json
+       {
+         "urls": [
+           "https://leetcode.com/problems/valid-parentheses/",
+           "https://leetcode.com/problems/merge-two-sorted-lists/",
+           "https://leetcode.com/problems/best-time-to-buy-and-sell-stock/"
+         ]
+       }
+       ```
+   - **Expected Response**:
+     ```json
+     {
+       "success": true,
+       "successCount": 3,
+       "errors": []
+     }
+     ```
+   - **Testing**:
+     - Monitor API response for success counts
+     - Include intentionally invalid URLs to test error handling
+     - Check rate limiting behavior with many URLs
+     - **Verification**: Multiple problems successfully imported with proper error handling
+
+3. **Error Handling Tests** ✅
+   - Test with malformed JSON
+   - Test with empty URL array
+   - Test with invalid LeetCode URLs
+   - Test with non-existent LeetCode problems
+   - **Verification**: All error cases properly handled with appropriate error messages
+
+### Save and Export Postman Collection
+1. **Save Requests** ✅
+   - Save all test requests with descriptive names
+   - Include example responses for reference
+   - Add descriptions to request details
+
+2. **Export Collection** ✅
+   - Export the collection for sharing with team members
+   - Document how to import and use the collection
+   - **Verification**: Collection can be imported and used by other team members
+
 ## Task Tracking Table
 
 | Day | Task | Type | Status | Notes |
 |-----|------|------|--------|-------|
-| 1 | Create Firebase Project | Manual | Not Started | |
-| 1 | Setup Vercel Account | Manual | Not Started | |
-| 1 | Setup Development Environment | Manual | Not Started | |
-| 1 | Initialize Next.js Project | Coding | Not Started | |
-| 1 | Firebase Client Configuration | Coding | Not Started | |
-| 2 | Define Data Models | Coding | Not Started | |
-| 2 | Problem Repository Functionality | Coding | Not Started | |
-| 2 | Company Data Setup | Coding | Not Started | |
-| 2 | Complete Authentication Implementation | Coding | Not Started | |
+| 1 | Create Firebase Project | Manual | ✅ Completed | |
+| 1 | Setup Vercel Account | Manual | ✅ Completed | |
+| 1 | Setup Development Environment | Manual | ✅ Completed | |
+| 1 | Initialize Next.js Project | Coding | ✅ Completed | |
+| 1 | Firebase Client Configuration | Coding | ✅ Completed | |
+| 2 | Define Data Models | Coding | ✅ Completed | Added Problem, Company and Scenario interfaces |
+| 2 | Problem Repository Functionality | Coding | ✅ Completed | Implemented LeetCode import utility |
+| 2 | Company Data Setup | Coding | ✅ Completed | Created profiles for 3 tech companies |
+| 2 | Basic Authentication Implementation | Coding | ✅ Completed | |
+| 2 | Setup Postman for API Testing | Manual | ✅ Completed | Created collection for testing problem import APIs |
 | 3 | Implement Monaco Editor | Coding | Not Started | |
 | 3 | Language Selection Implementation | Coding | Not Started | |
-| 3 | Code Submission Interface & UI Components | Coding | Not Started | |
+| 3 | Code Submission Interface | Coding | Not Started | |
 | 4 | Set Up Serverless Code Execution | Manual | Not Started | |
 | 4 | Implement Code Execution Function | Coding | Not Started | |
 | 4 | Test Case Implementation | Coding | Not Started | |
@@ -376,9 +451,8 @@ This document outlines the detailed tasks for Week 1 of the AlgoIRL MVP developm
 | 6 | Problem Display Component | Coding | Not Started | |
 | 6 | Company Selection Interface | Coding | Not Started | |
 | 6 | Main Application Flow | Coding | Not Started | |
-| 7 | Error Handling & Application Shell | Coding | Not Started | |
+| 7 | Error Handling Implementation | Coding | Not Started | |
 | 7 | Performance Optimization | Coding | Not Started | |
-| 7 | Comprehensive Testing Setup | Coding | Not Started | |
 | 7 | Final Integration Testing | Coding | Not Started | |
 | 7 | Perform End-to-End Testing | Manual | Not Started | |
 | 7 | Deploy MVP Version | Manual | Not Started | |

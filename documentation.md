@@ -253,70 +253,154 @@ AlgoIRL uses Firestore for data storage with the following collection designs:
 
 ## API Endpoints
 
-AlgoIRL uses Next.js API routes for serverless backend functionality:
+This section details the available API endpoints for AlgoIRL. All API routes are prefixed with `/api`.
 
 ### Authentication API
+- **POST /api/auth/signup**: User registration.
+- **POST /api/auth/signin**: User login.
+- **POST /api/auth/signout**: User logout.
+- **POST /api/auth/reset-password**: Initiate password reset.
+- **GET /api/auth/verify-email**: Verify user's email address. (Usually a link sent to email)
+- **GET /api/auth/session**: Get current user session details.
 
-#### POST /api/auth/register
-Registers a new user.
+### Problem Import API
 
-**Request:**
-```json
-{
-  "email": "user@example.com",
-  "password": "securePassword123",
-  "displayName": "Jane Doe"
-}
-```
+These endpoints allow for importing LeetCode problems into the database by providing their URLs. The system will parse and extract problem slugs from the URLs, then fetch problem details from LeetCode using the `leetcode-query` library, and store them in the `problems` collection.
 
-**Response:**
-```json
-{
-  "success": true,
-  "uid": "user123",
-  "email": "user@example.com",
-  "displayName": "Jane Doe"
-}
-```
+**POST /api/import-problem**
 
-#### POST /api/auth/login
-Authenticates a user.
+Imports a single LeetCode problem.
 
-**Request:**
-```json
-{
-  "email": "user@example.com",
-  "password": "securePassword123"
-}
-```
+-   **Method**: `POST`
+-   **Request Body**: JSON
+    ```json
+    {
+      "url": "https://leetcode.com/problems/your-problem-slug/"
+    }
+    ```
+-   **Implementation Details**:
+    - Uses `extractSlugFromUrl` to parse the LeetCode URL
+    - Applies `problemConverter` for proper Firestore data handling
+    - Fetches problem data using the LeetCode GraphQL API via `leetcode-query`
+    - Handles type conversion for Firestore compatibility (including null values)
+    - Maps LeetCode API response to our database schema
 
-**Response:**
-```json
-{
-  "success": true,
-  "uid": "user123",
-  "token": "jwt-token-here",
-  "expiresAt": "2025-05-03T11:30:45Z"
-}
-```
+-   **Success Response (200 OK)**:
+    ```json
+    {
+      "success": true,
+      "slug": "your-problem-slug"
+    }
+    ```
+-   **Error Response (400 Bad Request / 500 Internal Server Error)**:
+    ```json
+    {
+      "success": false,
+      "slug": "your-problem-slug", // Optional, if slug was extractable
+      "error": "Error message describing the issue."
+    }
+    ```
+-   **Usage Example (curl)**:
+    ```bash
+    curl -X POST -H "Content-Type: application/json" \
+         -d '{"url": "https://leetcode.com/problems/two-sum/"}' \
+         your-app-domain/api/import-problem
+    ```
+-   **Usage Example (JavaScript fetch)**:
+    ```javascript
+    const response = await fetch('/api/import-problem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://leetcode.com/problems/two-sum/' })
+    });
+    const data = await response.json();
+    ```
+-   **Usage Example (Postman)**:
+    - Create a `POST` request to `{{baseUrl}}/api/import-problem`
+    - Set `Content-Type: application/json` header
+    - In request body (raw JSON), enter: `{"url": "https://leetcode.com/problems/two-sum/"}`
+    - Send request and verify success response
 
-#### POST /api/auth/password-reset
-Initiates a password reset.
+**POST /api/import-problems**
 
-**Request:**
-```json
-{
-  "email": "user@example.com"
-}
-```
+Imports multiple LeetCode problems in a batch with rate limiting to avoid overwhelming the LeetCode API.
 
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Password reset email sent"
-}
-```
+-   **Method**: `POST`
+-   **Request Body**: JSON
+    ```json
+    {
+      "urls": [
+        "https://leetcode.com/problems/two-sum/",
+        "https://leetcode.com/problems/valid-parentheses/"
+      ]
+    }
+    ```
+-   **Implementation Details**:
+    - Processes each URL with `extractSlugFromUrl`
+    - Implements rate limiting to avoid API throttling (processing URLs sequentially)
+    - Uses the same `fetchAndImportProblemByUrl` function as the single import endpoint
+    - Tracks successful imports and errors for each URL
+    - Returns aggregated results with success/failure counts
+
+-   **Response (200 OK)**:
+    The API will always return a 200 OK on successful processing of the request, but the body will detail individual successes and failures.
+    ```json
+    {
+      "success": true, // Overall success (true if at least one import succeeded)
+      "successCount": 1,
+      "errors": [
+        {
+          "url": "https://leetcode.com/problems/invalid-problem-url/",
+          "slug": "invalid-problem-url", // Optional
+          "error": "Problem details not found for slug: invalid-problem-url"
+        }
+      ]
+    }
+    ```
+    If only one URL was provided and it failed, `successCount` would be 0, `success` would be false. If all succeed, `errors` array will be empty.
+
+-   **Error Response (400 Bad Request / 500 Internal Server Error)**:
+    Indicates an issue with the request format itself (e.g., malformed JSON, invalid `urls` array) or a general server error before processing begins.
+    ```json
+    {
+      "success": false,
+      "error": "Error message describing the issue (e.g., Invalid or empty URLs array provided)."
+    }
+    ```
+-   **Usage Example (curl)**:
+    ```bash
+    curl -X POST -H "Content-Type: application/json" \
+         -d '{"urls": ["https://leetcode.com/problems/two-sum/", "https://leetcode.com/problems/valid-parentheses/"]}' \
+         your-app-domain/api/import-problems
+    ```
+-   **Usage Example (JavaScript fetch)**:
+    ```javascript
+    const response = await fetch('/api/import-problems', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        urls: [
+          'https://leetcode.com/problems/two-sum/',
+          'https://leetcode.com/problems/valid-parentheses/'
+        ]
+      })
+    });
+    const data = await response.json();
+    ```
+-   **Usage Example (Postman)**:
+    - Create a `POST` request to `{{baseUrl}}/api/import-problems`
+    - Set `Content-Type: application/json` header
+    - In request body (raw JSON), enter: 
+      ```json
+      {
+        "urls": [
+          "https://leetcode.com/problems/valid-parentheses/",
+          "https://leetcode.com/problems/merge-two-sorted-lists/"
+        ]
+      }
+      ```
+    - Send request and verify success response with imported slugs
+    - For batch testing with more URLs, consider setting a longer timeout in Postman settings
 
 ### Problems API
 

@@ -39,6 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Cursor context helpers
-# cursor_helpers
