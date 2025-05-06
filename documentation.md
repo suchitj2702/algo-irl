@@ -471,15 +471,25 @@ Retrieves details for a specific problem.
 #### GET /api/companies
 Retrieves a list of available companies.
 
+**Query Parameters:**
+- `limit` (optional): Maximum number of companies to return
+
 **Response:**
 ```json
 {
-  "companies": [
+  "success": true,
+  "data": [
     {
-      "companyId": "google",
+      "id": "google",
       "name": "Google",
-      "description": "Technology company specializing in search, cloud computing, and software services",
-      "logoUrl": "https://example.com/google-logo.png"
+      "description": "Technology company specializing in search, cloud computing, advertising, and software services",
+      "domain": "Search, Cloud, Software Services",
+      "products": ["Google Search", "Gmail", "Google Cloud", "Android", "YouTube", "Google Maps"],
+      "technologies": ["Go", "Java", "Python", "Kubernetes", "TensorFlow", "BigQuery"],
+      "interviewFocus": ["System Design", "Algorithm Efficiency", "Code Quality", "Scale"],
+      "logoUrl": "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png",
+      "createdAt": "2025-05-01T10:30:00Z",
+      "updatedAt": "2025-05-01T10:30:00Z"
     },
     // More companies...
   ]
@@ -495,14 +505,58 @@ Retrieves details for a specific company.
 **Response:**
 ```json
 {
-  "companyId": "google",
-  "name": "Google",
-  "description": "Technology company specializing in search, cloud computing, and software services",
-  "domain": "Search, Cloud, Software Services",
-  "products": ["Google Search", "Gmail", "Google Cloud", "Android"],
-  "technologies": ["Go", "Java", "Python", "Kubernetes", "TensorFlow"],
-  "interviewFocus": ["System Design", "Algorithm Efficiency", "Code Quality"],
-  "logoUrl": "https://example.com/google-logo.png"
+  "success": true,
+  "data": {
+    "id": "google",
+    "name": "Google",
+    "description": "Technology company specializing in search, cloud computing, advertising, and software services",
+    "domain": "Search, Cloud, Software Services",
+    "products": ["Google Search", "Gmail", "Google Cloud", "Android", "YouTube", "Google Maps"],
+    "technologies": ["Go", "Java", "Python", "Kubernetes", "TensorFlow", "BigQuery"],
+    "interviewFocus": ["System Design", "Algorithm Efficiency", "Code Quality", "Scale"],
+    "logoUrl": "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png",
+    "createdAt": "2025-05-01T10:30:00Z",
+    "updatedAt": "2025-05-01T10:30:00Z"
+  }
+}
+```
+
+#### GET /api/companies/domain
+Retrieves companies by domain.
+
+**Query Parameters:**
+- `domain`: Domain to filter companies by (e.g., "Cloud Computing, Software, Operating Systems")
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "microsoft",
+      "name": "Microsoft",
+      "description": "Technology corporation that produces computer software, consumer electronics, personal computers, and related services",
+      "domain": "Cloud Computing, Software, Operating Systems",
+      "products": ["Windows", "Office 365", "Azure", "GitHub", "LinkedIn", "Xbox"],
+      "technologies": ["C#", ".NET", "TypeScript", "Azure", "React", "SQL Server"],
+      "interviewFocus": ["System Design", "Problem Solving", "Collaboration", "Technical Depth"],
+      "logoUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Microsoft_logo.svg/1024px-Microsoft_logo.svg.png",
+      "createdAt": "2025-05-01T10:30:00Z",
+      "updatedAt": "2025-05-01T10:30:00Z"
+    },
+    // More companies with matching domain...
+  ]
+}
+```
+
+#### GET /api/companies/initialize
+Initializes the tech company data in Firestore. This endpoint populates the database with data for Google, Amazon, and Microsoft if they don't already exist.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Tech companies initialized successfully"
 }
 ```
 
