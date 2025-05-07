@@ -216,6 +216,21 @@ Code execution functionality that:
 - Implements timeouts for long-running code
 - Provides error handling for compilation and runtime errors
 - Formats execution results for display
+- Uses isolated-vm sandbox for executing Python and Java code
+- Falls back to alternative execution methods if primary method fails
+
+**Current Limitations:**
+- Python and Java execution is currently simulated rather than fully implemented
+- The system returns mock test results for Python and Java submissions
+- Non-transferable value errors prevent direct execution in the isolated-vm sandbox
+- The current implementation focuses on providing a consistent user experience across languages
+
+**Production Implementation Plan:**
+- Implement language-specific execution environments using Docker containers
+- Create dedicated microservices for each supported language
+- Use child processes to communicate with language-specific interpreters/compilers
+- Implement proper resource limits and security measures for each language
+- Add comprehensive error handling for language-specific compilation and runtime issues
 
 #### `/lib/languageConfigs.js`
 Language configuration that:

@@ -41,6 +41,8 @@ Hyper-focused development of the essential MVP with coding environment in just o
 - Add execution results display
 - Create runtime/memory usage tracking
 - Build basic test feedback system
+- Implement JavaScript code execution via Node VM
+- Create temporary simulation for Python and Java code execution
 
 #### Day 5: AI Integration
 - Integrate with OpenAI/Anthropic API
@@ -85,6 +87,9 @@ Expand content and enhance core features based on initial MVP feedback.
    - Implement code auto-save functionality
    - Create custom test case input
    - Enhance execution results display
+   - Implement proper Python code execution environment
+   - Implement proper Java code execution environment
+   - Create containerized execution services for each language
 
 3. **User Experience Enhancements**
    - Implement responsive design improvements
@@ -97,6 +102,8 @@ Expand content and enhance core features based on initial MVP feedback.
    - Optimize code execution functions
    - Enhance loading states and feedback
    - Implement basic error recovery
+   - Deploy language-specific execution microservices
+   - Add proper resource limits and security measures
 
 ### Deliverables
 - Expanded problem repository (30 problems)
