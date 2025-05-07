@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "functions": {
+    "pages/api/code/execute.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" },
+        { "key": "Referrer-Policy", "value": "origin-when-cross-origin" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self';" }
+      ]
+    }
+  ],
+  "env": {
+    "CODE_EXECUTION_TIMEOUT": "5000",
+    "CODE_EXECUTION_MEMORY_LIMIT": "128"
+  }
+} 

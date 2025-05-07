@@ -25,6 +25,12 @@ export interface TestCase {
   explanation?: string;
 }
 
+export interface TestCaseResult {
+  testCase: TestCase;
+  passed: boolean;
+  actualOutput: any;
+}
+
 export interface Company {
   id: string; // Firestore document ID (matches companyId)
   name: string;
@@ -92,4 +98,5 @@ export interface ExecutionResults {
   executionTime: number | null; // milliseconds
   memoryUsage: number | null; // MB
   error: string | null;
+  testResults?: TestCaseResult[]; // Detailed results for each test case
 } 
