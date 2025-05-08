@@ -2,6 +2,15 @@
 
 This document provides a detailed overview of each file and directory in the AlgoIRL repository, explaining their purpose and functionality.
 
+## Code Reorganization
+
+The codebase has been reorganized to follow the Next.js App Router pattern exclusively, eliminating the mix of Pages Router and App Router. Key changes include:
+
+1. **Consolidated Router Architecture**: Migrated all Pages Router routes to App Router
+2. **Eliminated Duplicate API Endpoints**: Merged redundant API functionality
+3. **Consolidated Components**: Unified similar components and removed redundancy
+4. **Improved Directory Structure**: Organized code by feature rather than technical category
+
 ## Root Directory
 
 ### Configuration Files
@@ -39,11 +48,10 @@ Next.js App Router structure with page components and API routes.
 #### `/app/api` Directory
 API routes implemented as serverless functions.
 
-- **/import-problem**
-  - **route.ts**: API handler for importing a single problem from LeetCode.
-  
-- **/import-problems**
-  - **route.ts**: API handler for batch importing multiple problems from LeetCode.
+- **/problem**
+  - **import/route.ts**: API handler for importing a single problem from LeetCode.
+  - **import-batch/route.ts**: API handler for batch importing multiple problems from LeetCode.
+  - **transform/route.ts**: API handler for transforming problems into company-specific scenarios with intelligent context extraction.
   
 - **/companies**
   - **route.ts**: API endpoints for retrieving company data.
@@ -66,15 +74,66 @@ Authentication-related pages and components.
 - **/verify-email**
   - **page.tsx**: Email verification confirmation page.
 
-#### Other App Directories
-- **/code-editor-example**
+#### `/app/examples` Directory
+Example implementations for various features.
+
+- **/code-editor**
   - **page.tsx**: Example implementation of the Monaco code editor with language selection.
   
-- **/submission-example**
+- **/submission**
   - **page.tsx**: Example of code submission and execution flow.
   
-- **/toast-test**
-  - **page.tsx**: Test page for notification components.
+- **/problem-transform**
+  - **page.tsx**: Example of problem transformation functionality with company context.
+
+- **/ui-components**
+  - **page.tsx**: Showcase of UI components used in the application.
+
+### `/components` Directory
+Reusable UI components organized by feature.
+
+#### `/components/auth` Directory
+Authentication-related components.
+
+- **AuthForm.tsx**: Base authentication form with validation.
+- **SignInForm.tsx**: Sign-in specific form component.
+- **SignUpForm.tsx**: Registration specific form component.
+- **PasswordResetForm.tsx**: Password reset form component.
+
+#### `/components/code` Directory
+Code editor and execution components.
+
+- **CodeEditor.tsx**: Monaco-based code editor with syntax highlighting.
+- **LanguageSelector.tsx**: Language selection dropdown component.
+- **TestCaseRunner.tsx**: Component for running code against test cases.
+- **ExecutionResults.tsx**: Display component for code execution results.
+- **PerformanceMetrics.tsx**: Component for displaying execution metrics.
+
+#### `/components/problem` Directory
+Problem-related components.
+
+- **ProblemDetails.tsx**: Component for displaying problem details.
+- **ProblemTransformer.tsx**: Component for transforming problems to company scenarios with intelligent context extraction.
+- **ProblemList.tsx**: Component for displaying a list of problems.
+- **ProblemFilters.tsx**: Filtering component for problems by difficulty, etc.
+- **CompanySelector.tsx**: Component for selecting a company for transformation.
+
+#### `/components/layout` Directory
+Page layout components.
+
+- **Header.tsx**: Application header with navigation.
+- **Footer.tsx**: Application footer with links.
+- **Sidebar.tsx**: Sidebar navigation component.
+- **Container.tsx**: Page container component.
+
+#### `/components/ui` Directory
+Basic UI components.
+
+- **Button.tsx**: Styled button component.
+- **Input.tsx**: Form input component.
+- **Modal.tsx**: Modal dialog component.
+- **Notification.tsx**: Toast notification component.
+- **Dropdown.tsx**: Dropdown selection component.
 
 ### `/lib` Directory
 Core functionality and utility functions.
@@ -85,45 +144,14 @@ Core functionality and utility functions.
 - **codeExecution.js**: Code execution logic for running user submitted code.
 - **languageConfigs.js**: Configuration for supported programming languages.
 - **config.js**: Application configuration variables.
+- **anthropicService.ts**: Service that integrates with Anthropic API to transform coding problems into company-specific interview scenarios with caching and retry mechanisms.
+- **problemTransformer.ts**: Comprehensive utility that extracts key information from coding problems and company profiles to enhance AI prompt quality, resulting in more relevant scenario generation with algorithm detection and context awareness.
 
 #### `/lib/sandboxing` Directory
 Code execution sandboxing for security.
 
 - **vm.js**: Virtual machine implementation for code isolation.
 - **nodeVm.js**: Node.js-specific VM implementation using the VM2 and isolated-vm packages.
-
-### `/components` Directory
-Reusable UI components.
-
-- **FirebaseStatus.tsx**: Component that displays Firebase connection status.
-
-#### `/components/CodeEditor` Directory
-Monaco editor integration components.
-
-- **CodeEditor.tsx**: Base Monaco editor component with syntax highlighting.
-- **LanguageSelector.tsx**: Dropdown component for selecting programming languages.
-- **CodeEditorWithLanguageSelector.tsx**: Combined component with editor and language selection.
-- **index.ts**: Barrel file exporting all code editor components.
-
-#### `/components/execution` Directory
-Code execution and test case components.
-
-- Components for test case display, execution results, and performance metrics.
-
-#### `/components/ui` Directory
-Shared UI components.
-
-- Basic UI components like buttons, inputs, modals, and notifications.
-
-#### `/components/auth` Directory
-Authentication-related components.
-
-- Form components for authentication flows.
-
-#### `/components/layout` Directory
-Page layout components.
-
-- Header, footer, navigation, and page container components.
 
 ### `/context` Directory
 React context providers for state management.
@@ -137,11 +165,20 @@ React context providers for state management.
 ### `/types` Directory
 TypeScript type definitions.
 
-- **entities.ts**: Types for core entities like Problem, Company, and Scenario.
-  - Defines the Problem interface with properties for title, difficulty, description, etc.
-  - Defines the Company interface with name, description, etc.
-  - Defines the Scenario interface linking problems to companies
-  - Includes supporting types for test cases, timestamps, etc.
+- **index.ts**: Re-exports all types for easy importing.
+- **problem.ts**: Types related to coding problems.
+- **company.ts**: Types related to companies.
+- **user.ts**: Types related to user data.
+- **execution.ts**: Types related to code execution.
+- **api.ts**: Types for API requests and responses.
+
+### `/hooks` Directory
+Custom React hooks.
+
+- **useAuth.ts**: Hook for accessing authentication context.
+- **useCodeExecution.ts**: Hook for executing code and managing results.
+- **useProblemTransform.ts**: Hook for transforming problems into company scenarios.
+- **useFirestore.ts**: Hook for Firestore data operations.
 
 ### `/public` Directory
 Static assets served at the root path.
@@ -153,142 +190,11 @@ Utility scripts for development and deployment.
 
 - Contains build and deployment scripts.
 
-## Detailed File Analysis
+## Detailed API Endpoints
 
-### Core Application Files
+### Problem-Related APIs
 
-#### `/app/layout.tsx`
-Root layout component that:
-- Implements the HTML structure with metadata
-- Includes global styles
-- Wraps the application with context providers
-- Handles dark/light mode
-
-#### `/app/page.tsx`
-Home page component that:
-- Renders the landing page for the application
-- Displays Firebase connection status
-- Provides navigation links to documentation and deployment
-
-#### `/context/AuthContext.tsx`
-Authentication context provider that:
-- Manages user authentication state
-- Provides sign-in, sign-up, and sign-out functionality
-- Handles password reset and email verification
-- Exposes current user information to components
-- Implements secure authentication persistence
-- Provides protected route functionality
-
-### Firebase Integration
-
-#### `/lib/firebase.ts`
-Firebase initialization that:
-- Configures Firebase with environment variables
-- Initializes Firebase App, Authentication, and Firestore
-- Exports configured instances for use across the application
-- Handles SSR compatibility with Next.js
-
-#### `/lib/firestoreUtils.ts`
-Firestore utility functions that:
-- Parse LeetCode URLs to extract problem slugs (`extractSlugFromUrl`)
-- Convert between application models and Firestore data (`problemConverter`)
-- Import problems from LeetCode using the API (`fetchAndImportProblemByUrl`)
-- Handle batch imports with rate limiting (`importProblemsFromUrls`)
-- Provide CRUD operations for problems and other entities
-- Implement error handling for Firestore operations
-- Process and format problem data from LeetCode
-
-#### `/lib/company.ts`
-Company data management that:
-- Defines initial company profiles for major tech companies
-- Provides functions to retrieve company information
-- Implements company data import and update functionality
-- Handles company-specific data formatting
-
-### Code Execution
-
-#### `/lib/codeExecution.js`
-Code execution functionality that:
-- Handles code submission for different languages
-- Manages the execution environment setup
-- Runs code against test cases
-- Captures execution results and performance metrics
-- Implements timeouts for long-running code
-- Provides error handling for compilation and runtime errors
-- Formats execution results for display
-- Uses isolated-vm sandbox for executing Python and Java code
-- Falls back to alternative execution methods if primary method fails
-
-**Current Limitations:**
-- Python and Java execution is currently simulated rather than fully implemented
-- The system returns mock test results for Python and Java submissions
-- Non-transferable value errors prevent direct execution in the isolated-vm sandbox
-- The current implementation focuses on providing a consistent user experience across languages
-
-**Production Implementation Plan:**
-- Implement language-specific execution environments using Docker containers
-- Create dedicated microservices for each supported language
-- Use child processes to communicate with language-specific interpreters/compilers
-- Implement proper resource limits and security measures for each language
-- Add comprehensive error handling for language-specific compilation and runtime issues
-
-#### `/lib/languageConfigs.js`
-Language configuration that:
-- Defines supported programming languages (JavaScript, Python, Java)
-- Specifies compilation and execution commands for each language
-- Provides language-specific templates and code snippets
-- Configures Monaco Editor for each language
-- Defines syntax highlighting rules
-- Implements language-specific test case formatting
-
-#### `/lib/sandboxing/vm.js`
-Code sandboxing implementation that:
-- Creates isolated environments for code execution
-- Prevents malicious code from accessing system resources
-- Implements resource limits (CPU, memory)
-- Handles timeouts for infinite loops
-- Captures console output and error messages
-
-#### `/lib/sandboxing/nodeVm.js`
-Node.js-specific VM implementation that:
-- Uses VM2 and isolated-vm for secure code execution
-- Provides stronger isolation than the built-in Node.js VM
-- Handles JavaScript-specific security considerations
-- Implements memory and CPU usage monitoring
-
-### Components
-
-#### `/components/CodeEditor/CodeEditor.tsx`
-Monaco editor component that:
-- Initializes the Monaco Editor instance
-- Configures editor options (line numbers, theme, etc.)
-- Handles code changes and updates
-- Implements code formatting
-- Provides methods for getting and setting editor content
-
-#### `/components/CodeEditor/LanguageSelector.tsx`
-Language selection component that:
-- Renders a dropdown for supported languages
-- Handles language selection changes
-- Updates editor configuration based on selected language
-- Provides language-specific templates
-
-#### `/components/CodeEditor/CodeEditorWithLanguageSelector.tsx`
-Combined component that:
-- Integrates the code editor and language selector
-- Manages state between the two components
-- Provides a unified interface for code editing
-- Handles code submission events
-
-#### `/components/FirebaseStatus.tsx`
-Firebase status component that:
-- Checks Firebase connection status
-- Displays connection state to users
-- Provides visual feedback for authentication state
-
-### API Routes
-
-#### `/app/api/import-problem/route.ts`
+#### `/app/api/problem/import/route.ts`
 API endpoint that:
 - Receives a LeetCode URL
 - Validates the URL format
@@ -296,7 +202,7 @@ API endpoint that:
 - Returns success status or error message
 - Handles rate limiting and error cases
 
-#### `/app/api/import-problems/route.ts`
+#### `/app/api/problem/import-batch/route.ts`
 API endpoint that:
 - Receives an array of LeetCode URLs
 - Validates each URL format
@@ -304,12 +210,28 @@ API endpoint that:
 - Returns success counts and error details
 - Handles large batch operations efficiently
 
+#### `/app/api/problem/transform/route.ts`
+Advanced API endpoint that:
+- Receives problem ID and company ID
+- Uses the problemTransformer utility to extract key information
+- Generates an optimized prompt with contextual awareness
+- Transforms the problem while maintaining algorithmic integrity
+- Returns both the scenario and context information
+- Includes detected algorithms, data structures, and suggested analogies
+- Implements intelligent caching to improve performance
+- Provides relevance scoring between problem and company
+- Uses all available information to create the most company-specific and realistic scenario possible
+
+### Company APIs
+
 #### `/app/api/companies/route.ts`
 API endpoint that:
 - Retrieves company data from Firestore
 - Supports filtering and searching
 - Returns formatted company information
 - Handles caching for improved performance
+
+### Code Execution APIs
 
 #### `/app/api/execute-code/route.ts`
 API endpoint that:
@@ -321,48 +243,27 @@ API endpoint that:
 - Returns execution results, including test case outcomes
 - Handles errors and timeouts
 
-### Authentication Pages
+## Removed Redundancy
 
-#### `/app/(auth)/signin/page.tsx`
-Sign-in page that:
-- Renders a form for email/password authentication
-- Handles form validation and error states
-- Uses AuthContext to perform authentication
-- Redirects to home page on successful sign-in
-- Provides password reset link
-- Handles authentication errors with user-friendly messages
+1. **Consolidated Problem Transformation**: Created a single, optimized transformation endpoint that incorporates all the advanced features (algorithm detection, context awareness, relevance scoring) without redundant implementations.
 
-#### `/app/(auth)/signup/page.tsx`
-Sign-up page that:
-- Renders a registration form
-- Implements form validation for email and password
-- Handles creating new user accounts
-- Sends email verification
-- Displays appropriate success/error messages
-- Redirects to appropriate page based on registration outcome
+2. **Unified Problem Transformer Component**: Consolidated transformation functionality into a single component that provides the best possible experience.
 
-#### `/app/(auth)/reset-password/page.tsx`
-Password reset page that:
-- Provides form for entering email address
-- Handles sending password reset emails
-- Displays success/error messages
-- Includes link back to sign-in page
+3. **Standardized Directory Structure**: Reorganized components by feature rather than technical category, making relationships more explicit.
 
-#### `/app/(auth)/verify-email/page.tsx`
-Email verification page that:
-- Processes email verification links
-- Confirms user email verification
-- Updates user profile in Firebase
-- Displays verification status to the user
+4. **Consolidated Example Pages**: Moved all example implementations to `/app/examples/*` with clear naming.
 
-## Type Definitions
+5. **Unified API Structure**: Organized API endpoints by domain (`problem`, `companies`, etc.) rather than by individual function.
 
-### `/types/entities.ts`
-Core type definitions that include:
+6. **Eliminated Duplicate Context Providers**: Ensured each context has a single implementation with proper reusability.
 
-#### Problem Interface
+## Type System Improvements
+
+Reorganized types into domain-specific files for better organization:
+
+### `/types/problem.ts`
 ```typescript
-interface Problem {
+export interface Problem {
   id: string;
   title: string;
   difficulty: ProblemDifficulty;
@@ -378,56 +279,78 @@ interface Problem {
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
-```
 
-#### Company Interface
-```typescript
-interface Company {
-  id: string;
-  name: string;
-  description: string;
-  domain: string;
-  logoUrl?: string;
-  technologies: string[];
-  interviewStyle: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-```
-
-#### Scenario Interface
-```typescript
-interface Scenario {
-  id: string;
-  problemId: string;
-  companyId: string;
-  scenario: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-```
-
-#### TestCase Interface
-```typescript
-interface TestCase {
+export interface TestCase {
   input: {
     raw: string;
     parsed?: any;
   };
   output: any;
 }
+
+export interface ProblemTransformRequest {
+  problemId: string;
+  companyId: string;
+  useCache?: boolean;
+}
+
+export interface TransformationResult {
+  scenario: string;
+  contextInfo: {
+    detectedAlgorithms: string[];
+    detectedDataStructures: string[];
+    relevanceScore: number;
+    suggestedAnalogyPoints: string[];
+  }
+}
+```
+
+### `/types/company.ts`
+```typescript
+export interface Company {
+  id: string;
+  name: string;
+  description: string;
+  domain: string;
+  products: string[];
+  technologies: string[];
+  interviewFocus: string[];
+  logoUrl?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+```
+
+### `/types/execution.ts`
+```typescript
+export interface CodeExecutionRequest {
+  code: string;
+  language: string;
+  testCases: TestCase[];
+  timeLimit?: number;
+  memoryLimit?: number;
+}
+
+export interface ExecutionResult {
+  success: boolean;
+  testResults: TestResult[];
+  executionTime: number;
+  memoryUsage: number;
+  error?: string;
+}
 ```
 
 ## Summary
 
-The AlgoIRL repository follows a well-structured organization with clear separation of concerns:
+The AlgoIRL repository has been reorganized to follow best practices:
 
-1. **App Router Structure**: Next.js app directory structure with pages and API routes
-2. **Component Library**: Reusable UI components organized by function
-3. **Utility Functions**: Core functionality in the lib directory
-4. **Type System**: Strong TypeScript typing for all entities
-5. **State Management**: React context for application state
-6. **API Layer**: Well-defined API routes as serverless functions
-7. **Documentation**: Comprehensive documentation and project planning
+1. **Single Router Architecture**: Exclusively uses Next.js App Router
+2. **Feature-Based Organization**: Code organized by domain/feature rather than technical category
+3. **Eliminated Redundancy**: Removed duplicate implementations and consolidated transformation functionality into a single, optimal solution
+4. **Improved Type System**: Domain-specific type files with clear relationships
+5. **Clear API Structure**: API endpoints organized by domain
+6. **Enhanced Reusability**: Components designed for maximum reuse
+7. **Well-Documented Structure**: Clear documentation of all parts of the codebase
+8. **Optimized Problem Transformation**: Single, comprehensive transformation solution that uses all available context
 
-This architecture supports the application's goal of transforming coding problems into company-specific interview scenarios, with a focus on code execution, problem management, and authentication. 
+This reorganization improves maintainability, reduces code duplication, and makes the codebase easier to understand and extend.
