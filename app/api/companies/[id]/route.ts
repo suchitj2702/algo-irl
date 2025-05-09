@@ -1,4 +1,4 @@
-import { getCompanyById } from "@/lib/company";
+import { getCompanyById } from "@/lib/company/companyUtils";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(

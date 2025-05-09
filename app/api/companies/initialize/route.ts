@@ -1,4 +1,4 @@
-import { initializeTechCompanies } from "@/lib/company";
+import { initializeTechCompanies } from "@/lib/company/companyUtils";
 import { NextResponse } from "next/server";
 
 export async function GET() {

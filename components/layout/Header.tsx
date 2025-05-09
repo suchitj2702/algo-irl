@@ -2,9 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext'; // Adjust path if necessary
+import { useAuth } from '@/components/authentication/AuthContext'; // Adjust path if necessary
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase'; // Adjust path if necessary
+import { auth } from '@/lib/firebase/firebase'; // Adjust path if necessary
 
 const Header: React.FC = () => {
   const { user } = useAuth();
@@ -41,10 +41,10 @@ const Header: React.FC = () => {
           </>
         ) : (
           <>
-            <Link href="/signin" className="text-gray-600 hover:text-gray-800 text-sm font-medium">
+            <Link href="/authentication/signin" className="text-gray-600 hover:text-gray-800 text-sm font-medium">
               Sign In
             </Link>
-            <Link href="/signup" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm">
+            <Link href="/authentication/signup" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm">
               Sign Up
             </Link>
           </>

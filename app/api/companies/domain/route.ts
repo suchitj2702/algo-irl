@@ -1,4 +1,4 @@
-import { getCompaniesByDomain } from "@/lib/company";
+import { getCompaniesByDomain } from "@/lib/company/companyUtils";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {

@@ -14,7 +14,6 @@
     "@types/uuid": "^10.0.0",
     "axios": "^1.9.0",
     "firebase": "^11.6.1",
-    "isolated-vm": "^5.0.4",
     "leetcode-query": "^2.0.0",
     "next": "15.3.1",
     "react": "^19.0.0",
