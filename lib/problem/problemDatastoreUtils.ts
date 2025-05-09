@@ -16,7 +16,10 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
 import { Problem, TestCase, ProblemDifficulty } from "@/data-types/problem";
-import { LeetCode } from "leetcode-query";
+import { AnthropicService } from "@/lib/llmServices/anthropicService";
+
+// Initialize Anthropic service
+const anthropicService = new AnthropicService();
 
 /**
  * Extracts the problem's title slug from a LeetCode URL.
@@ -95,7 +98,7 @@ const problemConverter: FirestoreDataConverter<Problem> = {
     }
 };
 
-// Function to fetch and import a single problem by URL using leetcode-query
+// Function to fetch and import a single problem by URL using Anthropic API
 export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success: boolean; slug: string | null; error?: string }> => {
     const slug = extractSlugFromUrl(url);
     if (!slug) {
@@ -103,60 +106,60 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
     }
 
     try {
-        const leetcode = new LeetCode(); // Initialize the library
-        const problemDetails = await leetcode.problem(slug); // Fetch problem details by slug
-
-        // console.log("--- Raw problemDetails from leetcode-query ---");
-        // console.log(JSON.stringify(problemDetails, null, 2));
-        // console.log("----------------------------------------------");
-
-        if (!problemDetails) {
-             return { success: false, slug: slug, error: `Problem details not found for slug: ${slug}` };
+        // Fetch problem data using Anthropic - we already extract the slug above
+        const problemData = await anthropicService.fetchProblemDataFromUrl(url);
+        
+        // Check if there was an error in fetching the data
+        if (problemData.error) {
+            return { success: false, slug, error: problemData.error };
         }
 
-        // --- Map fetched data to our Problem interface --- 
-        const problemData: Omit<Problem, 'id' | 'createdAt' | 'updatedAt'> = {
-            title: problemDetails.title || "Untitled Problem",
-            difficulty: (problemDetails.difficulty?.charAt(0).toUpperCase() + problemDetails.difficulty?.slice(1)) as ProblemDifficulty || "Medium",
-            categories: problemDetails.topicTags?.map(tag => tag.name) || [],
-            description: problemDetails.content || "No description available.", // HTML content
-            constraints: [], // Constraints are usually within the HTML content, may need parsing later
-            leetcodeLink: url, // Store the original URL
+        // Log retrieved data to help debug
+        console.log(`Retrieved problem data for ${slug}:`, {
+            title: problemData.title,
+            hasSolutionApproach: !!problemData.solutionApproach,
+            hasTimeComplexity: !!problemData.timeComplexity,
+            hasSpaceComplexity: !!problemData.spaceComplexity,
+            solutionLength: problemData.solutionApproach ? problemData.solutionApproach.length : 0
+        });
+
+        // Process test cases to handle nested arrays (Firestore doesn't support nested arrays)
+        const sanitizedTestCases = problemData.testCases.map(testCase => {
+            // Create a sanitized test case with required fields
+            const sanitizedTestCase: TestCase = {
+                input: sanitizeFirestoreData(testCase.input),
+                output: sanitizeFirestoreData(testCase.output)
+            };
+            
+            // Add explanation if it exists
+            if ('explanation' in testCase && testCase.explanation) {
+                sanitizedTestCase.explanation = String(testCase.explanation);
+            }
+            
+            return sanitizedTestCase;
+        });
+
+        // Map fetched data to our Problem interface
+        const problem: Omit<Problem, 'id' | 'createdAt' | 'updatedAt'> = {
+            title: problemData.title,
+            difficulty: problemData.difficulty as ProblemDifficulty,
+            categories: problemData.categories,
+            description: problemData.description,
+            constraints: problemData.constraints,
+            leetcodeLink: url,
             isBlind75: false, // Default, can be set manually later if needed
-            testCases: ((): TestCase[] => {
-                if (!problemDetails.exampleTestcases) return [];
-                const examples = problemDetails.exampleTestcases.trim().split(/\n\n+/);
-                const parsedTestCases: TestCase[] = [];
-                for (const example of examples) {
-                    const lines = example.split('\n');
-                    let rawInput: string | undefined;
-                    let rawOutput: string | undefined;
-                    for (const line of lines) {
-                        if (line.toLowerCase().startsWith('input:')) {
-                            rawInput = line.substring(6).trim();
-                        } else if (line.toLowerCase().startsWith('output:')) {
-                            rawOutput = line.substring(7).trim();
-                        }
-                    }
-                    if (rawInput !== undefined && rawOutput !== undefined) {
-                        let parsedOutput: any = rawOutput;
-                        try { parsedOutput = JSON.parse(rawOutput); } catch (e) { /* keep as string */ }
-                        parsedTestCases.push({ input: { raw: rawInput }, output: parsedOutput });
-                    }
-                }
-                return parsedTestCases;
-            })(),
-            solutionApproach: null,
-            timeComplexity: null,
-            spaceComplexity: null,
+            testCases: sanitizedTestCases,
+            // The AnthropicService class now guarantees these fields will be populated
+            solutionApproach: problemData.solutionApproach,
+            timeComplexity: problemData.timeComplexity,
+            spaceComplexity: problemData.spaceComplexity,
         };
-        // -----------------------------------------------------
 
         // Get Firestore document reference with converter
         const docRef = doc(problemsCollectionRef, slug).withConverter(problemConverter);
 
         // Save to Firestore (will add timestamps via converter)
-        await setDoc(docRef, problemData);
+        await setDoc(docRef, problem);
 
         console.log(`Successfully fetched and imported problem: ${slug}`);
         return { success: true, slug: slug };
@@ -167,14 +170,51 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
     }
 };
 
-// Placeholder function to import multiple problems from URLs (to be implemented)
-// Needs adjustment to use the updated fetchAndImportProblemByUrl
+/**
+ * Sanitizes data to make it compatible with Firestore by handling nested arrays
+ * Firestore doesn't support arrays within arrays
+ */
+const sanitizeFirestoreData = (data: any): any => {
+    // If it's an array, convert it to an object with indexed keys
+    if (Array.isArray(data)) {
+        // Convert array to object with numbered keys
+        const result: Record<string, any> = {};
+        data.forEach((item, index) => {
+            result[`${index}`] = sanitizeFirestoreData(item);
+        });
+        // Add a special field to identify this as a converted array
+        result._isArray = true;
+        return result;
+    } 
+    // If it's an object, recursively sanitize its properties
+    else if (data && typeof data === 'object' && !isTimestamp(data)) {
+        const result: Record<string, any> = {};
+        for (const key in data) {
+            if (Object.prototype.hasOwnProperty.call(data, key)) {
+                result[key] = sanitizeFirestoreData(data[key]);
+            }
+        }
+        return result;
+    }
+    // Primitive values can be stored directly
+    return data;
+};
+
+/**
+ * Check if value is a Firebase Timestamp
+ */
+const isTimestamp = (value: any): boolean => {
+    return value && typeof value === 'object' && 
+           typeof value.toDate === 'function' && 
+           typeof value.toMillis === 'function';
+};
+
+// Function to import multiple problems from URLs
 export const importProblemsFromUrls = async (urls: string[]): Promise<{ successCount: number; errors: any[] }> => {
-    console.warn("importProblemsFromUrls needs review after changes to fetchAndImportProblemByUrl.");
     let successCount = 0;
     const errors: any[] = [];
 
-    // Consider using Promise.allSettled for concurrency and rate limiting
+    // Process URLs sequentially to avoid overloading the API
     for (const url of urls) {
         const result = await fetchAndImportProblemByUrl(url);
         if (result.success) {
@@ -182,14 +222,14 @@ export const importProblemsFromUrls = async (urls: string[]): Promise<{ successC
         } else {
             errors.push({ url, slug: result.slug, error: result.error });
         }
-        // Add a 1-second delay to avoid rate limiting issues
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Add a delay to avoid rate limiting issues
+        await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
     return { successCount, errors };
 };
 
-// --- Basic Fetch Functions (using the corrected converter) --- 
+// --- Basic Fetch Functions --- 
 
 export const getAllProblems = async (): Promise<Problem[]> => {
     try {

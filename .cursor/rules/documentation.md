@@ -265,7 +265,7 @@ This section details the available API endpoints for AlgoIRL. All API routes are
 
 ### Problem Import API
 
-These endpoints allow for importing LeetCode problems into the database by providing their URLs. The system will parse and extract problem slugs from the URLs, then fetch problem details from LeetCode using the `leetcode-query` library, and store them in the `problems` collection.
+These endpoints allow for importing LeetCode problems into the database by providing their URLs. The system will parse and extract problem slugs from the URLs, then use Anthropic's Claude API to generate detailed problem data based on the problem name.
 
 **POST /api/import-problem**
 
@@ -281,9 +281,14 @@ Imports a single LeetCode problem.
 -   **Implementation Details**:
     - Uses `extractSlugFromUrl` to parse the LeetCode URL
     - Applies `problemConverter` for proper Firestore data handling
-    - Fetches problem data using the LeetCode GraphQL API via `leetcode-query`
+    - Leverages Claude AI to generate detailed problem data based on the problem name/slug
+    - Generates comprehensive problem information including:
+      - Problem description and constraints
+      - Test cases with inputs and expected outputs
+      - Solution approaches (including multiple approaches when applicable)
+      - Time and space complexity analysis
     - Handles type conversion for Firestore compatibility (including null values)
-    - Maps LeetCode API response to our database schema
+    - Maps generated data to our database schema
 
 -   **Success Response (200 OK)**:
     ```json
@@ -337,8 +342,9 @@ Imports multiple LeetCode problems in a batch with rate limiting to avoid overwh
     ```
 -   **Implementation Details**:
     - Processes each URL with `extractSlugFromUrl`
+    - Uses Anthropic's AI (Claude Haiku model) to extract structured problem data from LeetCode URLs
     - Implements rate limiting to avoid API throttling (processing URLs sequentially)
-    - Uses the same `fetchAndImportProblemByUrl` function as the single import endpoint
+    - Uses the `fetchAndImportProblemByUrl` function which leverages Anthropic's AI for reliable data extraction
     - Tracks successful imports and errors for each URL
     - Returns aggregated results with success/failure counts
 
@@ -380,8 +386,8 @@ Imports multiple LeetCode problems in a batch with rate limiting to avoid overwh
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         urls: [
-          'https://leetcode.com/problems/two-sum/',
-          'https://leetcode.com/problems/valid-parentheses/'
+          'https://leetcode.com/problems/valid-parentheses/',
+          'https://leetcode.com/problems/merge-two-sorted-lists/'
         ]
       })
     });
