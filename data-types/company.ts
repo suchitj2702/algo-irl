@@ -11,4 +11,7 @@ export interface Company {
   logoUrl?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  
+  // Non-persistent property to indicate if the company name was corrected
+  wasNameCorrected?: boolean;
 } 

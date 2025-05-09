@@ -21,7 +21,7 @@ export default function VerifyEmailPage() {
     // If there's no user or loading is done and email is verified, redirecting might happen
     // If loading is done and there's no user, they shouldn't be here - redirect to signin
     if (!loading && !user) {
-      router.push('/signin');
+      router.push('authentication/signin');
     }
 
   }, [user, loading, isEmailVerified, router]);

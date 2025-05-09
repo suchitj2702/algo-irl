@@ -39,7 +39,10 @@ AlgoIRL is an interactive platform for practicing algorithm and data structure p
   - `/import-batch/route.ts`: Batch import problems
   - `/transform/route.ts`: Transform problems to company-specific scenarios
 
-- `/companies/route.ts`: Endpoint for an API to import company data
+- `/companies`: Company management endpoints
+  - `/initialize/route.ts`: Initialize company data
+    - `GET`: Initializes predefined tech companies
+    - `POST`: Generates company data for a specified company name using AI
 
 - `/execute-code/route.ts`: Code execution endpoint
 
@@ -99,6 +102,9 @@ User authentication and account management pages
 - `/llmServices`: AI service integration
   - Anthropic API integration
   - Prompt generation and handling
+  - Two specialized functions for different tasks:
+    - Problem transformation (using claude-3-7-sonnet model)
+    - Company data generation (using faster claude-3-5-haiku model)
 
 #### `/data-types` Directory - TypeScript Type Definitions
 
@@ -136,6 +142,16 @@ User authentication is handled through Firebase Auth:
 2. Profile management
 3. Secure session handling
 
+### AI-Powered Company Data Generation
+The platform uses Anthropic's AI to automatically generate company data:
+
+1. Accepts a company name as input
+2. Intelligently corrects misspelled company names (e.g., "Googel" → "Google")
+3. Uses the faster claude-3-5-haiku model to generate comprehensive company details
+4. Structures the data according to the Company interface
+5. Stores the data in Firestore for later use
+6. Uses specialized caching for company data to improve performance and reduce API calls
+
 ## API Endpoints
 
 ### Problem Management
@@ -164,10 +180,15 @@ User authentication is handled through Firebase Auth:
 
 ### Company Data
 
-#### `GET /api/companies`
-- Retrieves company data
-- Supports filtering and pagination
-- Returns formatted company information
+#### `GET /api/companies/initialize`
+- Initializes the database with predefined tech company data
+- Returns success status and message
+
+#### `POST /api/companies/initialize`
+- Generates and stores company data for a specified company using AI
+- Accepts company name in the request body (tolerates misspellings)
+- Automatically corrects misspelled company names
+- Returns generated company information, correction status, and success message
 
 ## Type System
 
@@ -239,3 +260,26 @@ interface ExecutionResult {
 2. **Authentication**: Firebase Auth handles secure user authentication
 3. **Data Validation**: All user inputs are validated before processing
 4. **Rate Limiting**: API endpoints implement rate limiting to prevent abuse
+
+## AnthropicService
+
+The AnthropicService handles integration with Anthropic's Claude AI models for different tasks:
+
+### Key Methods
+
+#### `transformWithCustomPrompt`
+- Uses claude-3-7-sonnet model for high-quality problem transformation
+- Transforms algorithm problems into company-specific interview scenarios
+- Includes specialized caching for transformed problems
+
+#### `generateCompanyData`
+- Uses claude-3-5-haiku model for faster company data generation
+- Creates detailed company profiles from company names
+- Utilizes separate cache for company data
+- Optimized for the company data generation tasks
+
+### Shared Features
+- Error handling with formatted error messages
+- Automatic retries for API failures
+- Configurable caching with 24-hour expiry
+- Memory-efficient storage of responses
