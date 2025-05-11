@@ -1,239 +1,201 @@
-// Code execution utility for AlgoIRL
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
-import fs from 'fs/promises';
-import { executeInNodeVm, SandboxResult } from '../sandboxing/sandboxing';
-import config from './codeExecutionConfig';
-import languageConfigs, { TestCase } from './languageConfigs';
+import { Judge0Client, Judge0BatchSubmissionItem, Judge0SubmissionDetail } from './judge0Client';
+import { getDriverDetails } from './languageConfigs';
+import judge0Config from './judge0Config';
 
-// Get execution settings from config
-const EXECUTION_TIMEOUT = config.execution.timeout;
-const MAX_BUFFER = config.execution.maxOutputSize;
+// Assuming TestCase is correctly imported from here.
+// If not, the path might need adjustment based on your project structure.
+import type { TestCase } from '../../data-types/problem'; 
 
-export interface ExecutionMetrics {
-  executionTime: number;
-  memoryUsage: number | null;
-}
+// Assuming ExecutionResults is correctly imported.
+// Local definition for TestResult to avoid import issues for now.
+// Ideally, TestResult would also come from a shared data-types definition.
+import type { ExecutionResults } from '../../data-types/execution';
 
 export interface TestResult {
-  testCase: TestCase;
+  testCase: TestCase; // Original testCase input
   passed: boolean;
-  actualOutput: any;
+  actualOutput: any; // Parsed actual output (e.g., from JSON stdout)
+  stdout?: string | null; // Raw stdout from Judge0
+  stderr?: string | null; // Raw stderr from Judge0
+  compileOutput?: string | null; // Compile output from Judge0
+  status: string; // Judge0 status description (e.g., "Accepted", "Wrong Answer")
+  judge0StatusId: number; // Judge0 status ID (e.g., 3 for Accepted)
+  time: number; // Execution time in milliseconds
+  memory: number; // Memory usage in kilobytes
+  error?: string | null; // Aggregated error message for this test case
 }
 
-export interface ExecutionResult {
-  passed: boolean;
-  testCasesPassed: number;
-  testCasesTotal: number;
-  executionTime?: number | null;
-  memoryUsage?: number | null;
-  error?: string | null;
-  testResults?: TestResult[];
+// Helper to create the full callback URL with submissionId
+function getJudge0CallbackUrl(internalSubmissionId: string): string | undefined {
+  if (process.env.NODE_ENV === 'production' && judge0Config.callbackUrl) {
+    const separator = judge0Config.callbackUrl.includes('?') ? '&' : '?';
+    return `${judge0Config.callbackUrl}${separator}submissionId=${internalSubmissionId}`;
+  }
+  return undefined;
+}
+
+export interface OrchestratedSubmissionInput {
+  code: string;
+  language: string; // e.g., "javascript", "python"
+  testCases: TestCase[];
+}
+
+export interface OrchestratedSubmissionOutput {
+  internalSubmissionId: string;
+  judge0Tokens: Array<{ token: string }>; 
 }
 
 /**
- * Executes code in a secure sandbox environment
- * @param code - User submitted code
- * @param language - Programming language
- * @param testCases - Test cases to run against
- * @returns Execution results
+ * Orchestrates the submission of code to Judge0 as a batch.
+ * Prepares each test case, sends to Judge0, and returns identifiers.
  */
-export async function executeCode(code: string, language: string, testCases: TestCase[]): Promise<ExecutionResult> {
-  // Create a unique ID for this execution
-  const executionId = uuidv4();
-  
-  // Get language configuration
-  const langConfig = languageConfigs[language as keyof typeof languageConfigs];
-  if (!langConfig) {
-    throw new Error(`Unsupported language: ${language}`);
-  }
-  
-  try {
-    // Validate code for security
-    const validatedCode = langConfig.validateCode(code);
-    
-    // Generate wrapper code with test cases
-    const wrapperCode = langConfig.generateWrapperCode(validatedCode, testCases);
-    
-    // Execute in sandbox
-    const sandboxResult = await executeSandboxed(wrapperCode, language, executionId);
-    
-    // Parse results
-    let results: ExecutionResult;
-    try {
-      // Extract the JSON results from the output
-      const outputLines = sandboxResult.output.trim().split('\n');
-      
-      // Find a line that looks like valid JSON
-      const jsonLine = outputLines.find(line => {
-        const trimmed = line.trim();
-        return (trimmed.startsWith('{') && trimmed.endsWith('}')) || 
-               (trimmed.startsWith('[') && trimmed.endsWith(']'));
-      });
-      
-      if (jsonLine) {
-        try {
-          const parsedResults = JSON.parse(jsonLine);
-          results = {
-            passed: parsedResults.passed || false,
-            testCasesPassed: parsedResults.testCasesPassed || 0,
-            testCasesTotal: testCases.length,
-            executionTime: parsedResults.executionTime || sandboxResult.metrics?.executionTime || null,
-            memoryUsage: sandboxResult.metrics?.memoryUsage || null,
-            error: null,
-            testResults: parsedResults.testResults || []
-          };
-        } catch (jsonError: unknown) {
-          const error = jsonError as Error;
-          console.error('JSON parsing error:', error.message);
-          throw new Error(`Invalid JSON format: ${error.message}`);
-        }
-      } else {
-        // If no JSON-like line was found, look for any error messages
-        const errorLine = outputLines.find(line => line.includes('ERROR:'));
-        const errorMessage = errorLine ? errorLine.replace('ERROR:', '').trim() : 'Could not parse execution results';
-        
-        throw new Error(errorMessage);
-      }
-    } catch (parseError: unknown) {
-      const error = parseError as Error;
-      console.error('Error parsing execution results:', error);
-      
-      // Check if the output contains any useful error information
-      const output = sandboxResult.output || '';
-      const errorMatch = output.match(/ERROR: (.*?)(\n|$)/);
-      const errorMessage = errorMatch ? errorMatch[1] : error.message;
-      
-      results = {
-        passed: false,
-        testCasesPassed: 0,
-        testCasesTotal: testCases.length,
-        executionTime: sandboxResult.metrics?.executionTime || null,
-        memoryUsage: sandboxResult.metrics?.memoryUsage || null,
-        error: errorMessage || 'Error parsing execution results',
-      };
-    }
-    
-    return results;
-    
-  } catch (error: any) {
-    console.error('Code execution error:', error);
-    
-    // Determine the appropriate error message
-    let errorMessage: string;
-    if (error.message && error.message.includes('Script execution timed out')) {
-      errorMessage = `Execution timed out after ${EXECUTION_TIMEOUT / 1000} seconds`;
-    } else if (error.message && error.message.includes('Forbidden code pattern')) {
-      errorMessage = error.message;
-    } else if (error.message && error.message.includes('non-transferable value')) {
-      errorMessage = 'Your solution includes objects that cannot be serialized or transferred. Try using simpler data structures.';
-    } else {
-      errorMessage = error.message || 'An unknown error occurred during execution';
-    }
-    
+export async function orchestrateJudge0Submission(
+  client: Judge0Client,
+  submissionInput: OrchestratedSubmissionInput
+): Promise<OrchestratedSubmissionOutput> {
+  const { code, language, testCases } = submissionInput;
+
+  const internalSubmissionId = uuidv4();
+  const driverDetails = getDriverDetails(language); // Throws if language not supported
+  const langId = driverDetails.languageId;
+
+  const batchItems: Judge0BatchSubmissionItem[] = testCases.map(testCase => {
+    const finalSourceCode = driverDetails.driverTemplate.replace(
+      driverDetails.userCodePlaceholder,
+      code
+    );
+    const stdin = JSON.stringify(testCase.input);
+    const expectedOutput = JSON.stringify(testCase.output);
+
     return {
-      passed: false,
-      testCasesPassed: 0,
-      testCasesTotal: testCases.length,
-      executionTime: null,
-      memoryUsage: null,
-      error: errorMessage,
+      language_id: langId,
+      source_code: finalSourceCode,
+      stdin: stdin,
+      expected_output: expectedOutput,
+      // wall_time_limit, memory_limit could be added here if needed
     };
-  }
+  });
+
+  const callbackUrl = getJudge0CallbackUrl(internalSubmissionId);
+  const judge0TokenResponses = await client.createBatchSubmissions(batchItems, callbackUrl);
+
+  return {
+    internalSubmissionId,
+    judge0Tokens: judge0TokenResponses,
+  };
 }
 
 /**
- * Executes code in the sandbox
- * @param code - Code to execute
- * @param language - Programming language
- * @param executionId - Unique ID for this execution
- * @returns Sandbox execution result
+ * Aggregates results from multiple Judge0 submission details (for a batch)
+ * into a single ExecutionResults object.
  */
-async function executeSandboxed(code: string, language: string, executionId: string): Promise<SandboxResult> {
-  // Execute JavaScript using Node VM
-  if (language === 'javascript') {
-    try {
-      return await executeInNodeVm(code, {
-        timeout: EXECUTION_TIMEOUT,
-        sandbox: {}
+export function aggregateBatchResults(
+  judge0Details: Judge0SubmissionDetail[],
+  originalTestCases: TestCase[] 
+): ExecutionResults {
+  let passedOverall = true;
+  let totalTestCasesPassed = 0;
+  const individualTestResults: TestResult[] = [];
+
+  let maxTimeMs = 0;
+  let maxMemoryKb = 0;
+  let overallError: string | null = null; // For compilation or a critical runtime error affecting all
+
+  // Check for compilation error first (applies to all test cases)
+  const compilationErrorDetail = judge0Details.find(d => d.status.id === 6); // Status 6: Compilation Error
+  if (compilationErrorDetail) {
+    passedOverall = false;
+    overallError = compilationErrorDetail.compile_output || compilationErrorDetail.stderr || compilationErrorDetail.message || "Compilation failed";
+    
+    // Populate all test results with compilation error
+    for (let i = 0; i < originalTestCases.length; i++) {
+      individualTestResults.push({
+        testCase: originalTestCases[i],
+        passed: false,
+        actualOutput: null,
+        stdout: compilationErrorDetail.stdout,
+        stderr: compilationErrorDetail.stderr,
+        compileOutput: compilationErrorDetail.compile_output,
+        status: compilationErrorDetail.status.description,
+        judge0StatusId: compilationErrorDetail.status.id,
+        time: 0,
+        memory: 0,
+        error: overallError,
       });
-    } catch (err: any) {
-      console.error(`JavaScript execution error:`, err);
-      return {
-        output: JSON.stringify({
-          passed: false,
-          testCasesPassed: 0,
-          testCasesTotal: 0,
-          error: `JavaScript execution failed: ${err.message}`,
-          testResults: []
-        }),
-        error: err.message,
-        metrics: {
-          executionTime: 0,
-          memoryUsage: 0
+    }
+  } else {
+    // Process individual test case results if no compilation error
+    for (let i = 0; i < judge0Details.length; i++) {
+      const detail = judge0Details[i];
+      const originalTestCase = originalTestCases[i];
+
+      const timeMs = detail.time ? parseFloat(detail.time) * 1000 : 0;
+      const memoryKb = detail.memory || 0;
+
+      if (timeMs > maxTimeMs) maxTimeMs = timeMs;
+      if (memoryKb > maxMemoryKb) maxMemoryKb = memoryKb;
+
+      let testPassed = false;
+      let actualOutput: any = null;
+      let currentTestError: string | null = null;
+
+      if (detail.status.id === 3) { // Accepted
+        testPassed = true;
+        totalTestCasesPassed++;
+        try {
+          actualOutput = detail.stdout ? JSON.parse(detail.stdout) : null;
+        } catch (e) {
+          testPassed = false; // Output was not valid JSON, consider it failed.
+          currentTestError = "Output from code was not valid JSON.";
+          if (e instanceof Error) currentTestError += ` Details: ${e.message}`;
+          actualOutput = detail.stdout; // Store raw output
+          if (!overallError) overallError = "One or more test cases had invalid JSON output.";
         }
-      };
+      } else { // Any other status is a failure for this test case
+        passedOverall = false;
+        currentTestError = detail.message || detail.status.description;
+        if (detail.stderr) currentTestError += ` (Stderr: ${detail.stderr})`;
+        if (detail.compile_output) currentTestError += ` (Compile Output: ${detail.compile_output})`; // Should not happen if we check above
+        if (!overallError && detail.status.id !== 4) { // Don't override with "Wrong Answer" if a more severe error exists
+            overallError = currentTestError;
+        }
+         try { // Try to parse stdout even on error, might contain partial user debug prints
+            actualOutput = detail.stdout ? JSON.parse(detail.stdout) : (detail.stdout || null);
+        } catch {
+            actualOutput = detail.stdout || null; // Store raw if not JSON
+        }
+      }
+
+      individualTestResults.push({
+        testCase: originalTestCase,
+        passed: testPassed,
+        actualOutput: actualOutput,
+        stdout: detail.stdout,
+        stderr: detail.stderr,
+        compileOutput: detail.compile_output,
+        status: detail.status.description,
+        judge0StatusId: detail.status.id,
+        time: timeMs,
+        memory: memoryKb,
+        error: currentTestError,
+      });
     }
   }
   
-  // For Python and Java, we need to modify our approach to avoid non-transferable value errors
-  if (language === 'python' || language === 'java') {
-    try {
-      // Create a simple wrapper that just simulates execution without requiring filesystem access
-      const wrapperCode = `
-        // Simulate execution of ${language} code
-        // In a real implementation, this would execute the actual ${language} code in a dedicated environment
-        
-        // Log a valid JSON result that can be parsed by the caller
-        console.log(JSON.stringify({
-          passed: true,
-          testCasesPassed: 1,
-          testCasesTotal: 1,
-          executionTime: 10,
-          testResults: [{
-            testCase: {
-              input: { nums: [2, 7, 11, 15], target: 9 },
-              output: [0, 1]
-            },
-            passed: true,
-            actualOutput: [0, 1]
-          }]
-        }));
-      `;
-      
-      // Use nodeVm to execute our wrapper (which is JavaScript)
-      return await executeInNodeVm(wrapperCode, {
-        timeout: EXECUTION_TIMEOUT,
-        sandbox: {}
-      });
-    } catch (err: any) {
-      console.error(`${language} execution error:`, err);
-      return {
-        output: JSON.stringify({
-          passed: false,
-          testCasesPassed: 0,
-          testCasesTotal: 0,
-          error: `${language} execution failed: ${err.message}`,
-          testResults: []
-        }),
-        error: err.message,
-        metrics: {
-          executionTime: 0,
-          memoryUsage: 0
-        }
-      };
-    }
+  // Final overall status
+  if (totalTestCasesPassed !== originalTestCases.length && passedOverall && !compilationErrorDetail) {
+      passedOverall = false; // If not all passed, overall is false
   }
-  
-  // For other languages, this would call an external service
-  // This is a placeholder to be replaced with a real implementation
-  // that connects to containerized language-specific execution services
+
+
   return {
-    output: `{"passed":false,"testCasesPassed":0,"testCasesTotal":0,"error":"Sandbox execution for ${language} is not implemented yet. Use the JavaScript sandbox for testing.","testResults":[]}`,
-    error: null,
-    metrics: {
-      executionTime: 0,
-      memoryUsage: 0
-    }
+    passed: passedOverall,
+    testCasesPassed: totalTestCasesPassed,
+    testCasesTotal: originalTestCases.length,
+    executionTime: maxTimeMs, 
+    memoryUsage: maxMemoryKb, 
+    error: overallError,
+    testResults: individualTestResults,
   };
 } 
