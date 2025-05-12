@@ -12,6 +12,7 @@ export interface Problem {
   leetcodeLink?: string;
   isBlind75: boolean;
   testCases: TestCase[];
+  languageSpecificDetails: Record<string, LanguageSpecificProblemDetails>;
   solutionApproach?: string | null;
   timeComplexity?: string | null;
   spaceComplexity?: string | null;
@@ -20,9 +21,20 @@ export interface Problem {
 }
 
 export interface TestCase {
-  input: Record<string, any>;
-  output: any;
+  stdin: string;
+  expectedStdout: string;
   explanation?: string;
+  isSample?: boolean;
+  name?: string;
+  maxCpuTimeLimit?: number;
+  maxMemoryLimit?: number;
+}
+
+export interface LanguageSpecificProblemDetails {
+  solutionFunctionNameOrClassName: string;
+  solutionStructureHint: string;
+  boilerplateCodeWithPlaceholder: string;
+  defaultUserCode: string;
 }
 
 export interface ProblemTransformRequest {

@@ -15,7 +15,7 @@ import {
     setDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
-import { Problem, TestCase, ProblemDifficulty } from "@/data-types/problem";
+import { Problem, TestCase, ProblemDifficulty, LanguageSpecificProblemDetails } from "@/data-types/problem";
 import { AnthropicService } from "@/lib/llmServices/anthropicService";
 
 // Initialize Anthropic service
@@ -88,10 +88,16 @@ const problemConverter: FirestoreDataConverter<Problem> = {
             constraints: Array.isArray(data.constraints) ? data.constraints : [],
             leetcodeLink: typeof data.leetcodeLink === 'string' ? data.leetcodeLink : `https://leetcode.com/problems/${snapshot.id}/`,
             isBlind75: typeof data.isBlind75 === 'boolean' ? data.isBlind75 : false,
-            testCases: Array.isArray(data.testCases) ? data.testCases : [],
+            testCases: Array.isArray(data.testCases) ? data.testCases.map((tc: any) => ({
+                stdin: tc.stdin || '',
+                expectedStdout: tc.expectedStdout || '',
+                explanation: tc.explanation,
+                isSample: typeof tc.isSample === 'boolean' ? tc.isSample : false,
+            })) : [],
             solutionApproach: typeof data.solutionApproach === 'string' || data.solutionApproach === null ? data.solutionApproach : null,
             timeComplexity: typeof data.timeComplexity === 'string' || data.timeComplexity === null ? data.timeComplexity : null,
             spaceComplexity: typeof data.spaceComplexity === 'string' || data.spaceComplexity === null ? data.spaceComplexity : null,
+            languageSpecificDetails: data.languageSpecificDetails || { python: { solutionFunctionNameOrClassName: 'fallback_func', solutionStructureHint:'', defaultUserCode: '', boilerplateCodeWithPlaceholder: '' } },
             createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
             updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now(),
         };
@@ -106,7 +112,6 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
     }
 
     try {
-        // Fetch problem data using Anthropic - we already extract the slug above
         const problemData = await anthropicService.fetchProblemDataFromUrl(url);
         
         // Check if there was an error in fetching the data
@@ -114,32 +119,13 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
             return { success: false, slug, error: problemData.error };
         }
 
-        // Log retrieved data to help debug
-        console.log(`Retrieved problem data for ${slug}:`, {
-            title: problemData.title,
-            hasSolutionApproach: !!problemData.solutionApproach,
-            hasTimeComplexity: !!problemData.timeComplexity,
-            hasSpaceComplexity: !!problemData.spaceComplexity,
-            solutionLength: problemData.solutionApproach ? problemData.solutionApproach.length : 0
-        });
+        const processedTestCases: TestCase[] = Array.isArray(problemData.testCases) ? problemData.testCases.map(tc => ({
+            stdin: tc.stdin,
+            expectedStdout: tc.expectedStdout,
+            explanation: tc.explanation,
+            isSample: typeof tc.isSample === 'boolean' ? tc.isSample : false,
+        })) : [];
 
-        // Process test cases to handle nested arrays (Firestore doesn't support nested arrays)
-        const sanitizedTestCases = problemData.testCases.map(testCase => {
-            // Create a sanitized test case with required fields
-            const sanitizedTestCase: TestCase = {
-                input: sanitizeFirestoreData(testCase.input),
-                output: sanitizeFirestoreData(testCase.output)
-            };
-            
-            // Add explanation if it exists
-            if ('explanation' in testCase && testCase.explanation) {
-                sanitizedTestCase.explanation = String(testCase.explanation);
-            }
-            
-            return sanitizedTestCase;
-        });
-
-        // Map fetched data to our Problem interface
         const problem: Omit<Problem, 'id' | 'createdAt' | 'updatedAt'> = {
             title: problemData.title,
             difficulty: problemData.difficulty as ProblemDifficulty,
@@ -147,12 +133,12 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
             description: problemData.description,
             constraints: problemData.constraints,
             leetcodeLink: url,
-            isBlind75: false, // Default, can be set manually later if needed
-            testCases: sanitizedTestCases,
-            // The AnthropicService class now guarantees these fields will be populated
+            isBlind75: false,
+            testCases: processedTestCases,
             solutionApproach: problemData.solutionApproach,
             timeComplexity: problemData.timeComplexity,
             spaceComplexity: problemData.spaceComplexity,
+            languageSpecificDetails: problemData.languageSpecificDetails || { python: { solutionFunctionNameOrClassName: 'fallback_func', solutionStructureHint:'', defaultUserCode: '', boilerplateCodeWithPlaceholder: '' } },
         };
 
         // Get Firestore document reference with converter

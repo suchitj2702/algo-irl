@@ -27,6 +27,9 @@ export interface Judge0BatchSubmissionItem {
   source_code: string;
   stdin?: string;
   expected_output?: string;
+  cpu_time_limit?: number;   // CPU time limit in seconds
+  memory_limit?: number;     // Memory limit in KB
+  wall_time_limit?: number;  // Wall time limit in seconds
   // Add any other per-submission parameters Judge0 allows in a batch
 }
 

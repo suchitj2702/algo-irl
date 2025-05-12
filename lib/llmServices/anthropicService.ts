@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import axios from 'axios';
+import { ProblemDifficulty, LanguageSpecificProblemDetails } from '../../data-types/problem';
+import { default as judge0DefaultConfig } from '../code-execution/judge0Config'; // Import Judge0 config
 
 // Constants
 const MAX_RETRIES = 3;
@@ -268,27 +270,31 @@ export class AnthropicService {
    */
   async fetchProblemDataFromUrl(url: string): Promise<{
     title: string;
-    difficulty: string;
+    difficulty: ProblemDifficulty;
     categories: string[];
     description: string;
     constraints: string[];
     testCases: Array<{
-      input: { raw: string };
-      output: any;
+      stdin: string; // JSON string
+      expectedStdout: string; // JSON string
+      explanation?: string;
+      isSample?: boolean;
     }>;
     solutionApproach: string | null;
     timeComplexity: string | null;
     spaceComplexity: string | null;
+    languageSpecificDetails?: {
+      python?: LanguageSpecificProblemDetails;
+      // Add other languages here in the future
+    };
     error?: string;
   }> {
     try {
-      // Extract the problem slug from the URL using the local method
       const problemSlug = this.extractSlugFromUrl(url);
-      
       if (!problemSlug) {
         return {
           title: "Invalid URL",
-          difficulty: "Medium",
+          difficulty: "Medium" as ProblemDifficulty,
           categories: [],
           description: "Could not extract problem name from URL.",
           constraints: [],
@@ -299,133 +305,219 @@ export class AnthropicService {
           error: "Failed to extract problem slug from URL"
         };
       }
-
-      // Convert slug to readable name (e.g., "two-sum" -> "Two Sum")
       const problemName = problemSlug
         .split('-')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
 
-      // Build prompt for Claude to generate data based on problem name
-      const prompt = `
-      Generate structured data for the LeetCode problem "${problemName}" (slug: "${problemSlug}").
-      
-      Based on your knowledge of this common algorithmic problem, provide the following in a valid JSON format:
-      - title: The full title of the problem
-      - difficulty: The difficulty level (Easy, Medium, or Hard)
-      - categories: Array of likely topic tags/categories
-      - description: A detailed problem description
-      - constraints: Array of constraints for the problem
-      - testCases: Array of example test cases, each with:
-        - input: Object with "raw" property containing the input string
-        - output: The expected output value
-      
-      MOST IMPORTANTLY, include the following solution-related fields:
-      - solutionApproach: A detailed explanation of efficient solution approaches. Include multiple valid approaches with their respective advantages and disadvantages where applicable. Include code examples in your explanation. This field MUST NOT be null or empty.
-      - timeComplexity: The Big O time complexity of the optimal solution (e.g., "O(n)", "O(n log n)")
-      - spaceComplexity: The Big O space complexity of the optimal solution (e.g., "O(n)", "O(1)")
-      
-      Format your response as valid JSON only, nothing else.
-      `;
+      // Get Python version string from Judge0 config
+      const pythonVersionString = judge0DefaultConfig.languages.python.name || 'Python (version not specified)'; // Fallback
 
-      // Call Claude with the haiku model for efficiency
+      const prompt = `Generate structured data for the LeetCode problem "${problemName}" (slug: "${problemSlug}").
+
+Based on your knowledge of this common algorithmic problem, provide the following in a valid JSON format only:
+{
+  "title": "(string) The full title of the problem.",
+  "difficulty": "(string) Easy, Medium, or Hard.",
+  "categories": ["(string) Array", "(string) Hash Table"],
+  "description": "(string) A detailed problem description. This MUST clearly state the expected function signature or class structure (e.g., for Python using \`typing.List\`: \`from typing import List; def twoSum(nums: List[int], target: int) -> List[int]:\`). Include any helper class definitions (like TreeNode) standard for the problem. If providing code examples within the description, ensure they are formatted as valid JSON strings (e.g., newlines as \\\\n, quotes as \\\\\\", etc.).",
+  "constraints": ["(string) 2 <= nums.length <= 10^4", "(string) -10^9 <= nums[i] <= 10^9"],
+  "testCases": [ 
+    {
+      "stdin": "(string) A JSON string representing the input. Example: {\\\\\\\"nums\\\\\\\": [2, 7, 11, 15], \\\\\\\"target\\\\\\\": 9}",
+      "expectedStdout": "(string) A JSON string representing the expected output. Example: [0, 1]",
+      "isSample": true
+    }
+  ],
+  "solutionApproach": "(string) Detailed explanation of efficient solution approaches. Must not be null or empty. No need to include code.",
+  "timeComplexity": "(string) Big O time complexity of optimal solution (e.g., O(n)). Must not be null or empty.",
+  "spaceComplexity": "(string) Big O space complexity of optimal solution (e.g., O(1) or O(n)). Must not be null or empty.",
+  "languageSpecificDetails": {
+    "python": {
+      "solutionFunctionNameOrClassName": "(string) e.g., twoSum or Solution",
+      "solutionStructureHint": "(string) Python (${pythonVersionString}): Example for Python 3.8 compatibility - \`from typing import List; def twoSum(nums: List[int], target: int) -> List[int]:\` or \`from typing import List; class Solution:\\\\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\`",
+      "defaultUserCode": "(string) The MINIMAL skeleton code for the user, compatible with ${pythonVersionString}. For type hints, use the 'typing' module. E.g., \`from typing import List; def twoSum(nums: List[int], target: int) -> List[int]:\\\\n    pass\` or \`from typing import List; class Solution:\\\\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\\\\n        pass\`. NO helper classes or solution logic here.",
+      "boilerplateCodeWithPlaceholder": "(string) COMPLETE runnable Python script for Judge0, compatible with ${pythonVersionString}. It MUST include imports like \`from typing import List, Dict, Optional\` if type hints such as \`List[int]\` are used. Also include other standard imports (json, sys), helper classes (e.g., TreeNode if relevant for the problem), the placeholder \`%%USER_CODE_PYTHON%%\`, robust stdin/stdout JSON handling, and error handling. Example for Two Sum using \`typing.List\`: import json; import sys; from typing import List; # %%USER_CODE_PYTHON%% if __name__ == '__main__': try: input_str = sys.stdin.read(); data = json.loads(input_str); nums_arg = data['nums']; target_arg = data['target']; # Ensure function (e.g. twoSum) is defined by user code; result = twoSum(nums_arg, target_arg); print(json.dumps(result)); except Exception as e: print(f'Execution Error: {str(e)}', file=sys.stderr); sys.exit(1)\\""
+    }
+  }
+}
+
+IMPORTANT INSTRUCTIONS FOR AI:
+1.  The entire response MUST be a single, valid JSON object. Do not include any text, explanations, or markdown formatting like \`\`\`json before or after the JSON object.
+2.  Every field specified in the structure above MUST be included.
+3.  For the 'testCases' field: Generate at least 15-20 diverse test cases. It MUST be a valid JSON array of objects. Each object must be a complete JSON object, and array elements correctly comma-separated. NO TRAILING COMMAS. 'stdin' and 'expectedStdout' fields must be valid JSON STRINGS, meaning special characters (like quotes, newlines) within these strings must be properly escaped (e.g., use \\\\\\\\\\\" for a quote inside the string). Example of a test case object: {\\\"stdin\\\": \\\"{\\\\\\\\\\\"root\\\\\\\\\\\\\": [1,2,3,null,null,4,5]}\\\", \\\"expectedStdout\\\": \\\"[[1],[2,3],[4,5]]\\\", \\\"isSample\\\": true}.
+`;
+
       const response = await this.client.messages.create({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 4096, // Increased to accommodate larger responses with solution approaches
-        messages: [
-          { role: 'user', content: prompt }
-        ],
+        model: 'claude-3-7-sonnet-20250219', 
+        max_tokens: 4096, 
+        messages: [{ role: 'user', content: prompt }],
         system: `You are a specialized data generator for algorithm problems.
         You know the details of common LeetCode problems.
         When given a problem name/slug, generate realistic, detailed problem data.
         IMPORTANT: You MUST include comprehensive solution approaches for every problem, providing multiple approaches when applicable.
-        Your solution approaches should be detailed, including code examples and explanations of how the solutions work.
-        You must ONLY return a valid JSON object with the requested fields.
-        Do not include any explanatory text before or after the JSON.
-        Make the problem description detailed and the test cases realistic.
-        Every field requested in the prompt MUST be included in your response.`
+        Your solution approaches should be detailed, including code examples and explanations of how the solutions work. Every field requested in the prompt MUST be included in your response. Make the problem description detailed and the test cases realistic. Respond ONLY with a single, valid JSON object containing all requested fields. Do not use markdown wrappers like \`\`\`json or any other explanatory text.`
       });
       
-      // Extract the text from the content blocks
       let jsonText = '';
       for (const block of response.content) {
-        if (block.type === 'text') {
-          jsonText += block.text;
-        }
-      }
-      
-      // Clean up the response to extract just the JSON
-      jsonText = jsonText.trim();
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.substring(7);
-      }
-      if (jsonText.endsWith('```')) {
-        jsonText = jsonText.substring(0, jsonText.length - 3);
+        if (block.type === 'text') { jsonText += block.text; }
       }
       jsonText = jsonText.trim();
       
+      let cleanedJsonText = jsonText; // Declare here to be accessible in catch
+      let isolatedJsonForLogging = cleanedJsonText; // For logging state after initial isolation
+
       try {
-        // Parse the JSON
-        const data = JSON.parse(jsonText);
-        
-        // Add fallback for solution approach if it's missing
-        if (!data.solutionApproach) {
-          console.warn(`Solution approach missing for problem ${problemSlug}, generating a generic fallback`);
-          // Generate a generic fallback solution approach
-          data.solutionApproach = this.generateGenericFallback(problemName);
+        // 1. Isolate the main JSON blob aggressively FIRST
+        let rawJsonFromLLM = jsonText.trim();
+        if (rawJsonFromLLM.startsWith('```json')) {
+          rawJsonFromLLM = rawJsonFromLLM.substring(7);
+          if (rawJsonFromLLM.endsWith('```')) {
+            rawJsonFromLLM = rawJsonFromLLM.substring(0, rawJsonFromLLM.length - 3);
+          }
+        } else if (rawJsonFromLLM.startsWith('```')) {
+          rawJsonFromLLM = rawJsonFromLLM.substring(3);
+          if (rawJsonFromLLM.endsWith('```')) {
+            rawJsonFromLLM = rawJsonFromLLM.substring(0, rawJsonFromLLM.length - 3);
+          }
         }
-        
-        // Use fallbacks for time/space complexity if missing
-        if (!data.timeComplexity) {
-          data.timeComplexity = "O(n)"; // Reasonable default for many problems
+        rawJsonFromLLM = rawJsonFromLLM.trim();
+
+        const firstBrace = rawJsonFromLLM.indexOf('{');
+        const lastBrace = rawJsonFromLLM.lastIndexOf('}');
+
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          cleanedJsonText = rawJsonFromLLM.substring(firstBrace, lastBrace + 1);
+        } else {
+          console.warn("Could not isolate a primary JSON object from LLM response. Attempting to parse raw response.", rawJsonFromLLM);
+          cleanedJsonText = rawJsonFromLLM; // Fallback to the raw text
         }
-        
-        if (!data.spaceComplexity) {
-          data.spaceComplexity = "O(n)"; // Reasonable default for many problems
+        isolatedJsonForLogging = cleanedJsonText; // Save state after isolation
+
+        let parseAttempts = 0;
+        const maxParseAttempts = 3; 
+
+        while (parseAttempts < maxParseAttempts) {
+          let textToParseThisAttempt = cleanedJsonText; // Start with the current state of cleanedJsonText
+
+          try {
+            if (parseAttempts === 0) {
+              // Attempt 1: Remove BOM, basic trailing commas.
+              // Literal newlines and tabs in the JSON structure are fine for JSON.parse,
+              // no need to escape them to \n or \t here.
+              textToParseThisAttempt = cleanedJsonText 
+                .replace(/^\uFEFF/, '')    // Remove BOM
+                .replace(/,\s*]/g, "]")
+                .replace(/,\s*}/g, "}");
+            } else if (parseAttempts === 1) {
+              // Attempt 2: More aggressive comma cleanup (comma directly before closing bracket/brace)
+              textToParseThisAttempt = cleanedJsonText.replace(/,(?=\s*[}\]])/g, "");
+            } else if (parseAttempts === 2) {
+              // Attempt 3: Just try to parse the result of the previous cleaning attempts.
+            }
+
+            // Log char codes of the first few characters before parsing
+            if (textToParseThisAttempt && textToParseThisAttempt.length > 0) {
+              let firstChars = "";
+              for (let i = 0; i < Math.min(10, textToParseThisAttempt.length); i++) {
+                firstChars += `${textToParseThisAttempt.charCodeAt(i)} (${textToParseThisAttempt[i]}) `; 
+              }
+              console.warn(`Attempt ${parseAttempts + 1} - Char codes of first ~10 chars: [${firstChars.trim()}]`);
+            } else {
+              console.warn(`Attempt ${parseAttempts + 1} - textToParseThisAttempt is empty or null.`);
+            }
+
+            const data = JSON.parse(textToParseThisAttempt); // Try parsing the modified text
+            
+            return { // Successful parse
+              title: data.title || problemName,
+              difficulty: data.difficulty || "Medium" as ProblemDifficulty,
+              categories: Array.isArray(data.categories) ? data.categories : [],
+              description: data.description || `Problem description for ${problemName}`,
+              constraints: Array.isArray(data.constraints) ? data.constraints : [],
+              testCases: Array.isArray(data.testCases) ? data.testCases.map((tc: any) => ({
+                stdin: typeof tc.stdin === 'string' ? tc.stdin : JSON.stringify(tc.stdin),
+                expectedStdout: typeof tc.expectedStdout === 'string' ? tc.expectedStdout : JSON.stringify(tc.expectedStdout),
+                explanation: tc.explanation || null,
+                isSample: typeof tc.isSample === 'boolean' ? tc.isSample : false,
+              })) : [],
+              solutionApproach: data.solutionApproach || this.generateGenericFallback(problemName),
+              timeComplexity: data.timeComplexity || "O(n)",
+              spaceComplexity: data.spaceComplexity || "O(n)",
+              languageSpecificDetails: data.languageSpecificDetails || { 
+                python: { 
+                  solutionFunctionNameOrClassName: 'solution', 
+                  solutionStructureHint: 'def solution(...):',
+                  defaultUserCode: '# Implement here\\npass', 
+                  boilerplateCodeWithPlaceholder: 'import sys\\nimport json\\n# %%USER_CODE_PYTHON%%\\nif __name__ == "__main__":\\n    input_data = json.loads(sys.stdin.read())\\n    result = solution(input_data)\\n    print(json.dumps(result))' 
+                } 
+              },
+              error: data.error || null
+            };
+
+          } catch (error) {
+            console.warn(`JSON parse attempt ${parseAttempts + 1} (0-indexed) failed. Error:`, error);
+            // Update cleanedJsonText with the transformations made in this attempt for the NEXT attempt
+            cleanedJsonText = textToParseThisAttempt; 
+            
+            parseAttempts++;
+            if (parseAttempts >= maxParseAttempts) {
+              console.error("All JSON parsing attempts failed.");
+              console.error("Original text from LLM (full):", jsonText);
+              console.error("Isolated JSON blob (before iterative fixes, full):", isolatedJsonForLogging);
+              // Log the state of cleanedJsonText as it was just before the final failed parse attempt
+              console.error("Final text attempted for parsing (full):", cleanedJsonText);
+              console.error("Final Parse Error:", error);
+              return { 
+                title: problemName, 
+                difficulty: "Medium" as ProblemDifficulty, 
+                categories: [], 
+                description: `Failed to parse AI response for ${problemName}. Check logs for details.`, 
+                constraints: [], 
+                testCases: [], 
+                solutionApproach: this.generateGenericFallback(problemName), 
+                timeComplexity: "O(n)", 
+                spaceComplexity: "O(n)", 
+                error: `Failed to parse JSON response after multiple attempts: ${(error as Error).message}` 
+              };
+            }
+            // Log snippet for the next attempt
+            console.warn(`Text for next attempt ${parseAttempts + 1} (after current failed attempt ${parseAttempts}'s cleaning):`, cleanedJsonText.substring(0, 500) + "...");
+          }
         }
-        
-        // Validate and return the extracted data
-        return {
-          title: data.title || problemName,
-          difficulty: data.difficulty || "Medium",
-          categories: Array.isArray(data.categories) ? data.categories : [],
-          description: data.description || `Problem description for ${problemName}`,
-          constraints: Array.isArray(data.constraints) ? data.constraints : [],
-          testCases: Array.isArray(data.testCases) ? data.testCases : [],
-          solutionApproach: data.solutionApproach, // This should now always be populated
-          timeComplexity: data.timeComplexity,
-          spaceComplexity: data.spaceComplexity,
-          error: data.error
-        };
-      } catch (error: unknown) {
-        console.error("Error parsing JSON from Claude response:", error);
-        // If JSON parsing fails, return a complete response with fallback solutions
-        return {
-          title: problemName,
-          difficulty: "Medium",
-          categories: [],
-          description: `The ${problemName} problem from LeetCode.`,
-          constraints: [],
-          testCases: [],
-          solutionApproach: this.generateGenericFallback(problemName),
-          timeComplexity: "O(n)",
-          spaceComplexity: "O(n)",
-          error: `Failed to parse JSON response: ${error instanceof Error ? error.message : String(error)}`
+        // Fallback if loop finishes without returning (shouldn't happen with current logic)
+        throw new Error("JSON parsing loop exited unexpectedly.");
+
+      } catch (finalError) { // Catch errors from the isolation phase or the loop fallback
+        console.error("Critical error during JSON processing pipeline:", finalError);
+        console.error("Original text from LLM (full):", jsonText);
+        return { 
+            title: problemName, 
+            difficulty: "Medium" as ProblemDifficulty, 
+            categories: [], 
+            description: `Critically failed to parse AI response for ${problemName}. Original text: ${jsonText.substring(0, 500)}`, 
+            constraints: [], 
+            testCases: [], 
+            solutionApproach: this.generateGenericFallback(problemName), 
+            timeComplexity: "O(n)", 
+            spaceComplexity: "O(n)", 
+            error: `Critical JSON processing error: ${(finalError as Error).message}` 
         };
       }
-    } catch (error) {
-      console.error("Error generating problem data with Anthropic:", error);
-      return {
-        title: "Error generating problem data",
-        difficulty: "Medium",
-        categories: [],
-        description: "Failed to generate problem data. Please try again later.",
-        constraints: [],
-        testCases: [],
-        solutionApproach: this.generateGenericFallback("Unknown Problem"),
-        timeComplexity: "O(n)",
-        spaceComplexity: "O(n)",
-        error: error instanceof Error ? error.message : String(error)
+    } catch (apiError:any) { // Outer catch for API errors from Anthropic itself
+      console.error("Error generating problem data with Anthropic:", apiError);
+      return { 
+        title: "Error generating problem data", 
+        difficulty: "Medium" as ProblemDifficulty, 
+        categories: [], 
+        description: "Anthropic API error.", 
+        constraints: [], 
+        testCases: [], 
+        solutionApproach: this.generateGenericFallback("Unknown Problem"), 
+        timeComplexity: "O(n)", 
+        spaceComplexity: "O(n)", 
+        error: apiError.message || "Unknown API error"
       };
     }
   }
@@ -434,34 +526,7 @@ export class AnthropicService {
    * Generates a generic fallback solution approach
    */
   private generateGenericFallback(problemName: string): string {
-    return `
-# Solution Approaches for ${problemName}
-
-This is a generic fallback solution because we couldn't retrieve a specific solution for this problem.
-
-## Multiple Approaches
-
-For most algorithm problems, there are typically several approaches with different trade-offs:
-
-### 1. Brute Force Approach
-- Examines all possibilities exhaustively
-- Typically has higher time complexity
-- Usually O(n²) or worse time complexity
-- Often O(1) space complexity
-
-### 2. Optimized Approach
-- Uses appropriate data structures (hash maps, stacks, queues, etc.)
-- Reduces time complexity, often at the cost of increased space complexity
-- Typical time complexity: O(n)
-- Typical space complexity: O(n)
-
-### 3. Advanced Techniques (if applicable)
-- Dynamic programming, divide and conquer, or other advanced algorithms
-- Balances time and space complexity
-- Handles edge cases efficiently
-
-**Note:** For specific implementation details, please research the ${problemName} problem directly.
-`;
+    return `Fallback solution approach for \${problemName}. Details should be researched.`;
   }
 }
 

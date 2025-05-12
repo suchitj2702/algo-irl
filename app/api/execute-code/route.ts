@@ -6,6 +6,7 @@ import judge0Config from '../../../lib/code-execution/judge0Config';
 import { Judge0Client } from '../../../lib/code-execution/judge0Client';
 import { createCodeSubmission } from '../../../lib/code-execution/codeExecutionUtils';
 import type { TestCase } from '../../../data-types/problem';
+import { getProblemById } from '../../../lib/problem/problemDatastoreUtils'; // Import function to get problem details
 
 // Initialize Judge0Client without the global callbackUrl, 
 // as it's now handled per-batch by orchestrateJudge0Submission
@@ -16,7 +17,8 @@ const judge0Client = new Judge0Client({
 
 export async function POST(request: NextRequest) {
   try {
-    const { code, language, testCases } = await request.json();
+    // Accept both legacy format and new problem-based format
+    const { code, language, testCases, problemId } = await request.json();
     
     if (!code || typeof code !== 'string') {
       return NextResponse.json({ error: 'Code is required' }, { status: 400 });
@@ -24,62 +26,74 @@ export async function POST(request: NextRequest) {
     if (!language || typeof language !== 'string') {
       return NextResponse.json({ error: 'Language is required' }, { status: 400 });
     }
-    if (!testCases || !Array.isArray(testCases) || testCases.length === 0) {
-      return NextResponse.json({ error: 'Test cases are required and must not be empty' }, { status: 400 });
-    }
     
-    // The old languageId check here is now handled inside orchestrateJudge0Submission via getDriverDetails
+    // Require either problemId or testCases, but not necessarily both
+    if ((!problemId || typeof problemId !== 'string') && (!testCases || !Array.isArray(testCases) || testCases.length === 0)) {
+      return NextResponse.json(
+        { error: 'Either problemId or testCases are required' }, 
+        { status: 400 }
+      );
+    }
 
-    // No more direct preparation or single token submission here
-    // const { preparedCode, input } = prepareCodeForJudge0(code, language, testCases as TestCase[]);
-    // const token = await judge0Client.submitCode(...);
-
+    // Use the updated orchestration function that supports both modes
     const submissionResult = await orchestrateJudge0Submission(judge0Client, {
       code,
       language,
-      testCases: testCases as TestCase[],
+      testCases: testCases as TestCase[] | undefined,
+      problemId,
     });
 
-    // Prepare testCases for Firestore by stringifying all nested arrays in input and output
-    const testCasesForFirestore = JSON.parse(JSON.stringify(testCases as TestCase[])).map((tc: TestCase) => {
-      // Helper function to recursively process all nested arrays
-      const processNestedArrays = (obj: any): any => {
-        if (Array.isArray(obj)) {
-          // If the item itself is an array, check if it contains arrays
-          if (obj.some(item => Array.isArray(item))) {
-            // If array contains arrays, stringify it
-            return JSON.stringify(obj);
+    // Determine the test cases to store in Firestore
+    let testCasesToStore: TestCase[] = [];
+    if (problemId) {
+      // If problemId is provided, fetch the problem to get its test cases
+      const problem = await getProblemById(problemId);
+      if (problem && problem.testCases) {
+        testCasesToStore = problem.testCases;
+      } else {
+        // Handle case where problem or its test cases aren't found, though orchestration might have already failed
+        console.warn(`Problem or test cases not found for problemId: ${problemId} when preparing for Firestore.`);
+        // Decide on fallback: maybe store empty array, or re-throw error if this state is unexpected
+        testCasesToStore = []; 
+      }
+    } else if (testCases) {
+      // If problemId is not provided, use the testCases from the request (legacy mode)
+      // Apply the processing logic for nested arrays if needed (consider if this is still required)
+      testCasesToStore = JSON.parse(JSON.stringify(testCases as TestCase[])).map((tc: TestCase) => {
+        // Helper function to recursively process all nested arrays
+        const processNestedArrays = (obj: any): any => {
+          if (Array.isArray(obj)) {
+            if (obj.some(item => Array.isArray(item))) {
+              return JSON.stringify(obj);
+            }
+            return obj;
+          } else if (obj && typeof obj === 'object') {
+            const result: any = {};
+            for (const key in obj) {
+              result[key] = processNestedArrays(obj[key]);
+            }
+            return result;
           }
-          // If simple array with no nested arrays, keep as is
           return obj;
-        } else if (obj && typeof obj === 'object') {
-          // If object, process each property
-          const result: any = {};
-          for (const key in obj) {
-            result[key] = processNestedArrays(obj[key]);
-          }
-          return result;
-        }
-        // Return primitives as is
-        return obj;
-      };
-
-      // Process both input and output
-      return {
-        ...tc,
-        input: processNestedArrays(tc.input),
-        output: processNestedArrays(tc.output)
-      };
-    });
-
+        };
+        return {
+          ...tc,
+          stdin: processNestedArrays(tc.stdin),
+          expectedStdout: processNestedArrays(tc.expectedStdout)
+        };
+      });
+    }
+    // If neither problemId nor testCases are provided, testCasesToStore remains [] (though input validation should prevent this)
+    
     // Store submission details in Firestore
     await createCodeSubmission({
       id: submissionResult.internalSubmissionId,
       code,
       language,
-      judge0Tokens: submissionResult.judge0Tokens.map((t: { token: string }) => t.token), // Explicit type for t
+      problemId, // Store problemId if provided
+      judge0Tokens: submissionResult.judge0Tokens.map((t: { token: string }) => t.token),
       status: 'pending', // Initial status
-      testCases: testCasesForFirestore, // Use the transformed version for Firestore
+      testCases: testCasesToStore, // Use the correctly fetched or processed test cases
       // results will be populated by the callback or polling mechanism
     });
     
@@ -96,7 +110,7 @@ export async function POST(request: NextRequest) {
       error: error instanceof Error ? error.message : 'An unknown error occurred during submission.',
       passed: false,
       testCasesPassed: 0,
-      testCasesTotal: (request.body as any)?.testCases?.length || 0, // Attempt to get total, might not be available
+      testCasesTotal: 0, // Can't reliably determine total now
       executionTime: null,
       memoryUsage: null,
       status: 'error' // Add a status field to the error response

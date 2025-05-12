@@ -2,10 +2,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { Judge0Client, Judge0BatchSubmissionItem, Judge0SubmissionDetail } from './judge0Client';
 import { getDriverDetails } from './languageConfigs';
 import judge0Config from './judge0Config';
+import { getProblemById } from '../problem/problemDatastoreUtils';
 
 // Assuming TestCase is correctly imported from here.
 // If not, the path might need adjustment based on your project structure.
-import type { TestCase } from '../../data-types/problem'; 
+import type { TestCase, Problem, LanguageSpecificProblemDetails } from '../../data-types/problem'; 
 
 // Assuming ExecutionResults is correctly imported.
 // Local definition for TestResult to avoid import issues for now.
@@ -38,7 +39,8 @@ function getJudge0CallbackUrl(internalSubmissionId: string): string | undefined 
 export interface OrchestratedSubmissionInput {
   code: string;
   language: string; // e.g., "javascript", "python"
-  testCases: TestCase[];
+  testCases?: TestCase[]; // Optional when problemId is provided
+  problemId?: string; // Optional for backward compatibility
 }
 
 export interface OrchestratedSubmissionOutput {
@@ -47,34 +49,114 @@ export interface OrchestratedSubmissionOutput {
 }
 
 /**
+ * Combines user code with problem boilerplate by replacing the placeholder.
+ */
+export function combineUserCodeWithBoilerplate(userCode: string, boilerplate: string, language: string): string {
+  // Define language-specific placeholders
+  const placeholders: Record<string, string> = {
+    'python': '# %%USER_CODE_PYTHON%%',
+    'javascript': '// %%USER_CODE_JAVASCRIPT%%',
+    'java': '// %%USER_CODE_JAVA%%',
+    'cpp': '// %%USER_CODE_CPP%%',
+  };
+
+  // Get the placeholder for the specified language
+  const placeholder = placeholders[language] || `%%USER_CODE_${language.toUpperCase()}%%`;
+  
+  // Trim leading/trailing whitespace from user code to prevent injection issues
+  const trimmedUserCode = userCode.trim();
+
+  // Replace the placeholder with the trimmed user's code
+  // This assumes the placeholder in the boilerplate is at the correct indentation level (likely 0)
+  // and the user code has consistent internal indentation.
+  return boilerplate.replace(placeholder, trimmedUserCode);
+}
+
+/**
  * Orchestrates the submission of code to Judge0 as a batch.
- * Prepares each test case, sends to Judge0, and returns identifiers.
+ * Now supports both direct test cases and loading from problems.
  */
 export async function orchestrateJudge0Submission(
   client: Judge0Client,
   submissionInput: OrchestratedSubmissionInput
 ): Promise<OrchestratedSubmissionOutput> {
-  const { code, language, testCases } = submissionInput;
-
-  const internalSubmissionId = uuidv4();
-  const driverDetails = getDriverDetails(language); // Throws if language not supported
-  const langId = driverDetails.languageId;
-
-  const batchItems: Judge0BatchSubmissionItem[] = testCases.map(testCase => {
-    const finalSourceCode = driverDetails.driverTemplate.replace(
+  const { code, language, testCases, problemId } = submissionInput;
+  let finalCode = code;
+  let finalTestCases: TestCase[] = [];
+  let maxCpuTimeLimit: number | undefined;
+  let maxMemoryLimit: number | undefined;
+  
+  // If problemId is provided, load problem details and test cases from Firestore
+  if (problemId) {
+    const problem = await getProblemById(problemId);
+    if (!problem) {
+      throw new Error(`Problem with ID ${problemId} not found`);
+    }
+    
+    // Get language-specific details
+    const langDetails = problem.languageSpecificDetails[language];
+    if (!langDetails) {
+      throw new Error(`Language ${language} is not supported for problem ${problemId}`);
+    }
+    
+    // Combine user code with boilerplate
+    finalCode = combineUserCodeWithBoilerplate(
+      code, 
+      langDetails.boilerplateCodeWithPlaceholder,
+      language
+    );
+    
+    // Use problem test cases
+    finalTestCases = problem.testCases;
+    
+  } else if (testCases && testCases.length > 0) {
+    // If no problemId but testCases provided, use legacy mode
+    finalTestCases = testCases;
+    
+    // In legacy mode, use the old driver template system
+    const driverDetails = getDriverDetails(language);
+    finalCode = driverDetails.driverTemplate.replace(
       driverDetails.userCodePlaceholder,
       code
     );
-    const stdin = JSON.stringify(testCase.input);
-    const expectedOutput = JSON.stringify(testCase.output);
+  } else {
+    throw new Error('Either problemId or testCases must be provided');
+  }
 
-    return {
+  const internalSubmissionId = uuidv4();
+  const langId = getLanguageId(language); // Get language ID for Judge0
+
+  const batchItems: Judge0BatchSubmissionItem[] = finalTestCases.map(testCase => {
+    // Prepare input based on test case format
+    const stdin = testCase.stdin;
+    const expectedOutput = testCase.expectedStdout;
+
+    console.log('expectedOutput', expectedOutput);
+    
+    const item: Judge0BatchSubmissionItem = {
       language_id: langId,
-      source_code: finalSourceCode,
+      source_code: finalCode,
       stdin: stdin,
       expected_output: expectedOutput,
-      // wall_time_limit, memory_limit could be added here if needed
     };
+    
+    // Add resource limits if provided
+    if (maxCpuTimeLimit) {
+      item.cpu_time_limit = maxCpuTimeLimit;
+    }
+    if (maxMemoryLimit) {
+      item.memory_limit = maxMemoryLimit;
+    }
+    
+    // Add test case specific limits if available
+    if (testCase.maxCpuTimeLimit) {
+      item.cpu_time_limit = testCase.maxCpuTimeLimit;
+    }
+    if (testCase.maxMemoryLimit) {
+      item.memory_limit = testCase.maxMemoryLimit;
+    }
+    
+    return item;
   });
 
   const callbackUrl = getJudge0CallbackUrl(internalSubmissionId);
@@ -84,6 +166,44 @@ export async function orchestrateJudge0Submission(
     internalSubmissionId,
     judge0Tokens: judge0TokenResponses,
   };
+}
+
+/**
+ * Helper function to get the Judge0 language ID from our language name.
+ */
+export function getLanguageId(language: string): number {
+  const langConfig = judge0Config.languages[language as keyof typeof judge0Config.languages];
+  if (!langConfig || typeof langConfig.id === 'undefined') {
+    throw new Error(`Unsupported language or ID not configured in judge0Config: ${language}`);
+  }
+  return langConfig.id;
+}
+
+/**
+ * Normalizes and compares two output strings.
+ * Tries to parse them as JSON first, otherwise compares trimmed strings.
+ */
+function normalizeAndCompareOutputs(actual: string | null | undefined, expected: string | null | undefined): boolean {
+  const normalizedActual = actual?.trim() ?? "";
+  const normalizedExpected = expected?.trim() ?? "";
+
+  // Handle cases where one or both are empty after trimming
+  if (normalizedActual === "" && normalizedExpected === "") return true;
+  if (normalizedActual === "" || normalizedExpected === "") return false; // Only one is empty
+
+  try {
+    // Attempt to parse both as JSON
+    const parsedActual = JSON.parse(normalizedActual);
+    const parsedExpected = JSON.parse(normalizedExpected);
+
+    // Compare the stringified versions for deep comparison of objects/arrays
+    // This handles differences in key order or whitespace within the JSON structure
+    return JSON.stringify(parsedActual) === JSON.stringify(parsedExpected);
+
+  } catch (e) {
+    // If JSON parsing fails for either, fall back to trimmed string comparison
+    return normalizedActual === normalizedExpected;
+  }
 }
 
 /**
@@ -139,31 +259,49 @@ export function aggregateBatchResults(
       let testPassed = false;
       let actualOutput: any = null;
       let currentTestError: string | null = null;
+      let statusDescription = detail.status.description; // Start with original status
+      let statusId = detail.status.id; // Start with original status ID
 
-      if (detail.status.id === 3) { // Accepted
+      console.log('Detail', detail);
+
+      // Helper to parse stdout
+      const parseStdout = (stdout: string | null | undefined): any => {
+        if (!stdout) return stdout;
+        const trimmedStdout = stdout.trim();
+        if (trimmedStdout.startsWith('{') || trimmedStdout.startsWith('[')) {
+          try {
+            return JSON.parse(trimmedStdout);
+          } catch {
+            // Fallback to raw if JSON parsing fails
+          }
+        }
+        return stdout; // Return raw (trimmed or original if not JSON-like)
+      };
+
+      if (detail.status.id === 3) { // Accepted initially
         testPassed = true;
         totalTestCasesPassed++;
-        try {
-          actualOutput = detail.stdout ? JSON.parse(detail.stdout) : null;
-        } catch (e) {
-          testPassed = false; // Output was not valid JSON, consider it failed.
-          currentTestError = "Output from code was not valid JSON.";
-          if (e instanceof Error) currentTestError += ` Details: ${e.message}`;
-          actualOutput = detail.stdout; // Store raw output
-          if (!overallError) overallError = "One or more test cases had invalid JSON output.";
-        }
-      } else { // Any other status is a failure for this test case
-        passedOverall = false;
-        currentTestError = detail.message || detail.status.description;
-        if (detail.stderr) currentTestError += ` (Stderr: ${detail.stderr})`;
-        if (detail.compile_output) currentTestError += ` (Compile Output: ${detail.compile_output})`; // Should not happen if we check above
-        if (!overallError && detail.status.id !== 4) { // Don't override with "Wrong Answer" if a more severe error exists
-            overallError = currentTestError;
-        }
-         try { // Try to parse stdout even on error, might contain partial user debug prints
-            actualOutput = detail.stdout ? JSON.parse(detail.stdout) : (detail.stdout || null);
-        } catch {
-            actualOutput = detail.stdout || null; // Store raw if not JSON
+        actualOutput = parseStdout(detail.stdout);
+      } else { // Not accepted initially, let's re-check with normalization
+        const normalizedMatch = normalizeAndCompareOutputs(detail.stdout, originalTestCase.expectedStdout);
+
+        if (normalizedMatch) { // Outputs match after normalization!
+          testPassed = true;
+          totalTestCasesPassed++;
+          statusDescription = "Accepted"; // Override status
+          statusId = 3; // Override status ID
+          currentTestError = null; // Clear potential error message
+          actualOutput = parseStdout(detail.stdout); // Still parse the output
+          // Do not set passedOverall = false for this case
+        } else { // Outputs still don't match after normalization
+          passedOverall = false; // Mark overall submission as failed
+          currentTestError = detail.message || detail.status.description;
+          if (detail.stderr) currentTestError += ` (Stderr: ${detail.stderr})`;
+          // Keep original statusDescription and statusId
+          if (!overallError && detail.status.id !== 4) { // Don't override with "Wrong Answer" if a more severe error exists
+              overallError = currentTestError;
+          }
+          actualOutput = parseStdout(detail.stdout); // Parse the output even if failed
         }
       }
 
@@ -174,11 +312,11 @@ export function aggregateBatchResults(
         stdout: detail.stdout,
         stderr: detail.stderr,
         compileOutput: detail.compile_output,
-        status: detail.status.description,
-        judge0StatusId: detail.status.id,
+        status: statusDescription, // Use potentially overridden status
+        judge0StatusId: statusId, // Use potentially overridden ID
         time: timeMs,
         memory: memoryKb,
-        error: currentTestError,
+        error: currentTestError, // Use potentially cleared error
       });
     }
   }
@@ -187,7 +325,6 @@ export function aggregateBatchResults(
   if (totalTestCasesPassed !== originalTestCases.length && passedOverall && !compilationErrorDetail) {
       passedOverall = false; // If not all passed, overall is false
   }
-
 
   return {
     passed: passedOverall,
