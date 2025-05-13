@@ -95,16 +95,42 @@ export class Judge0Client {
     callbackUrl?: string,
     base64Encoded: boolean = false // Judge0 defaults to false for source_code
   ): Promise<Judge0BatchCreationTokenResponse[]> {
-    const payload: { submissions: Judge0BatchSubmissionItem[], callback_url?: string, base64_encoded?: boolean } = { submissions };
-    if (callbackUrl) {
-      payload.callback_url = callbackUrl;
-    }
-    // Explicitly set base64_encoded if needed, though source_code is typically not base64 by default.
-    // Stdin/expected_output can be base64 encoded with separate flags if Judge0 supports it per field.
-    payload.base64_encoded = base64Encoded; 
+    const MAX_SUBMISSIONS_PER_BATCH = 20;
+    let allResults: Judge0BatchCreationTokenResponse[] = [];
 
-    // The /submissions/batch endpoint expects a JSON object with a "submissions" key.
-    return this.request<Judge0BatchCreationTokenResponse[]>('/submissions/batch?base64_encoded=false&wait=false', 'POST', payload);
+    // Determine if callback should be used: Only if provided AND total submissions <= batch limit.
+    const shouldUseCallback = callbackUrl && submissions.length <= MAX_SUBMISSIONS_PER_BATCH;
+
+    if (submissions.length === 0) {
+      return [];
+    }
+
+    for (let i = 0; i < submissions.length; i += MAX_SUBMISSIONS_PER_BATCH) {
+      const chunk = submissions.slice(i, i + MAX_SUBMISSIONS_PER_BATCH);
+      // Construct payload without callback initially
+      const payload: { submissions: Judge0BatchSubmissionItem[], callback_url?: string, base64_encoded?: boolean } = {
+         submissions: chunk,
+         base64_encoded: base64Encoded 
+      };
+
+      // Add callback URL only if determined appropriate for the entire submission set
+      if (shouldUseCallback) {
+        payload.callback_url = callbackUrl;
+      }
+      // payload.base64_encoded = base64Encoded; // Already set above
+
+      // The /submissions/batch endpoint expects a JSON object with a "submissions" key.
+      // We assume that if a callbackUrl is provided, it should apply to all batches.
+      // Judge0 might have specific behavior for multiple batch calls with the same callback;
+      // this implementation assumes it handles it or that the user manages distinct callbacks if needed.
+      const batchResults = await this.request<Judge0BatchCreationTokenResponse[]>(
+        '/submissions/batch?base64_encoded=false&wait=false', // wait=false is typical for batching
+        'POST',
+        payload
+      );
+      allResults = allResults.concat(batchResults);
+    }
+    return allResults;
   }
 
   /**

@@ -2,7 +2,7 @@ import { Company } from '@/data-types/company';
 import { Problem, ProblemDifficulty } from '@/data-types/problem';
 import { getCompanyById, getAllCompanies } from '../company/companyUtils';
 import { getProblemById } from './problemDatastoreUtils';
-import anthropicService from '../llmServices/anthropicService';
+import { transformWithPrompt } from '../llmServices/llmUtils';
 
 /**
  * Represents extracted key information from a problem
@@ -562,27 +562,29 @@ export async function transformProblem(
   };
 }> {
   try {
-    // Create context with all the enhanced information
     const context = await createTransformationContext(problemId, companyId);
     
     if (!context) {
       throw new Error('Failed to create transformation context');
     }
     
-    // Generate the optimized prompt
     const optimizedPrompt = generateOptimizedPrompt(context);
+    
+    const transformationSystemPrompt = `You are an expert technical interviewer who specializes in creating algorithm and data structure problems for software engineering interviews. 
+          Your task is to transform coding problems into realistic company-specific interview scenarios while preserving their algorithmic essence.
+          Your scenarios should feel like actual questions a candidate would receive in a technical interview, with appropriate domain-specific framing that aligns with the company's business and technology.`;
 
-    // Create a cache key based on problem ID and company ID
-    const cacheKey = `transform-${problemId}-${companyId}`.toLowerCase().replace(/\s+/g, '-');
+    // Create a cache key for this specific transformation task
+    const cacheKey = `transform-prompt-${problemId}-${companyId}`.toLowerCase().replace(/\s+/g, '-');
 
-    // Use the direct prompt transformation method
-    const scenarioText = await anthropicService.transformWithCustomPrompt({
-      customPrompt: optimizedPrompt,
-      cacheKey,
-      useCache
-    });
+    // Use the generic utility from llmUtils, now passing cache parameters
+    const scenarioText = await transformWithPrompt(
+      optimizedPrompt, 
+      transformationSystemPrompt,
+      cacheKey,               // Pass the generated cacheKey
+      useCache                // Pass the useCache flag
+    );
 
-    // Return both the scenario and the context information
     return {
       scenario: scenarioText,
       contextInfo: {

@@ -35,6 +35,7 @@ export interface LanguageSpecificProblemDetails {
   solutionStructureHint: string;
   boilerplateCodeWithPlaceholder: string;
   defaultUserCode: string;
+  optimizedSolutionCode: string;
 }
 
 export interface ProblemTransformRequest {

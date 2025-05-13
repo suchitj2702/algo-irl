@@ -19,7 +19,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 import { Company } from "@/data-types/company";
-import { AnthropicService } from "@/lib/llmServices/anthropicService";
+import { generateCompanyDataWithPrompt } from "@/lib/llmServices/llmUtils";
 
 // Firestore collection reference
 const companiesCollectionRef = collection(db, "companies");
@@ -186,10 +186,7 @@ export async function getCompaniesByDomain(domain: string): Promise<Company[]> {
  * @returns {Promise<{correctedName: string, isCorrection: boolean}>} - Corrected name and whether a correction was made
  */
 async function validateCompanyName(companyName: string): Promise<{correctedName: string, isCorrection: boolean}> {
-  try {
-    // Create an instance of the AnthropicService
-    const anthropicService = new AnthropicService();
-    
+  try {    
     // Create a cache key for this validation
     const cacheKey = `company-validation-${companyName.toLowerCase()}`;
     
@@ -212,11 +209,7 @@ async function validateCompanyName(companyName: string): Promise<{correctedName:
     `;
     
     // Get AI response
-    const aiResponse = await anthropicService.generateCompanyData({
-      customPrompt,
-      cacheKey,
-      useCache: true
-    });
+    const aiResponse = await generateCompanyDataWithPrompt(customPrompt);
     
     // Trim any whitespace and newlines
     const correctedName = aiResponse.trim();
@@ -265,9 +258,6 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
       } as Company;
     }
     
-    // Create an instance of the AnthropicService
-    const anthropicService = new AnthropicService();
-    
     // Construct prompt for the AI using the corrected name
     const customPrompt = `
       I need detailed information about the company "${correctedName}" in JSON format. 
@@ -297,11 +287,7 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
     const cacheKey = `company-${companyId}`;
     
     // Get the AI response using the new generateCompanyData method
-    const aiResponse = await anthropicService.generateCompanyData({
-      customPrompt,
-      cacheKey,
-      useCache: true
-    });
+    const aiResponse = await generateCompanyDataWithPrompt(customPrompt);
     
     // Parse the JSON response
     let companyData;

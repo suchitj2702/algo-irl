@@ -3,7 +3,6 @@ import {
     doc,
     getDoc,
     getDocs,
-    writeBatch, // Keep for potential batch URL imports
     serverTimestamp,
     query,
     DocumentData,
@@ -16,10 +15,27 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
 import { Problem, TestCase, ProblemDifficulty, LanguageSpecificProblemDetails } from "@/data-types/problem";
-import { AnthropicService } from "@/lib/llmServices/anthropicService";
+import { TestCaseResult } from '../../data-types/execution';
+import { Judge0Client, Judge0BatchSubmissionItem, Judge0SubmissionDetail } from '../code-execution/judge0Client';
+import { getLanguageId, combineUserCodeWithBoilerplate, aggregateBatchResults, TestResult } from '../code-execution/codeExecution';
+import judge0DefaultConfig from '../code-execution/judge0Config';
 
-// Initialize Anthropic service
-const anthropicService = new AnthropicService();
+// LLM Service Imports
+import {
+    getProblemDataGenerationPrompt,
+    parseAndProcessProblemData,
+    PROBLEM_GENERATION_SYSTEM_PROMPT,
+    ProcessedProblemData,
+    executeLlmTask
+} from "@/lib/llmServices/llmUtils";
+
+// Define a custom error for verification failures
+class VerificationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "VerificationError";
+    }
+}
 
 /**
  * Extracts the problem's title slug from a LeetCode URL.
@@ -97,27 +113,122 @@ const problemConverter: FirestoreDataConverter<Problem> = {
             solutionApproach: typeof data.solutionApproach === 'string' || data.solutionApproach === null ? data.solutionApproach : null,
             timeComplexity: typeof data.timeComplexity === 'string' || data.timeComplexity === null ? data.timeComplexity : null,
             spaceComplexity: typeof data.spaceComplexity === 'string' || data.spaceComplexity === null ? data.spaceComplexity : null,
-            languageSpecificDetails: data.languageSpecificDetails || { python: { solutionFunctionNameOrClassName: 'fallback_func', solutionStructureHint:'', defaultUserCode: '', boilerplateCodeWithPlaceholder: '' } },
+            languageSpecificDetails: data.languageSpecificDetails || { 
+                python: { 
+                    solutionFunctionNameOrClassName: 'fallback_func', 
+                    solutionStructureHint:'', 
+                    defaultUserCode: '', 
+                    boilerplateCodeWithPlaceholder: '',
+                    optimizedSolutionCode: ''
+                } 
+            },
             createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
             updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now(),
         };
     }
 };
 
-// Function to fetch and import a single problem by URL using Anthropic API
+// Function to fetch and import a single problem by URL, dispatching to configured LLM service
 export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success: boolean; slug: string | null; error?: string }> => {
     const slug = extractSlugFromUrl(url);
     if (!slug) {
         return { success: false, slug: null, error: "Invalid LeetCode URL or could not extract slug." };
     }
+    const problemName = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+    let problemData: ProcessedProblemData;
 
     try {
-        const problemData = await anthropicService.fetchProblemDataFromUrl(url);
+        // 1. Generate the prompt for problem data generation
+        const problemGenPrompt = getProblemDataGenerationPrompt(problemName, slug);
         
-        // Check if there was an error in fetching the data
+        // 2. Execute the LLM task to get raw response string
+        console.log(`Fetching raw problem data for ${slug} using problemGeneration task...`);
+        const rawLlmResponse = await executeLlmTask(
+            'problemGeneration', 
+            problemGenPrompt, 
+            PROBLEM_GENERATION_SYSTEM_PROMPT
+        );
+
+        // 3. Parse and process the raw response
+        problemData = parseAndProcessProblemData(rawLlmResponse, problemName);
+
         if (problemData.error) {
-            return { success: false, slug, error: problemData.error };
+            console.error(`Error processing LLM response for ${slug}: ${problemData.error}`);
+            return { success: false, slug, error: `Failed to process LLM response: ${problemData.error}` };
         }
+
+        // --- Test Case Verification Step (using problemData) ---
+        const primaryLanguage = 'python'; 
+        const langDetails = problemData.languageSpecificDetails?.[primaryLanguage];
+
+        if (langDetails && langDetails.optimizedSolutionCode && langDetails.boilerplateCodeWithPlaceholder && problemData.testCases && problemData.testCases.length > 0) {
+            try {
+                const fullCode = combineUserCodeWithBoilerplate(
+                    langDetails.optimizedSolutionCode,
+                    langDetails.boilerplateCodeWithPlaceholder,
+                    primaryLanguage
+                );
+                const langId = getLanguageId(primaryLanguage);
+                const allTestCases: TestCase[] = problemData.testCases;
+
+                const batchItems: Judge0BatchSubmissionItem[] = allTestCases.map(tc => ({
+                    language_id: langId,
+                    source_code: fullCode,
+                    stdin: tc.stdin,
+                    expected_output: tc.expectedStdout
+                }));
+                
+                const judge0Client = new Judge0Client({
+                    apiUrl: judge0DefaultConfig.apiUrl,
+                    apiKey: judge0DefaultConfig.apiKey,
+                });
+
+                const tokenResponses = await judge0Client.createBatchSubmissions(batchItems);
+                if (!tokenResponses || tokenResponses.length === 0) {
+                    throw new VerificationError("Failed to create verification batch submissions with Judge0.");
+                }
+                const tokensStr = tokenResponses.map(tr => tr.token).join(',');
+                
+                const submissionDetails = await pollForResults(judge0Client, tokensStr, allTestCases.length);
+                const aggregatedResults = aggregateBatchResults(submissionDetails, allTestCases);
+
+                if (!aggregatedResults.passed) {
+                    console.warn(`Verification failed for problem ${slug}. AI Solution did not pass all AI test cases. Overall Error: ${aggregatedResults.error || 'One or more test cases failed.'}`);
+                    if (aggregatedResults.testResults) { // Check if testResults is defined
+                        // Log details based on the available TestCaseResult fields
+                        aggregatedResults.testResults.forEach((tr: TestCaseResult) => { 
+                            if (!tr.passed) {
+                                // Access fields available on TestCaseResult and its nested testCase
+                                const inputSnippet = JSON.stringify(tr.testCase.stdin).substring(0, 100);
+                                const expectedSnippet = JSON.stringify(tr.testCase.expectedStdout).substring(0, 100);
+                                const actualSnippet = JSON.stringify(tr.actualOutput).substring(0, 100);
+                                console.warn(` - Test Case (Input: ${inputSnippet}...): Failed. Expected: ${expectedSnippet}..., Actual: ${actualSnippet}...`);
+                            }
+                        });
+                    }
+                    // Use the overall error message from aggregatedResults for the final return
+                    return { success: false, slug, error: `AI-generated test cases failed verification. ${aggregatedResults.error || 'Output mismatch'}` };
+                }
+                 console.log(`Successfully verified AI-generated test cases against its solution for problem: ${slug}`);
+
+            } catch (verificationError: any) {
+                console.error(`Error during test case verification for ${slug}: `, verificationError);
+                // If it's a known error type like LanguageNotSupported, propagate it.
+                // Replaced LanguageNotSupportedError check with a more general one for now
+                if (verificationError.name === "LanguageNotSupportedError" || verificationError.message.includes("Unsupported language")) {
+                     return { success: false, slug, error: `Verification failed: ${verificationError.message}` };
+                }
+                // Use the custom VerificationError for other verification specific issues if applicable
+                if (verificationError instanceof VerificationError) {
+                    return { success: false, slug, error: verificationError.message };
+                }
+                return { success: false, slug, error: `An unexpected error occurred during test case verification: ${verificationError.message}` };
+            }
+        } else {
+            console.warn(`Skipping test case verification for ${slug} due to missing Python details, solution, boilerplate, or test cases.`);
+        }
+        // --- End of Test Case Verification ---
 
         const processedTestCases: TestCase[] = Array.isArray(problemData.testCases) ? problemData.testCases.map(tc => ({
             stdin: tc.stdin,
@@ -138,7 +249,15 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
             solutionApproach: problemData.solutionApproach,
             timeComplexity: problemData.timeComplexity,
             spaceComplexity: problemData.spaceComplexity,
-            languageSpecificDetails: problemData.languageSpecificDetails || { python: { solutionFunctionNameOrClassName: 'fallback_func', solutionStructureHint:'', defaultUserCode: '', boilerplateCodeWithPlaceholder: '' } },
+            languageSpecificDetails: problemData.languageSpecificDetails || { 
+                python: { 
+                    solutionFunctionNameOrClassName: 'fallback_func', 
+                    solutionStructureHint:'', 
+                    defaultUserCode: '', 
+                    boilerplateCodeWithPlaceholder: '',
+                    optimizedSolutionCode: ''
+                } 
+            },
         };
 
         // Get Firestore document reference with converter
@@ -155,6 +274,33 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
         return { success: false, slug: slug, error: error.message || "Unknown error occurred during fetch/import." };
     }
 };
+
+// Helper function for polling (extracted from previous logic)
+async function pollForResults(client: Judge0Client, tokens: string, expectedCount: number): Promise<Judge0SubmissionDetail[]> {
+    let submissionDetails: Judge0SubmissionDetail[] = [];
+    let attempts = 0;
+    const maxPollingAttempts = 15; 
+    const pollingIntervalMs = 2000; 
+
+    while (attempts < maxPollingAttempts) {
+        await new Promise(resolve => setTimeout(resolve, pollingIntervalMs));
+        const batchDetailsResponse = await client.getBatchSubmissionDetails(tokens);
+        
+        if (batchDetailsResponse && batchDetailsResponse.submissions) {
+            const allProcessed = batchDetailsResponse.submissions.every(s => s.status.id > 2);
+            if (allProcessed && batchDetailsResponse.submissions.length === expectedCount) {
+                submissionDetails = batchDetailsResponse.submissions;
+                break;
+            }
+        }
+        attempts++;
+    }
+
+    if (submissionDetails.length !== expectedCount) {
+        throw new VerificationError(`Polling timeout or results incomplete. Expected ${expectedCount}, got ${submissionDetails.length}.`);
+    }
+    return submissionDetails;
+}
 
 /**
  * Sanitizes data to make it compatible with Firestore by handling nested arrays

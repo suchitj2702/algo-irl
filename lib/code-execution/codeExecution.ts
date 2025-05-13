@@ -54,7 +54,7 @@ export interface OrchestratedSubmissionOutput {
 export function combineUserCodeWithBoilerplate(userCode: string, boilerplate: string, language: string): string {
   // Define language-specific placeholders
   const placeholders: Record<string, string> = {
-    'python': '# %%USER_CODE_PYTHON%%',
+    'python': '%%USER_CODE_PYTHON%%',
     'javascript': '// %%USER_CODE_JAVASCRIPT%%',
     'java': '// %%USER_CODE_JAVA%%',
     'cpp': '// %%USER_CODE_CPP%%',
@@ -130,8 +130,6 @@ export async function orchestrateJudge0Submission(
     // Prepare input based on test case format
     const stdin = testCase.stdin;
     const expectedOutput = testCase.expectedStdout;
-
-    console.log('expectedOutput', expectedOutput);
     
     const item: Judge0BatchSubmissionItem = {
       language_id: langId,
@@ -261,8 +259,6 @@ export function aggregateBatchResults(
       let currentTestError: string | null = null;
       let statusDescription = detail.status.description; // Start with original status
       let statusId = detail.status.id; // Start with original status ID
-
-      console.log('Detail', detail);
 
       // Helper to parse stdout
       const parseStdout = (stdout: string | null | undefined): any => {
