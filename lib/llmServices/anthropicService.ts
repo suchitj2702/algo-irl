@@ -2,6 +2,16 @@ import Anthropic from '@anthropic-ai/sdk';
 import { MessageCreateParamsNonStreaming, ContentBlock, Message } from '@anthropic-ai/sdk/resources/messages';
 import axios from 'axios';
 
+export interface ClaudeModelOptions {
+  systemPrompt?: string;
+  max_tokens?: number;
+  thinking_enabled?: boolean;
+  thinking?: {
+    type: "enabled";
+    budget_tokens?: number;
+  };
+}
+
 export class AnthropicService {
   private client: Anthropic;
   private static readonly MAX_RETRIES = 3;
@@ -18,17 +28,34 @@ export class AnthropicService {
   }
 
   // This is the primary public method for this service
-  public async callClaudeModel(model: string, promptContent: string, systemPrompt?: string): Promise<string> {
+  public async callClaudeModel(
+    model: string, 
+    promptContent: string, 
+    optionsOrSystemPrompt?: string | ClaudeModelOptions
+  ): Promise<string> {
     let retries = 0;
+    
+    // Handle both legacy string systemPrompt and new options object
+    const options: ClaudeModelOptions = typeof optionsOrSystemPrompt === 'string' 
+      ? { systemPrompt: optionsOrSystemPrompt }
+      : optionsOrSystemPrompt || {};
+    
     while (retries <= AnthropicService.MAX_RETRIES) {
         try {
             const messages: { role: 'user', content: string }[] = [{ role: 'user', content: promptContent }];
+            
             const requestBody: MessageCreateParamsNonStreaming = {
                 model: model,
-                max_tokens: model.includes('haiku') ? 2048 : 4096, 
+                max_tokens: options.max_tokens || (model.includes('haiku') ? 2048 : 4096),
                 messages: messages,
-                ...(systemPrompt && { system: systemPrompt })
+                ...(options.systemPrompt && { system: options.systemPrompt })
             };
+            
+            // Use Claude's native thinking parameter
+            if (options.thinking_enabled || options.thinking) {
+                // @ts-ignore - Type definition might not include thinking yet
+                requestBody.thinking = options.thinking || { type: "enabled" };
+            }
 
             const response: Message = await this.client.messages.create(requestBody);
 

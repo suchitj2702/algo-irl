@@ -4,6 +4,15 @@ import { GoogleGenerativeAI, GenerativeModel, GenerateContentResult, Content, Ge
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // ms
 
+export interface GeminiModelOptions {
+    systemPrompt?: string;
+    max_tokens?: number;
+    thinking_enabled?: boolean;
+    thinkingConfig?: {
+        thinkingBudget: number;
+    };
+}
+
 export class GeminiService {
     private client: GoogleGenerativeAI;
     private modelCache: { [modelName: string]: GenerativeModel } = {};
@@ -26,27 +35,46 @@ export class GeminiService {
     /**
      * Helper function to call Gemini API with retry logic.
      */
-    // Make this public
-    public async callGeminiModel(modelName: string, prompt: string, systemInstructionText?: string): Promise<string> {
+    public async callGeminiModel(
+        modelName: string, 
+        prompt: string, 
+        optionsOrSystemPrompt?: string | GeminiModelOptions
+    ): Promise<string> {
         let retries = 0;
         const model = this.getModel(modelName);
 
+        // Handle both legacy string systemPrompt and new options object
+        const options: GeminiModelOptions = typeof optionsOrSystemPrompt === 'string' 
+          ? { systemPrompt: optionsOrSystemPrompt }
+          : optionsOrSystemPrompt || {};
+
         const generationConfig: GenerationConfig = {
-            temperature: 1, 
+            temperature: 1,
+            // Add max output tokens if specified
+            ...(options.max_tokens && { maxOutputTokens: options.max_tokens }),
         };
         
         // System instructions are passed as a Content object with role: "system"
-        const systemInstructionParts: Content[] | undefined = systemInstructionText
-            ? [{ role: "system", parts: [{ text: systemInstructionText }] }]
+        const systemInstructionParts: Content[] | undefined = options.systemPrompt
+            ? [{ role: "system", parts: [{ text: options.systemPrompt }] }]
             : undefined;
 
         while (retries <= MAX_RETRIES) {
             try {
-                const result: GenerateContentResult = await model.generateContent({
+                const requestConfig: any = {
                     contents: [{ role: "user", parts: [{ text: prompt }] }],
                     generationConfig: generationConfig,
-                    ...(systemInstructionParts && { systemInstruction: systemInstructionParts[0] }) // Pass the first (and only) Content object
-                });
+                    ...(systemInstructionParts && { systemInstruction: systemInstructionParts[0] })
+                };
+                
+                // Add thinkingConfig if thinking is enabled or explicitly provided
+                if (options.thinking_enabled || options.thinkingConfig) {
+                    requestConfig.config = {
+                        thinkingConfig: options.thinkingConfig || { thinkingBudget: 1024 }
+                    };
+                }
+
+                const result: GenerateContentResult = await model.generateContent(requestConfig);
 
                 const response = result.response;
                 const responseText = response.text(); 

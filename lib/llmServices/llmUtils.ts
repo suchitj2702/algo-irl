@@ -1,7 +1,100 @@
 import { ProblemDifficulty, LanguageSpecificProblemDetails, TestCase } from '../../data-types/problem';
-import anthropicService from "./anthropicService";
-import geminiService from "./geminiService";
-import openAiService from "./openAiService";
+import anthropicService, { ClaudeModelOptions } from "./anthropicService";
+import geminiService, { GeminiModelOptions } from "./geminiService";
+import openAiService, { OpenAiModelOptions } from "./openAiService";
+
+// Define our unified options type based on all service types
+export type LlmModelOptions = ClaudeModelOptions | GeminiModelOptions | OpenAiModelOptions;
+
+/**
+ * Provider-specific options for Anthropic Claude models.
+ * @see https://docs.anthropic.com/claude/reference/messages_post
+ */
+export interface ClaudeOptions {
+  /**
+   * Controls the native Claude thinking functionality.
+   * When enabled, Claude will show its reasoning process in the response.
+   * @example { type: "enabled", budget_tokens: 10000 }
+   */
+  thinking?: {
+    /**
+     * The type of thinking to enable. Currently only "enabled" is supported.
+     */
+    type: "enabled";
+    /**
+     * Optional token budget for the thinking process.
+     * Higher values allow for more elaborate reasoning.
+     */
+    budget_tokens?: number;
+  };
+}
+
+/**
+ * Provider-specific options for Google Gemini models.
+ * @see https://ai.google.dev/api/rest/v1beta/GenerationConfig
+ */
+export interface GeminiOptions {
+  /**
+   * Controls the native Gemini thinking functionality.
+   * @example { thinkingBudget: 1024 }
+   */
+  thinkingConfig?: {
+    /**
+     * Token budget for the thinking process.
+     * Typically between 500-2000 tokens.
+     */
+    thinkingBudget: number;
+  };
+  
+  /**
+   * Controls the temperature setting for Gemini models.
+   * Values range from 0.0 (deterministic) to 1.0 (creative).
+   * @default 0.7
+   */
+  temperature?: number;
+}
+
+/**
+ * Provider-specific options for OpenAI models.
+ * @see https://platform.openai.com/docs/api-reference/chat/create
+ */
+export interface OpenAiOptions {
+  /**
+   * Controls the native OpenAI reasoning functionality.
+   * Available in newer models like GPT-4o, o1, and o2.
+   * @example { effort: "medium" }
+   */
+  reasoning?: {
+    /**
+     * The level of reasoning effort.
+     * - "low": Minimal reasoning, fastest response
+     * - "medium": Standard reasoning, balanced approach
+     * - "high": Extensive reasoning, most thorough
+     */
+    effort: "low" | "medium" | "high";
+  };
+  
+  /**
+   * Controls the temperature setting for OpenAI models.
+   * Values range from 0.0 (deterministic) to 2.0 (very creative).
+   * @default 0.7
+   */
+  temperature?: number;
+  
+  /**
+   * Controls the presence penalty. Higher values encourage the model
+   * to talk about new topics.
+   * @default 0
+   */
+  presence_penalty?: number;
+  
+  /**
+   * Controls the frequency penalty. Higher values discourage the model
+   * from repeating the same words.
+   * @default 0
+   */
+  frequency_penalty?: number;
+}
 
 // --- Cache for Custom Prompts ---
 const CUSTOM_PROMPT_CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
@@ -29,7 +122,7 @@ Ensure all responses are factually accurate, concise, and formatted exactly as r
 
 export function getProblemDataGenerationPrompt(problemName: string, problemSlug: string): string {
     // If language/version specific details are needed later, pass context object
-    const pythonVersionString = 'Python'; // Use a generic placeholder if needed in string
+    const pythonVersionString = '3.8'; // Use a generic placeholder if needed in string
     return `Generate structured data for the LeetCode problem "${problemName}" (slug: "${problemSlug}").
 
 Based on your knowledge of this common algorithmic problem, provide the following in a valid JSON format only:
@@ -88,7 +181,8 @@ IMPORTANT INSTRUCTIONS FOR AI:
     `\\\"expectedStdout\\\": \\\"[[1],[2,3],[4,5]]\\\", \\\"isSample\\\": true}.
 4. CRITICAL: The 'testCases' you generate MUST be correct. Verify that the 'expectedStdout' for each test case is the actual output ` +
     `produced when the corresponding 'stdin' is processed by the 'optimizedSolutionCode' you provide for the primary language (Python). ` +
-    `Incorrect test cases are unacceptable.`;
+    `Incorrect test cases are unacceptable.
+5. For each test case generated, perform a dry run of the 'optimizedSolutionCode' with the 'stdin' to ensure it is correct. IF IT IS NOT CORRECT, REMOVE IT`;
 }
 
 
@@ -106,15 +200,95 @@ export function generateGenericFallback(problemName: string): string {
 
 export type LlmServiceType = 'anthropic' | 'gemini' | 'openai';
 
+/**
+ * Configuration for an LLM task, specifying the model, parameters, and
+ * provider-specific settings.
+ */
 export interface LlmTaskConfig {
-    service: LlmServiceType;
-    model: string; // Specific model identifier (e.g., 'claude-3-7-sonnet-20250219', 'gemini-1.5-pro-latest')
+  /**
+   * The LLM service provider to use.
+   * Each provider has different model capabilities and pricing.
+   */
+  service: LlmServiceType;
+  
+  /**
+   * The specific model identifier.
+   * @example 'claude-3-7-sonnet-20250219' for Anthropic Claude
+   * @example 'gemini-1.5-pro-latest' for Google Gemini
+   * @example 'gpt-4-turbo' for OpenAI
+   */
+  model: string;
+  
+  /**
+   * Maximum tokens to generate in the response.
+   * This controls the length of the output.
+   * Different providers have different token limits.
+   * - Claude: 1-4096 for haiku, up to 200k for opus
+   * - Gemini: up to 8192 for standard models
+   * - OpenAI: varies by model, typically 4096-16k
+   */
+  max_tokens?: number;
+  
+  /**
+   * Whether to enable model thinking in the response.
+   * When true, the model will show its reasoning process
+   * using the provider's native thinking implementation.
+   * @see ClaudeOptions.thinking
+   * @see GeminiOptions.thinkingConfig
+   * @see OpenAiOptions.reasoning
+   */
+  thinking_enabled?: boolean;
+  
+  /**
+   * Anthropic Claude-specific options.
+   * Only applied when service is 'anthropic'.
+   */
+  claude_options?: ClaudeOptions;
+  
+  /**
+   * Google Gemini-specific options.
+   * Only applied when service is 'gemini'.
+   */
+  gemini_options?: GeminiOptions;
+  
+  /**
+   * OpenAI-specific options.
+   * Only applied when service is 'openai'.
+   */
+  openai_options?: OpenAiOptions;
 }
 
 export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
-    problemGeneration: { service: 'anthropic', model: 'claude-3-7-sonnet-20250219' },
-    companyDataGeneration: { service: 'anthropic', model: 'claude-3-5-haiku-20241022' },
-    customPromptTransform: { service: 'anthropic', model: 'claude-3-7-sonnet-20250219' }
+  problemGeneration: { 
+    service: 'anthropic', 
+    model: 'claude-3-7-sonnet-20250219',
+    max_tokens: 8192,
+    thinking_enabled: true,
+    claude_options: {
+      thinking: {
+        type: "enabled",
+        budget_tokens: 4096
+      }
+    }
+  },
+  companyDataGeneration: { 
+    service: 'anthropic', 
+    model: 'claude-3-5-haiku-20241022',
+    max_tokens: 5000,
+    thinking_enabled: false
+  },
+  customPromptTransform: { 
+    service: 'anthropic', 
+    model: 'claude-3-7-sonnet-20250219',
+    max_tokens: 15000,
+    thinking_enabled: true,
+    claude_options: {
+      thinking: {
+        type: "enabled",
+        budget_tokens: 10000
+      }
+    }
+  }
 };
 
 
@@ -122,27 +296,118 @@ export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
 
 /**
  * Executes an LLM task by dispatching to the configured service and model.
- * Assumes service instances (anthropicService, geminiService) are available.
- * Assumes service instances have a method call[Service]Model(modelId, prompt, systemPrompt).
+ * Each service implementation uses its native capabilities for token limits,
+ * thinking mode, and budget management.
+ * 
+ * This function handles merging of generic options with provider-specific options
+ * to ensure optimal use of each model's capabilities.
+ * 
+ * @param taskName The name of the task in llmTaskConfigurations
+ * @param prompt The prompt text to send to the model
+ * @param systemPrompt Optional system prompt to guide model behavior
+ * @param options Optional config overrides including provider-specific options
+ * @returns The model's response as a string
  */
-export async function executeLlmTask(taskName: string, prompt: string, systemPrompt?: string): Promise<string> {
+export async function executeLlmTask(
+    taskName: string, 
+    prompt: string, 
+    systemPrompt?: string,
+    options?: Partial<LlmModelOptions> & {
+        claude_options?: ClaudeOptions;
+        gemini_options?: GeminiOptions;
+        openai_options?: OpenAiOptions;
+    }
+): Promise<string> {
     const config = llmTaskConfigurations[taskName];
     if (!config) {
         throw new Error(`Configuration for LLM task "${taskName}" not found.`);
     }
 
+    // Start with a base set of options
+    const baseOptions: LlmModelOptions = {
+        systemPrompt,
+        max_tokens: options?.max_tokens ?? config.max_tokens,
+        thinking_enabled: options?.thinking_enabled ?? config.thinking_enabled
+    };
+
+    // Log basic configuration
     console.log(`Executing LLM task "${taskName}" using ${config.service} (${config.model})...`);
+    if (baseOptions.max_tokens) console.log(`Max tokens: ${baseOptions.max_tokens}`);
+    if (baseOptions.thinking_enabled !== undefined) console.log(`Thinking enabled: ${baseOptions.thinking_enabled}`);
 
     try {
         if (config.service === 'anthropic') {
-            // Assumes anthropicService has callClaudeModel(modelId, prompt, systemPrompt?)
-            return await anthropicService.callClaudeModel(config.model, prompt, systemPrompt);
+            // Merge base options with Claude-specific options from both config and override
+            const claudeOptions = {
+                ...baseOptions,
+                // Apply provider-specific options from task config
+                ...(config.claude_options && {
+                    // @ts-ignore - Type mismatch between our interface and actual API
+                    thinking: config.claude_options.thinking
+                }),
+                // Apply provider-specific options from function call (overrides config)
+                ...(options?.claude_options && {
+                    // @ts-ignore - Type mismatch between our interface and actual API
+                    thinking: options.claude_options.thinking
+                })
+            };
+            
+            if (claudeOptions.thinking_enabled && !claudeOptions.thinking) {
+                // If thinking is enabled but no specific config provided, create a default
+                // @ts-ignore - Type mismatch between our interface and actual API
+                claudeOptions.thinking = {
+                    type: "enabled"
+                    // No default budget_tokens
+                };
+            }
+            
+            return await anthropicService.callClaudeModel(
+                config.model, 
+                prompt, 
+                claudeOptions
+            );
         } else if (config.service === 'gemini') {
-            // Assumes geminiService has callGeminiModel(modelId, prompt, systemPrompt?)
-            return await geminiService.callGeminiModel(config.model, prompt, systemPrompt);
+            // Merge base options with Gemini-specific options from both config and override
+            const geminiOptions = {
+                ...baseOptions,
+                ...(config.gemini_options && config.gemini_options),
+                ...(options?.gemini_options && options.gemini_options)
+            };
+            
+            // If thinking is enabled but no thinkingConfig provided, create a default
+            if (geminiOptions.thinking_enabled && !geminiOptions.thinkingConfig) {
+                // @ts-ignore - Adding custom property
+                geminiOptions.thinkingConfig = {
+                    thinkingBudget: 1024 // Default value
+                };
+            }
+            
+            return await geminiService.callGeminiModel(
+                config.model, 
+                prompt, 
+                geminiOptions
+            );
         } else if (config.service === 'openai') {
-            // Assumes openAiService has callOpenAiModel(modelId, prompt, systemPrompt?)
-            return await openAiService.callOpenAiModel(config.model, prompt, systemPrompt);
+            // Merge base options with OpenAI-specific options from both config and override
+            const openaiOptions = {
+                ...baseOptions,
+                ...(config.openai_options && config.openai_options),
+                ...(options?.openai_options && options.openai_options)
+            };
+            
+            // If thinking is enabled but no reasoning config provided, create a default
+            if (openaiOptions.thinking_enabled && !openaiOptions.reasoning) {
+                // @ts-ignore - Adding custom property
+                openaiOptions.reasoning = {
+                    effort: "medium" // Default medium effort
+                };
+            }
+            
+            return await openAiService.callOpenAiModel(
+                config.model, 
+                prompt, 
+                openaiOptions
+            );
         } else {
             // Should be caught by type system, but good practice
             throw new Error(`Unsupported LLM service in configuration: ${config.service}`);
@@ -156,12 +421,24 @@ export async function executeLlmTask(taskName: string, prompt: string, systemPro
 
 /**
  * Transforms content using a custom prompt and system prompt, with caching.
+ * 
+ * @param customPrompt The prompt to transform
+ * @param systemPrompt The system prompt to guide model behavior
+ * @param cacheKey Optional key for caching the response
+ * @param useCache Whether to use the cache (default: true)
+ * @param options LLM configuration options including provider-specific settings
+ * @returns The transformed content as a string
  */
 export async function transformWithPrompt(
     customPrompt: string,
     systemPrompt: string,
     cacheKey?: string,
-    useCache: boolean = true
+    useCache: boolean = true,
+    options?: Partial<LlmModelOptions> & {
+        claude_options?: ClaudeOptions;
+        gemini_options?: GeminiOptions;
+        openai_options?: OpenAiOptions;
+    }
 ): Promise<string> {
     if (useCache && cacheKey && customPromptCache[cacheKey]) {
         const cachedEntry = customPromptCache[cacheKey];
@@ -174,7 +451,12 @@ export async function transformWithPrompt(
         }
     }
 
-    const response = await executeLlmTask('customPromptTransform', customPrompt, systemPrompt);
+    const response = await executeLlmTask(
+        'customPromptTransform', 
+        customPrompt, 
+        systemPrompt,
+        options
+    );
 
     if (useCache && cacheKey) {
         console.log(`Caching response for custom prompt: ${cacheKey}`);
@@ -188,9 +470,25 @@ export async function transformWithPrompt(
 
 /**
  * Generates company data based on a custom prompt.
+ * 
+ * @param customPrompt The prompt describing the company data to generate
+ * @param options LLM configuration options including provider-specific settings
+ * @returns The generated company data as a string
  */
-export async function generateCompanyDataWithPrompt(customPrompt: string): Promise<string> {
-    return executeLlmTask('companyDataGeneration', customPrompt, COMPANY_DATA_SYSTEM_PROMPT);
+export async function generateCompanyDataWithPrompt(
+    customPrompt: string,
+    options?: Partial<LlmModelOptions> & {
+        claude_options?: ClaudeOptions;
+        gemini_options?: GeminiOptions;
+        openai_options?: OpenAiOptions;
+    }
+): Promise<string> {
+    return executeLlmTask(
+        'companyDataGeneration', 
+        customPrompt, 
+        COMPANY_DATA_SYSTEM_PROMPT,
+        options
+    );
 }
 
 
@@ -388,4 +686,57 @@ export function clearLlmUtilsCache(cacheName?: 'customPrompt' | 'all'): void {
     if (cacheName === 'all') {
         console.log("All llmUtils caches cleared.");
     }
-} 
+}
+
+/**
+ * Example usage of provider-specific options:
+ * 
+ * // Using Claude with native thinking
+ * const claudeResponse = await executeLlmTask(
+ *   'customTask',
+ *   'Explain quantum entanglement',
+ *   'You are a physics expert',
+ *   {
+ *     thinking_enabled: true,
+ *     claude_options: {
+ *       thinking: {
+ *         type: 'enabled',
+ *         budget_tokens: 8000
+ *       }
+ *     }
+ *   }
+ * );
+ * 
+ * // Using Gemini with thinkingConfig
+ * const geminiResponse = await executeLlmTask(
+ *   'customTask',
+ *   'Compare different sorting algorithms',
+ *   'You are a computer science expert',
+ *   {
+ *     thinking_enabled: true,
+ *     gemini_options: {
+ *       thinkingConfig: {
+ *         thinkingBudget: 1500
+ *       },
+ *       temperature: 0.2
+ *     }
+ *   }
+ * );
+ * 
+ * // Using OpenAI with reasoning
+ * const openaiResponse = await executeLlmTask(
+ *   'customTask',
+ *   'Analyze the causes of the 2008 financial crisis',
+ *   'You are an economics expert',
+ *   {
+ *     thinking_enabled: true,
+ *     openai_options: {
+ *       reasoning: {
+ *         effort: 'high'
+ *       },
+ *       temperature: 0.7,
+ *       presence_penalty: 0.1
+ *     }
+ *   }
+ * );
+ */ 

@@ -5,6 +5,18 @@ import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // ms
 
+export interface OpenAiModelOptions {
+    systemPrompt?: string;
+    max_tokens?: number;
+    thinking_enabled?: boolean;
+    reasoning?: {
+        effort: "low" | "medium" | "high";
+    };
+    temperature?: number;
+    presence_penalty?: number;
+    frequency_penalty?: number;
+}
+
 export class OpenAiService {
     private client: OpenAI;
 
@@ -16,24 +28,43 @@ export class OpenAiService {
         this.client = new OpenAI({ apiKey: effectiveApiKey });
     }
 
-    public async callOpenAiModel(model: string, promptContent: string, systemPrompt?: string): Promise<string> {
+    public async callOpenAiModel(
+        model: string, 
+        promptContent: string, 
+        optionsOrSystemPrompt?: string | OpenAiModelOptions
+    ): Promise<string> {
         let retries = 0;
 
+        // Handle both legacy string systemPrompt and new options object
+        const options: OpenAiModelOptions = typeof optionsOrSystemPrompt === 'string' 
+            ? { systemPrompt: optionsOrSystemPrompt }
+            : optionsOrSystemPrompt || {};
+
         const messages: ChatCompletionMessageParam[] = [];
-        if (systemPrompt) {
-            messages.push({ role: 'system', content: systemPrompt });
+        if (options.systemPrompt) {
+            messages.push({ role: 'system', content: options.systemPrompt });
         }
         messages.push({ role: 'user', content: promptContent });
 
         while (retries <= MAX_RETRIES) {
             try {
-                const completion = await this.client.chat.completions.create({
+                const requestParams: any = {
                     model: model,
                     messages: messages,
-                    // Add other parameters like temperature, max_tokens if needed
-                    // temperature: 0.7,
-                    // max_tokens: 2048,
-                });
+                    ...(options.max_tokens && { max_tokens: options.max_tokens }),
+                    temperature: options.temperature || 0.7,
+                    ...(options.presence_penalty !== undefined && { presence_penalty: options.presence_penalty }),
+                    ...(options.frequency_penalty !== undefined && { frequency_penalty: options.frequency_penalty })
+                };
+                
+                // Add reasoning parameter for newer models that support it
+                if (options.thinking_enabled || options.reasoning) {
+                    // Use native OpenAI reasoning parameter
+                    // This works with o1, o2, o4, and newer GPT-4 models
+                    requestParams.reasoning = options.reasoning || { effort: "medium" };
+                }
+
+                const completion = await this.client.chat.completions.create(requestParams);
 
                 const responseText = completion.choices[0]?.message?.content;
 
