@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-// import { v4 as uuidv4 } from 'uuid'; // No longer needed here, id generated in orchestrate
-// import { prepareCodeForJudge0 } from '../../../lib/code-execution/codeExecution'; // Old method
-import { orchestrateJudge0Submission } from '../../../lib/code-execution/codeExecution'; // New method - trying with .js extension
+import { orchestrateJudge0Submission } from '../../../lib/code-execution/codeExecution';
 import judge0Config from '../../../lib/code-execution/judge0Config';
 import { Judge0Client } from '../../../lib/code-execution/judge0Client';
 import { createCodeSubmission } from '../../../lib/code-execution/codeExecutionUtils';
 import type { TestCase } from '../../../data-types/problem';
-import { getProblemById } from '../../../lib/problem/problemDatastoreUtils'; // Import function to get problem details
+import { getProblemById } from '../../../lib/problem/problemDatastoreUtils';
 
 // Initialize Judge0Client without the global callbackUrl, 
 // as it's now handled per-batch by orchestrateJudge0Submission

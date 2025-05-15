@@ -46,6 +46,7 @@ export interface ProblemTransformRequest {
 
 export interface TransformationResult {
   scenario: string;
+  functionMapping: Record<string, string>;
   contextInfo: {
     detectedAlgorithms: string[];
     detectedDataStructures: string[];

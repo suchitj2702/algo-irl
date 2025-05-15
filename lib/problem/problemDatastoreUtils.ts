@@ -12,6 +12,7 @@ import {
     WithFieldValue,
     PartialWithFieldValue,
     setDoc,
+    where
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
 import { Problem, TestCase, ProblemDifficulty, LanguageSpecificProblemDetails } from "@/data-types/problem";
@@ -372,6 +373,22 @@ export const getAllProblems = async (): Promise<Problem[]> => {
     } catch (error) {
         console.error("Error fetching all problems: ", error);
         throw new Error("Failed to fetch problems.");
+    }
+};
+
+export const getProblemsbyDifficulty = async (difficulty: ProblemDifficulty): Promise<Problem[]> => {
+    try {
+        const q = query(
+            problemsCollectionRef,
+            // Filter problems by the specified difficulty
+            where("difficulty", "==", difficulty)
+        ).withConverter(problemConverter);
+        const querySnapshot = await getDocs(q);
+        const problems = querySnapshot.docs.map(doc => doc.data());
+        return problems;
+    } catch (error) {
+        console.error(`Error fetching problems with difficulty ${difficulty}: `, error);
+        throw new Error(`Failed to fetch ${difficulty} problems.`);
     }
 };
 

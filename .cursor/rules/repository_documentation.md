@@ -7,10 +7,10 @@ AlgoIRL is an interactive platform for practicing algorithm and data structure p
 
 - **Frontend**: Next.js 15, React 19, TypeScript, TailwindCSS
 - **Backend**: Next.js API routes with TypeScript
-- **Code Execution**: VM2 for sandboxed code execution
+- **Code Execution**: Judge0 API integration for secure code execution
 - **Authentication**: Firebase Auth
 - **Database**: Firebase Firestore
-- **AI Integration**: Anthropic AI for problem transformation
+- **AI Integration**: Multiple AI providers (Anthropic Claude, OpenAI, Google Gemini) for problem transformation and company-specific scenarios
 
 ## Repository Structure
 
@@ -35,20 +35,17 @@ AlgoIRL is an interactive platform for practicing algorithm and data structure p
 ##### `/app/api` Directory - API Routes
 
 - `/problem`: Problem management endpoints
-  - `/import/route.ts`: Import problems from LeetCode
+  - `/[problemId]/route.ts`: Get problem by ID
   - `/import-batch/route.ts`: Batch import problems
   - `/transform/route.ts`: Transform problems to company-specific scenarios
 
 - `/companies`: Company management endpoints
-  - `/initialize/route.ts`: Initialize company data
-    - `GET`: Initializes predefined tech companies
+  - `/initialize/route.ts`: Initialize and generate company data
+    - `GET`: Retrieves company data
     - `POST`: Generates company data for a specified company name using AI
 
-- `/execute-code/route.ts`: Code execution endpoint
-
-##### `/app/examples` Directory - Example Implementations
-
-Example pages demonstrating various features and components
+- `/execute-code/route.ts`: Code execution endpoint that integrates with Judge0
+- `/execution/[submissionId]/route.ts`: Retrieves results for a code execution
 
 ##### `/app/authentication` Directory - Authentication Pages
 
@@ -60,9 +57,9 @@ User authentication and account management pages
   - Login, register, and password reset forms
 
 - `/code-editor`: Code editor components
-  - Monaco editor integration
-  - Language selection
-  - Test case execution
+  - **CodeEditor.tsx**: Monaco editor integration
+  - **LanguageSelector.tsx**: Programming language selection
+  - **CodeEditorWithLanguageSelector.tsx**: Combined editor component
 
 - `/layout`: Layout components
   - Header, footer, navigation
@@ -80,31 +77,29 @@ User authentication and account management pages
 #### `/lib` Directory - Core Functionality
 
 - `/code-execution`: Code execution utilities
-  - Language configuration
-  - Execution environment
-
-- `/sandboxing`: Secure code execution sandbox
-  - VM2 integration
-  - Execution isolation
+  - **codeExecution.ts**: Main orchestration logic for code execution
+  - **judge0Client.ts**: Client for interacting with Judge0 API
+  - **languageConfigs.ts**: Configuration for supported programming languages
+  - **judge0Config.ts**: Judge0 API configuration
+  - **codeExecutionUtils.ts**: Helper functions for code execution
 
 - `/firebase`: Firebase configuration and utilities
   - Authentication
   - Firestore database access
 
 - `/company`: Company data management
-  - Company profiles
-  - Industry data
+  - **companyUtils.ts**: Company profiles and data management
+  - **companyGenerationPrompts.ts**: Prompts for company data generation
 
 - `/problem`: Problem management utilities
-  - Problem import
-  - Problem transformation
+  - **problemDatastoreUtils.ts**: Problem import and database interactions
+  - **problemTransformer.ts**: Problem transformation utilities
 
 - `/llmServices`: AI service integration
-  - Anthropic API integration
-  - Prompt generation and handling
-  - Two specialized functions for different tasks:
-    - Problem transformation (using claude-3-7-sonnet model)
-    - Company data generation (using faster claude-3-5-haiku model)
+  - **anthropicService.ts**: Anthropic Claude integration
+  - **openAiService.ts**: OpenAI integration
+  - **geminiService.ts**: Google Gemini integration
+  - **llmUtils.ts**: Common utilities for AI services, including prompt templates and caching
 
 #### `/data-types` Directory - TypeScript Type Definitions
 
@@ -120,75 +115,101 @@ User authentication and account management pages
 
 ## Key Features
 
-### Problem Transformation
-The platform uses AI to transform traditional algorithm problems into company-specific interview scenarios. The transformation process:
+### Smart Problem Import
+The platform uses AI to populate a comprehensive problem repository:
+
+1. Accepts LeetCode problem URLs as input
+2. Extracts problem slugs from URLs
+3. Uses multiple AI models to generate detailed problem data including:
+   - Problem descriptions and constraints
+   - Test cases with inputs and expected outputs
+   - Multiple solution approaches and complexity analysis
+   - Language-specific boilerplate code and solution templates
+4. Implements test case verification using Judge0
+5. Features rate limiting and error handling
+
+### AI-Powered Problem Transformation
+The platform transforms traditional algorithm problems into company-specific interview scenarios using AI:
 
 1. Analyzes the problem to identify key algorithms and data structures
 2. Integrates company context (products, technologies, domain)
 3. Creates a realistic interview scenario tailored to the company
+4. Provides additional context details for enhanced realism
+5. Implements caching for efficient reuse of scenarios
 
-### Code Execution Environment
-The platform provides a secure sandbox for executing user code:
+### Judge0 Code Execution Environment
+The platform provides a secure code execution environment through Judge0 API integration:
 
-1. Supports multiple programming languages
-2. Runs code against test cases
+1. Supports multiple programming languages (JavaScript, Python, Java, C++, Go, Ruby)
+2. Executes code against test cases with secure sandboxing
 3. Provides performance metrics (execution time, memory usage)
-4. Ensures security through VM2 sandboxing
+4. Implements batch submission for efficient processing
+5. Handles various submission states and errors gracefully
 
-### Authentication System
-User authentication is handled through Firebase Auth:
+### Multi-Model AI Integration
+The platform integrates with multiple AI providers:
 
-1. Email/password authentication
-2. Profile management
-3. Secure session handling
+1. Anthropic Claude: Primary provider for high-quality problem transformation
+2. OpenAI: Alternative provider for AI tasks with fallback capabilities
+3. Google Gemini: Additional provider for specific tasks
+4. Unified interface with provider-specific adapters
+5. Comprehensive caching system to reduce API costs and improve performance
+6. Task-specific prompt templates for optimized results
 
-### AI-Powered Company Data Generation
-The platform uses Anthropic's AI to automatically generate company data:
+### Company Data Management
+The platform includes comprehensive company data management:
 
-1. Accepts a company name as input
-2. Intelligently corrects misspelled company names (e.g., "Googel" → "Google")
-3. Uses the faster claude-3-5-haiku model to generate comprehensive company details
-4. Structures the data according to the Company interface
-5. Stores the data in Firestore for later use
-6. Uses specialized caching for company data to improve performance and reduce API calls
+1. AI-generated company profiles with rich metadata
+2. Domain-specific categorization and filtering
+3. Company name validation and correction
+4. Custom company support for personalized scenarios
 
 ## API Endpoints
 
 ### Problem Management
 
-#### `POST /api/problem/import`
-- Imports a single problem from LeetCode
-- Accepts LeetCode URL
-- Returns imported problem data
-
 #### `POST /api/problem/import-batch`
-- Imports multiple problems from LeetCode
-- Accepts array of LeetCode URLs
-- Returns batch import results
+- Imports multiple problems from LeetCode URLs
+- Uses AI to generate comprehensive problem data
+- Validates and stores problems in Firestore
+- Returns success count and any errors
+
+#### `GET /api/problem/[problemId]`
+- Retrieves a specific problem by ID
+- Returns complete problem details including test cases and language-specific details
 
 #### `POST /api/problem/transform`
 - Transforms a problem to a company-specific scenario
-- Accepts problem ID and company ID
-- Returns transformed scenario with context information
+- Requires problem ID and company ID
+- Supports caching with optional cache bypass
+- Returns transformed scenario with context details
 
 ### Code Execution
 
 #### `POST /api/execute-code`
-- Executes user code in a secure sandbox
-- Accepts code, language, and test cases
-- Returns execution results and performance metrics
+- Executes user code using Judge0 API
+- Accepts code, language, and problem ID
+- Processes code with language-specific templates
+- Returns submission ID for polling results
+
+#### `GET /api/execution/[submissionId]`
+- Retrieves results for a code execution submission
+- Returns execution status, test results, and performance metrics
+- Handles various execution states (pending, completed, error)
 
 ### Company Data
 
-#### `GET /api/companies/initialize`
-- Initializes the database with predefined tech company data
-- Returns success status and message
+#### `GET /api/companies`
+- Retrieves a list of available companies
+- Supports filtering by domain or other parameters
+
+#### `GET /api/companies/[id]`
+- Retrieves details for a specific company
 
 #### `POST /api/companies/initialize`
 - Generates and stores company data for a specified company using AI
-- Accepts company name in the request body (tolerates misspellings)
-- Automatically corrects misspelled company names
-- Returns generated company information, correction status, and success message
+- Implements name correction for misspelled company names
+- Returns generated company data with rich metadata
 
 ## Type System
 
@@ -197,21 +218,34 @@ The platform uses Anthropic's AI to automatically generate company data:
 interface Problem {
   id: string;
   title: string;
-  difficulty: string;
+  difficulty: ProblemDifficulty;
   categories: string[];
   description: string;
   constraints: string[];
   leetcodeLink?: string;
+  isBlind75: boolean;
   testCases: TestCase[];
-  // Additional fields...
+  solutionApproach: string | null;
+  timeComplexity: string | null;
+  spaceComplexity: string | null;
+  languageSpecificDetails: Record<string, LanguageSpecificProblemDetails>;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 interface TestCase {
-  input: {
-    raw: string;
-    parsed?: any;
-  };
-  output: any;
+  stdin: string;
+  expectedStdout: string;
+  explanation?: string;
+  isSample?: boolean;
+}
+
+interface LanguageSpecificProblemDetails {
+  solutionFunctionNameOrClassName: string;
+  solutionStructureHint: string;
+  defaultUserCode: string;
+  boilerplateCodeWithPlaceholder: string;
+  optimizedSolutionCode: string;
 }
 ```
 
@@ -225,7 +259,9 @@ interface Company {
   products: string[];
   technologies: string[];
   interviewFocus: string[];
-  // Additional fields...
+  logoUrl?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 ```
 
@@ -234,16 +270,32 @@ interface Company {
 interface CodeExecutionRequest {
   code: string;
   language: string;
-  testCases: TestCase[];
-  timeLimit?: number;
-  memoryLimit?: number;
+  problemId?: string;
+  customTestCases?: TestCase[];
 }
 
 interface ExecutionResult {
-  success: boolean;
-  testResults: TestResult[];
+  status: "pending" | "completed" | "error";
+  passed?: boolean;
+  results?: {
+    testResults: TestCaseResult[];
+    summary: {
+      total: number;
+      passed: number;
+      failed: number;
+      executionTime: number;
+      memoryUsage: number;
+    }
+  };
+  error?: string;
+}
+
+interface TestCaseResult {
+  input: string;
+  expectedOutput: string;
+  actualOutput: string;
+  passed: boolean;
   executionTime: number;
-  memoryUsage: number;
   error?: string;
 }
 ```
@@ -256,30 +308,52 @@ interface ExecutionResult {
 
 ## Security Considerations
 
-1. **Code Execution**: User code is executed in a secure sandbox using VM2
+1. **Code Execution**: User code is executed securely through Judge0 API in isolated containers
 2. **Authentication**: Firebase Auth handles secure user authentication
 3. **Data Validation**: All user inputs are validated before processing
-4. **Rate Limiting**: API endpoints implement rate limiting to prevent abuse
+4. **Error Handling**: Comprehensive error handling with user-friendly messages
+5. **Rate Limiting**: API endpoints implement rate limiting and retry mechanisms for reliability
 
-## AnthropicService
+## LLM Service Architecture
 
-The AnthropicService handles integration with Anthropic's Claude AI models for different tasks:
+The platform implements a flexible LLM service architecture for AI tasks:
 
-### Key Methods
+### AI Provider Services
 
-#### `transformWithCustomPrompt`
-- Uses claude-3-7-sonnet model for high-quality problem transformation
-- Transforms algorithm problems into company-specific interview scenarios
-- Includes specialized caching for transformed problems
+1. **AnthropicService**
+   - Integrates with Anthropic's Claude API
+   - Supports Claude Sonnet and Haiku models
+   - Includes specialized prompt handling
+   - Implements token usage optimization
 
-#### `generateCompanyData`
-- Uses claude-3-5-haiku model for faster company data generation
-- Creates detailed company profiles from company names
-- Utilizes separate cache for company data
-- Optimized for the company data generation tasks
+2. **OpenAiService**
+   - Integrates with OpenAI's API
+   - Supports GPT-4 and other models
+   - Maintains consistent interface with other providers
 
-### Shared Features
-- Error handling with formatted error messages
-- Automatic retries for API failures
-- Configurable caching with 24-hour expiry
-- Memory-efficient storage of responses
+3. **GeminiService**
+   - Integrates with Google's Gemini API
+   - Provides additional capabilities for specific tasks
+
+### Task-Based API
+
+The platform implements a task-based approach for AI interactions:
+
+1. **executeLlmTask**: Central function for executing AI tasks
+   - Accepts task type, prompt data, and system prompt
+   - Routes to appropriate provider based on configuration
+   - Implements caching with TTL
+   - Handles errors with retries and fallbacks
+
+2. **Task Types**
+   - **problemGeneration**: Creates detailed problem data
+   - **companyGeneration**: Generates rich company profiles
+   - **scenarioGeneration**: Transforms problems to company scenarios
+
+### Caching Strategy
+
+The platform implements a comprehensive caching strategy:
+
+1. **Task-Specific Caching**: Different cache TTLs based on task type
+2. **Cache Invalidation**: Supports force refresh when needed
+3. **Cache Monitoring**: Tracks cache hits/misses for optimization

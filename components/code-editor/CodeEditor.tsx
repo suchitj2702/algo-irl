@@ -7,13 +7,7 @@ import type { UserPreferences } from '../../data-types/user';
 
 // Define the available languages and their labels
 export const SUPPORTED_LANGUAGES = [
-  { id: 'javascript', label: 'JavaScript' },
-  { id: 'typescript', label: 'TypeScript' },
-  { id: 'python', label: 'Python' },
-  { id: 'java', label: 'Java' },
-  { id: 'csharp', label: 'C#' },
-  { id: 'cpp', label: 'C++' },
-  { id: 'go', label: 'Go' },
+  { id: 'python', label: 'Python' }
 ];
 
 // Define default editor options

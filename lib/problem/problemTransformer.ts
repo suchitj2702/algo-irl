@@ -18,6 +18,7 @@ interface ExtractedProblemInfo {
   keywords: string[];
   coreAlgorithms: string[];
   dataStructures: string[];
+  defaultUserCode?: string;
 }
 
 /**
@@ -214,6 +215,9 @@ function extractProblemInfo(problem: Problem): ExtractedProblemInfo {
   const coreAlgorithms = detectCoreAlgorithms(problem);
   const dataStructures = detectDataStructures(problem);
   
+  // Extract Python specific defaultUserCode if available
+  const defaultUserCode = problem.languageSpecificDetails?.python?.defaultUserCode;
+  
   return {
     title: problem.title,
     difficulty: problem.difficulty,
@@ -224,7 +228,8 @@ function extractProblemInfo(problem: Problem): ExtractedProblemInfo {
     spaceComplexity: problem.spaceComplexity || null,
     keywords,
     coreAlgorithms,
-    dataStructures
+    dataStructures,
+    defaultUserCode
   };
 }
 
@@ -493,22 +498,51 @@ export async function findMostRelevantCompany(problemId: string): Promise<string
  * Generate an optimized prompt for the Anthropic API
  */
 function generateOptimizedPrompt(context: TransformationContext): string {
-  // Extract info for prompt
-  const { problem, company, suggestedAnalogyPoints } = context;
+  // Extract info for prompt - rename to make it clear this is the extracted problem info
+  const { problem: extractedProblem, company, suggestedAnalogyPoints } = context;
+  
+  // Extract function names from defaultUserCode
+  let functionNamesToMap = '';
+  if (extractedProblem.defaultUserCode) {
+    // Look for function/class definitions in the code
+    const funcMatches = extractedProblem.defaultUserCode.match(/def\s+(\w+)\s*\(/g) || [];
+    const classMatches = extractedProblem.defaultUserCode.match(/class\s+(\w+)[:(]/g) || [];
+    
+    const functionNames = funcMatches.map(match => match.replace(/def\s+/, '').replace(/\s*\($/, ''));
+    const classNames = classMatches.map(match => match.replace(/class\s+/, '').replace(/[:(]$/, ''));
+    
+    const allNames = [...functionNames, ...classNames].filter(Boolean);
+    
+    if (allNames.length > 0) {
+      functionNamesToMap = `
+SPECIFIC FUNCTIONS/CLASSES TO RENAME:
+${allNames.join('\n')}
+
+Make sure your mapping includes ALL of these names from the original code.
+`;
+    }
+  }
   
   // Build the enhanced prompt
   const prompt = `
 I need you to transform a coding problem into a company-specific interview scenario for ${company.name}. This should feel like a real technical interview question.
 
 ORIGINAL PROBLEM:
-"${problem.title}" (${problem.difficulty})
-${problem.description}
+"${extractedProblem.title}" (${extractedProblem.difficulty})
+${extractedProblem.description}
+
+${extractedProblem.defaultUserCode ? `
+ORIGINAL CODE TEMPLATE:
+\`\`\`python
+${extractedProblem.defaultUserCode}
+\`\`\`
+` : ''}
 
 TECHNICAL ANALYSIS:
-* Core Algorithms: ${problem.coreAlgorithms.join(', ') || 'N/A'}
-* Data Structures: ${problem.dataStructures.join(', ') || 'N/A'}
-* Time Complexity: ${problem.timeComplexity || 'Not specified, but maintain the original complexity'}
-* Space Complexity: ${problem.spaceComplexity || 'Not specified, but maintain the original complexity'}
+* Core Algorithms: ${extractedProblem.coreAlgorithms.join(', ') || 'N/A'}
+* Data Structures: ${extractedProblem.dataStructures.join(', ') || 'N/A'}
+* Time Complexity: ${extractedProblem.timeComplexity || 'Not specified, but maintain the original complexity'}
+* Space Complexity: ${extractedProblem.spaceComplexity || 'Not specified, but maintain the original complexity'}
 
 COMPANY CONTEXT:
 * ${company.name} specializes in: ${company.domain}
@@ -519,6 +553,8 @@ COMPANY CONTEXT:
 SUGGESTED COMPANY-SPECIFIC ANALOGIES:
 ${suggestedAnalogyPoints.map(point => `* ${point}`).join('\n')}
 
+${functionNamesToMap}
+
 YOUR TASK:
 Create a realistic interview scenario that a ${company.name} interviewer might present during a technical interview. The scenario MUST:
 
@@ -527,9 +563,8 @@ Create a realistic interview scenario that a ${company.name} interviewer might p
 3. Include 2-3 clear examples with input→output test cases similar to the original problem
 4. Frame the problem within ${company.name}'s products, services, or technology domain
 5. Keep the same time and space complexity requirements
-6. Use language that a ${company.name} interviewer would naturally use
-7. Be concise, clear, and directly applicable to a technical interview setting
-8. If applicable, mention any specific technical aspects of ${company.name} that relate to the problem
+6. Be concise, clear, and directly applicable to a technical interview setting
+7. If applicable, mention any specific technical aspects of ${company.name} that relate to the problem
 
 IMPORTANT REQUIREMENTS:
 * The core problem MUST remain mathematically and logically equivalent to the original
@@ -539,7 +574,15 @@ IMPORTANT REQUIREMENTS:
 * If the original has O(n) time complexity, maintain that exact requirement
 * Make the scenario realistic - something a ${company.name} engineer might actually work on
 
-Format your response as a cohesive interview question, with an introduction and clear statement of the problem.
+REQUIRED FUNCTION/CLASS MAPPING:
+At the very end of your response, please include a clear mapping section that lists all the functions, classes, and variables you've renamed. Format it like this:
+
+FUNCTION_MAPPING:
+original_function_name -> new_function_name
+original_class_name -> new_class_name
+original_variable_name -> new_variable_name
+
+Format your response as a cohesive interview question, with an introduction, clear statement of the problem, and the function mapping section at the end.
 `;
 
   return prompt;
@@ -554,6 +597,7 @@ export async function transformProblem(
   useCache: boolean = true
 ): Promise<{
   scenario: string;
+  functionMapping: Record<string, string>;
   contextInfo: {
     detectedAlgorithms: string[];
     detectedDataStructures: string[];
@@ -585,8 +629,39 @@ export async function transformProblem(
       useCache                // Pass the useCache flag
     );
 
+    // Extract function mapping from the response
+    const functionMapping: Record<string, string> = {};
+    const mappingRegex = /FUNCTION_MAPPING:\s*([\s\S]+?)(?:\n\n|$)/;
+    const mappingMatch = scenarioText.match(mappingRegex);
+    
+    if (mappingMatch && mappingMatch[1]) {
+      const mappingLines = mappingMatch[1].trim().split('\n');
+      mappingLines.forEach(line => {
+        const [original, renamed] = line.split('->').map(part => part.trim());
+        if (original && renamed) {
+          functionMapping[original] = renamed;
+        }
+      });
+      
+      // Remove the mapping section from the returned scenario
+      const cleanedScenario = scenarioText.replace(mappingRegex, '').trim();
+      
+      return {
+        scenario: cleanedScenario,
+        functionMapping,
+        contextInfo: {
+          detectedAlgorithms: context.problem.coreAlgorithms,
+          detectedDataStructures: context.problem.dataStructures,
+          relevanceScore: context.relevanceScore,
+          suggestedAnalogyPoints: context.suggestedAnalogyPoints
+        }
+      };
+    }
+    
+    // If no mapping is found, return the full text
     return {
       scenario: scenarioText,
+      functionMapping: {},
       contextInfo: {
         detectedAlgorithms: context.problem.coreAlgorithms,
         detectedDataStructures: context.problem.dataStructures,

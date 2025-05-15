@@ -16,6 +16,53 @@ export interface CodeSubmission {
 }
 
 /**
+ * Prepares user-defined code for submission by applying reverse function mapping
+ * @param userCode - The user-provided code containing the company-specific function names
+ * @param problemDetails - Details containing the function mapping
+ * @returns The transformed code with original function names
+ */
+export function prepareCodeForSubmission(
+  userCode: string,
+  problemDetails: {
+    functionMapping?: Record<string, string>;
+  }
+) {
+  try {
+    const { functionMapping } = problemDetails;
+    
+    // If no function mapping is provided, return the original code
+    if (!functionMapping || Object.keys(functionMapping).length === 0) {
+      return userCode;
+    }
+    
+    // Create reverse mapping (company-specific to original)
+    const reverseMapping: Record<string, string> = {};
+    Object.entries(functionMapping).forEach(([original, companySpecific]) => {
+      reverseMapping[companySpecific] = original;
+    });
+    
+    // Sort by length in descending order to avoid partial replacements
+    const sortedMappings = Object.entries(reverseMapping)
+      .sort(([a], [b]) => b.length - a.length);
+    
+    // Apply the reverse mappings
+    let processedCode = userCode;
+    for (const [companySpecific, original] of sortedMappings) {
+      // Escape special regex characters
+      const escapedName = companySpecific.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Create a regex that matches the exact word boundaries
+      const regex = new RegExp(`\\b${escapedName}\\b`, 'g');
+      processedCode = processedCode.replace(regex, original);
+    }
+    
+    return processedCode;
+  } catch (error) {
+    console.error('Error preparing code for submission:', error);
+    throw error;
+  }
+}
+
+/**
  * Creates a new code submission in Firestore
  */
 export async function createCodeSubmission(data: Omit<CodeSubmission, 'createdAt' | 'updatedAt' | 'id'> & { id: string }) {
