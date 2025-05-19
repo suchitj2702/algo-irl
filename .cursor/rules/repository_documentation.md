@@ -135,7 +135,11 @@ The platform transforms traditional algorithm problems into company-specific int
 2. Integrates company context (products, technologies, domain)
 3. Creates a realistic interview scenario tailored to the company
 4. Provides additional context details for enhanced realism
-5. Implements caching for efficient reuse of scenarios
+5. Implements a two-tier caching system:
+   - In-memory cache for fast access during runtime
+   - Firestore persistence cache for reuse across deployments
+6. Automatically stores each unique problem-company transformation in Firestore
+7. Retrieves cached transformations by problem ID and company ID for performance optimization
 
 ### Judge0 Code Execution Environment
 The platform provides a secure code execution environment through Judge0 API integration:
@@ -246,6 +250,24 @@ interface LanguageSpecificProblemDetails {
   defaultUserCode: string;
   boilerplateCodeWithPlaceholder: string;
   optimizedSolutionCode: string;
+}
+
+/**
+ * Transformed problem scenario for a specific company
+ */
+interface ProblemTransformation {
+  problemId: string;
+  companyId: string;
+  scenario: string;
+  functionMapping: Record<string, string>;
+  contextInfo: {
+    detectedAlgorithms: string[];
+    detectedDataStructures: string[];
+    relevanceScore: number;
+    suggestedAnalogyPoints: string[];
+  };
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 ```
 

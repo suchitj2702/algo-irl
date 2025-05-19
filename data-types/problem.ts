@@ -55,6 +55,21 @@ export interface TransformationResult {
   }
 }
 
+export interface ProblemTransformation {
+  problemId: string;
+  companyId: string;
+  scenario: string;
+  functionMapping: Record<string, string>;
+  contextInfo: {
+    detectedAlgorithms: string[];
+    detectedDataStructures: string[];
+    relevanceScore: number;
+    suggestedAnalogyPoints: string[];
+  };
+  createdAt: Date;
+  updatedAt: Date;
+} 
+
 export interface Scenario {
   id: string;
   problemId: string;

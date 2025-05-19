@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Transform the problem into a company-specific scenario with context information
+    // Use the transformProblem function which now handles Firestore caching internally
     const result = await transformProblem(problemId, companyId, useCache);
 
     // Return the transformed scenario and context information

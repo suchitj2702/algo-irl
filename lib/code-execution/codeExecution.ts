@@ -85,6 +85,7 @@ export async function orchestrateJudge0Submission(
   let finalTestCases: TestCase[] = [];
   let maxCpuTimeLimit: number | undefined;
   let maxMemoryLimit: number | undefined;
+  let expectedOutput: string | null = null;
   
   // If problemId is provided, load problem details and test cases from Firestore
   if (problemId) {
@@ -129,7 +130,12 @@ export async function orchestrateJudge0Submission(
   const batchItems: Judge0BatchSubmissionItem[] = finalTestCases.map(testCase => {
     // Prepare input based on test case format
     const stdin = testCase.stdin;
-    const expectedOutput = testCase.expectedStdout;
+    expectedOutput = testCase.expectedStdout;
+
+    if (expectedOutput == "None") {
+      expectedOutput = "null";
+    }
+    
     
     const item: Judge0BatchSubmissionItem = {
       language_id: langId,

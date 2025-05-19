@@ -3,6 +3,7 @@ import { Problem, ProblemDifficulty } from '@/data-types/problem';
 import { getCompanyById, getAllCompanies } from '../company/companyUtils';
 import { getProblemById } from './problemDatastoreUtils';
 import { transformWithPrompt } from '../llmServices/llmUtils';
+import { getTransformation, saveTransformation } from './transformCacheUtils';
 
 /**
  * Represents extracted key information from a problem
@@ -606,6 +607,21 @@ export async function transformProblem(
   };
 }> {
   try {
+    // If caching is enabled, check if we have a cached transformation in Firestore
+    if (useCache) {
+      const cachedTransformation = await getTransformation(problemId, companyId);
+      
+      if (cachedTransformation) {
+        console.log(`Using cached transformation from Firestore for problem ${problemId} and company ${companyId}`);
+        return {
+          scenario: cachedTransformation.scenario,
+          functionMapping: cachedTransformation.functionMapping,
+          contextInfo: cachedTransformation.contextInfo
+        };
+      }
+    }
+    
+    // No cached transformation found, generate a new one
     const context = await createTransformationContext(problemId, companyId);
     
     if (!context) {
@@ -634,6 +650,8 @@ export async function transformProblem(
     const mappingRegex = /FUNCTION_MAPPING:\s*([\s\S]+?)(?:\n\n|$)/;
     const mappingMatch = scenarioText.match(mappingRegex);
     
+    let cleanedScenario = scenarioText;
+    
     if (mappingMatch && mappingMatch[1]) {
       const mappingLines = mappingMatch[1].trim().split('\n');
       mappingLines.forEach(line => {
@@ -644,24 +662,12 @@ export async function transformProblem(
       });
       
       // Remove the mapping section from the returned scenario
-      const cleanedScenario = scenarioText.replace(mappingRegex, '').trim();
-      
-      return {
-        scenario: cleanedScenario,
-        functionMapping,
-        contextInfo: {
-          detectedAlgorithms: context.problem.coreAlgorithms,
-          detectedDataStructures: context.problem.dataStructures,
-          relevanceScore: context.relevanceScore,
-          suggestedAnalogyPoints: context.suggestedAnalogyPoints
-        }
-      };
+      cleanedScenario = scenarioText.replace(mappingRegex, '').trim();
     }
     
-    // If no mapping is found, return the full text
-    return {
-      scenario: scenarioText,
-      functionMapping: {},
+    const result = {
+      scenario: cleanedScenario,
+      functionMapping,
       contextInfo: {
         detectedAlgorithms: context.problem.coreAlgorithms,
         detectedDataStructures: context.problem.dataStructures,
@@ -669,6 +675,23 @@ export async function transformProblem(
         suggestedAnalogyPoints: context.suggestedAnalogyPoints
       }
     };
+    
+    // Save the transformation in Firestore for future use
+    try {
+      await saveTransformation({
+        problemId,
+        companyId,
+        scenario: result.scenario,
+        functionMapping: result.functionMapping,
+        contextInfo: result.contextInfo
+      });
+      console.log(`Saved transformation for problem ${problemId} and company ${companyId} to Firestore from transformer`);
+    } catch (error) {
+      // Log the error but continue with the request
+      console.error('Error saving transformation to Firestore from transformer:', error);
+    }
+    
+    return result;
   } catch (error) {
     console.error('Error transforming problem:', error);
     throw new Error(`Failed to transform problem: ${error instanceof Error ? error.message : String(error)}`);

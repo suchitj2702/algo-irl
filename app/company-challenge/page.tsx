@@ -5,8 +5,33 @@ import { useRouter } from 'next/navigation';
 import { CodeEditor } from '@/components/code-editor';
 import { Button } from '@/components/ui';
 import { TestCase, Problem, TransformationResult } from '@/data-types/problem';
-import { Company } from '@/data-types/company';
 import { prepareCodeForSubmission } from '@/lib/code-execution/codeExecutionUtils';
+
+// Define interface for test results from execution
+interface TestResult {
+  testCase: TestCase;
+  passed: boolean;
+  actualOutput: any;
+  stdout?: string | null;
+  stderr?: string | null;
+  compileOutput?: string | null;
+  status: string;
+  judge0StatusId: number;
+  time: number;
+  memory: number;
+  error?: string | null;
+}
+
+// Interface for execution results
+interface ExecutionResults {
+  passed: boolean;
+  testCasesPassed: number;
+  testCasesTotal: number;
+  executionTime: number | null;
+  memoryUsage: number | null;
+  error?: string | null;
+  testCaseResults: TestResult[];
+}
 
 // Predefined companies
 const PREDEFINED_COMPANIES: Record<string, string> = {
@@ -39,7 +64,7 @@ export default function CompanyChallengePage() {
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [codeDetails, setCodeDetails] = useState<any>(null);
   const [code, setCode] = useState<string>('');
-  const [executionResults, setExecutionResults] = useState<any | null>(null);
+  const [executionResults, setExecutionResults] = useState<ExecutionResults | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [difficultyDropdownOpen, setDifficultyDropdownOpen] = useState(false);
   
@@ -507,14 +532,14 @@ export default function CompanyChallengePage() {
             </div>
           </div>
           
-          {/* Execution results section - keeping the same UI */}
+          {/* Execution results section - enhanced with detailed test information */}
           {executionResults && (
             <div className="bg-white p-6 rounded-lg shadow-md">
               <div className="mb-4">
                 <h2 className="text-xl font-bold mb-4">Execution Results</h2>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
                   <div className="flex items-center">
                     <span className="font-medium mr-2">Status:</span> 
@@ -535,14 +560,114 @@ export default function CompanyChallengePage() {
                   )}
                   {executionResults.memoryUsage !== null && (
                     <div>
-                      <span className="font-medium">Memory Usage:</span> {executionResults.memoryUsage / 1000} MB
+                      <span className="font-medium">Memory Usage:</span> {(executionResults.memoryUsage / 1000).toFixed(2)} MB
                     </div>
                   )}
                 </div>
               </div>
               
-              {/* Rest of the execution results UI remains the same */}
-              {/* ... */}
+              {/* Display error if there is one */}
+              {executionResults.error && (
+                <div className="mb-6">
+                  <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md">
+                    <h3 className="font-medium mb-1">Error:</h3>
+                    <pre className="whitespace-pre-wrap text-sm">{executionResults.error}</pre>
+                  </div>
+                </div>
+              )}
+              
+              {/* Detailed test case results */}
+              {executionResults.testCaseResults && executionResults.testCaseResults.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="text-lg font-medium mb-3">Test Case Details:</h3>
+                  <div className="space-y-4">
+                    {executionResults.testCaseResults.map((result: TestResult, index: number) => (
+                      <div 
+                        key={index} 
+                        className={`border rounded-lg ${result.passed ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
+                      >
+                        <div className="p-4 border-b border-gray-200">
+                          <div className="flex justify-between items-start">
+                            <h4 className="font-medium">
+                              Test #{index + 1}: 
+                              <span className={result.passed ? 'text-green-600 ml-2' : 'text-red-600 ml-2'}>
+                                {result.passed ? 'Passed' : 'Failed'}
+                              </span>
+                            </h4>
+                            <div className="text-sm text-gray-500">
+                              <span className="mr-3">Time: {result.time} ms</span>
+                              <span>Memory: {(result.memory / 1000).toFixed(2)} MB</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="p-4 space-y-3">
+                          {/* Input */}
+                          <div>
+                            <h5 className="text-sm font-medium mb-1">Input:</h5>
+                            <pre className="bg-gray-100 p-2 rounded text-sm overflow-auto max-h-28">
+                              {typeof result.testCase.stdin === 'string' 
+                                ? result.testCase.stdin 
+                                : JSON.stringify(result.testCase.stdin, null, 2)}
+                            </pre>
+                          </div>
+                          
+                          {/* Expected Output */}
+                          <div>
+                            <h5 className="text-sm font-medium mb-1">Expected Output:</h5>
+                            <pre className="bg-gray-100 p-2 rounded text-sm overflow-auto max-h-28">
+                              {typeof result.testCase.expectedStdout === 'string' 
+                                ? result.testCase.expectedStdout
+                                : JSON.stringify(result.testCase.expectedStdout, null, 2)}
+                            </pre>
+                          </div>
+                          
+                          {/* Actual Output - only shown for failed tests or if explicitly asked to see all */}
+                          {(!result.passed || true) && (
+                            <div>
+                              <h5 className="text-sm font-medium mb-1">Actual Output:</h5>
+                              <pre className="bg-gray-100 p-2 rounded text-sm overflow-auto max-h-28">
+                                {result.stdout || 
+                                  (result.actualOutput !== null 
+                                    ? (typeof result.actualOutput === 'string' 
+                                        ? result.actualOutput 
+                                        : JSON.stringify(result.actualOutput, null, 2))
+                                    : "No output")}
+                              </pre>
+                            </div>
+                          )}
+                          
+                          {/* Show stderr if present */}
+                          {result.stderr && (
+                            <div>
+                              <h5 className="text-sm font-medium mb-1">Error Output:</h5>
+                              <pre className="bg-gray-100 p-2 rounded text-sm overflow-auto max-h-28 text-red-600">
+                                {result.stderr}
+                              </pre>
+                            </div>
+                          )}
+                          
+                          {/* Show test-specific error if present */}
+                          {result.error && (
+                            <div>
+                              <h5 className="text-sm font-medium mb-1">Error:</h5>
+                              <div className="text-red-600 text-sm">{result.error}</div>
+                            </div>
+                          )}
+                          
+                          {/* Show explanation if present */}
+                          {result.testCase.explanation && (
+                            <div>
+                              <h5 className="text-sm font-medium mb-1">Explanation:</h5>
+                              <div className="text-gray-700 text-sm">{result.testCase.explanation}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>
