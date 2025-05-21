@@ -58,6 +58,7 @@ export default function CompanyChallengePage() {
   const [selectedCompany, setSelectedCompany] = useState<string>('');
   const [customCompany, setCustomCompany] = useState<string>('');
   const [difficulty, setDifficulty] = useState<string>('Medium');
+  const [isBlind75, setIsBlind75] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transformedProblem, setTransformedProblem] = useState<TransformationResult | null>(null);
@@ -90,6 +91,11 @@ export default function CompanyChallengePage() {
   // Handle code changes
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
+  };
+
+  // Toggle Blind75 selection
+  const toggleBlind75 = () => {
+    setIsBlind75(!isBlind75);
   };
 
   // Generate problem
@@ -141,7 +147,8 @@ export default function CompanyChallengePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           difficulty,
-          companyId
+          companyId,
+          isBlind75
         }),
       });
       
@@ -388,6 +395,24 @@ export default function CompanyChallengePage() {
                   </div>
                 )}
               </div>
+            </div>
+            
+            {/* Add Blind75 toggle after difficulty dropdown */}
+            <div>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isBlind75}
+                  onChange={toggleBlind75}
+                  className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Blind 75 Problems Only
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Blind 75 is a curated list of the most important coding interview problems
+              </p>
             </div>
           </div>
           

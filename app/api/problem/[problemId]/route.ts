@@ -23,7 +23,7 @@ export async function GET(
     }
     
     // Prepare the response data, starting with all problem information.
-    // We will conditionally modify languageSpecificDetails and always filter testCases.
+    // We will conditionally modify languageSpecificDetails
     const responseData = { ...problem };
 
     if (language) {
@@ -37,13 +37,6 @@ export async function GET(
         // If problem.languageSpecificDetails was null/undefined initially, it remains so.
       }
     }
-    // If no language was specified in the query, responseData.languageSpecificDetails already contains all available (or null/undefined if none).
-
-    // Always filter testCases to include only sample ones.
-    // Ensure problem.testCases exists and is an array before filtering, defaulting to an empty array.
-    responseData.testCases = Array.isArray(problem.testCases) 
-      ? problem.testCases.filter(tc => tc.isSample) 
-      : [];
     
     return NextResponse.json(responseData);
   } catch (error) {

@@ -20,6 +20,10 @@ interface ExtractedProblemInfo {
   coreAlgorithms: string[];
   dataStructures: string[];
   defaultUserCode?: string;
+  testCases: {
+    input: string;
+    output: string;
+  }[];
 }
 
 /**
@@ -42,6 +46,24 @@ export interface TransformationContext {
   company: ExtractedCompanyInfo;
   relevanceScore: number;
   suggestedAnalogyPoints: string[];
+}
+
+/**
+ * Represents the structured sections of a transformed problem scenario
+ */
+export interface StructuredScenario {
+  title: string;
+  background: string;
+  problemStatement: string;
+  functionSignature: string;
+  constraints: string[];
+  examples: Array<{
+    input: string;
+    output: string;
+    explanation?: string;
+  }>;
+  requirements: string[];
+  functionMapping: Record<string, string>;
 }
 
 /**
@@ -218,6 +240,12 @@ function extractProblemInfo(problem: Problem): ExtractedProblemInfo {
   
   // Extract Python specific defaultUserCode if available
   const defaultUserCode = problem.languageSpecificDetails?.python?.defaultUserCode;
+
+  // extract test cases where isSample is true
+  const testCases = problem.testCases.filter(testCase => testCase.isSample).map(testCase => ({
+    input: testCase.stdin,
+    output: testCase.expectedStdout
+  }));
   
   return {
     title: problem.title,
@@ -230,7 +258,8 @@ function extractProblemInfo(problem: Problem): ExtractedProblemInfo {
     keywords,
     coreAlgorithms,
     dataStructures,
-    defaultUserCode
+    defaultUserCode,
+    testCases
   };
 }
 
@@ -561,7 +590,7 @@ Create a realistic interview scenario that a ${company.name} interviewer might p
 
 1. Maintain EXACTLY the same algorithmic approach and logical structure as the original
 2. Preserve identical input/output data types (if input is an array of integers, keep it as an array of integers)
-3. Include 2-3 clear examples with input→output test cases similar to the original problem
+3. Include 2-3 clear examples with input→output test cases similar to the original problem. Use the test cases from the original problem ${extractedProblem.testCases.map(testCase => `* Input: ${testCase.input}\n* Output: ${testCase.output}`).join('\n')}
 4. Frame the problem within ${company.name}'s products, services, or technology domain
 5. Keep the same time and space complexity requirements
 6. Be concise, clear, and directly applicable to a technical interview setting
@@ -583,6 +612,15 @@ original_function_name -> new_function_name
 original_class_name -> new_class_name
 original_variable_name -> new_variable_name
 
+FORMAT YOUR RESPONSE WITH THESE EXACT SECTIONS:
+1. "# [COMPANY_NAME] Technical Interview Question: [PROBLEM_TITLE]" - Use a descriptive, specific title
+2. "## Problem Background" - Brief context setting within company domain (2-3 sentences)
+3. "## The Problem" - Clear, concise problem statement (what needs to be solved)
+4. "## Function Signature" - Code block with the function/class signature and docstring
+5. "## Constraints" - List all constraints as bullet points
+6. "## Examples" - 2-3 examples with input, output, and explanation
+7. "## Requirements" - Time/space complexity and any other technical requirements
+
 Format your response as a cohesive interview question, with an introduction, clear statement of the problem, and the function mapping section at the end.
 `;
 
@@ -597,8 +635,7 @@ export async function transformProblem(
   companyId: string,
   useCache: boolean = true
 ): Promise<{
-  scenario: string;
-  functionMapping: Record<string, string>;
+  structuredScenario: StructuredScenario;
   contextInfo: {
     detectedAlgorithms: string[];
     detectedDataStructures: string[];
@@ -613,9 +650,12 @@ export async function transformProblem(
       
       if (cachedTransformation) {
         console.log(`Using cached transformation from Firestore for problem ${problemId} and company ${companyId}`);
+        
+        // Parse the cached scenario into structured sections
+        const structuredScenario = parseScenarioIntoSections(cachedTransformation.scenario);
+        
         return {
-          scenario: cachedTransformation.scenario,
-          functionMapping: cachedTransformation.functionMapping,
+          structuredScenario,
           contextInfo: cachedTransformation.contextInfo
         };
       }
@@ -645,29 +685,11 @@ export async function transformProblem(
       useCache                // Pass the useCache flag
     );
 
-    // Extract function mapping from the response
-    const functionMapping: Record<string, string> = {};
-    const mappingRegex = /FUNCTION_MAPPING:\s*([\s\S]+?)(?:\n\n|$)/;
-    const mappingMatch = scenarioText.match(mappingRegex);
-    
-    let cleanedScenario = scenarioText;
-    
-    if (mappingMatch && mappingMatch[1]) {
-      const mappingLines = mappingMatch[1].trim().split('\n');
-      mappingLines.forEach(line => {
-        const [original, renamed] = line.split('->').map(part => part.trim());
-        if (original && renamed) {
-          functionMapping[original] = renamed;
-        }
-      });
-      
-      // Remove the mapping section from the returned scenario
-      cleanedScenario = scenarioText.replace(mappingRegex, '').trim();
-    }
+    // Parse the scenario text into structured sections
+    const structuredScenario = parseScenarioIntoSections(scenarioText);
     
     const result = {
-      scenario: cleanedScenario,
-      functionMapping,
+      structuredScenario,
       contextInfo: {
         detectedAlgorithms: context.problem.coreAlgorithms,
         detectedDataStructures: context.problem.dataStructures,
@@ -681,8 +703,8 @@ export async function transformProblem(
       await saveTransformation({
         problemId,
         companyId,
-        scenario: result.scenario,
-        functionMapping: result.functionMapping,
+        scenario: scenarioText,
+        functionMapping: structuredScenario.functionMapping,
         contextInfo: result.contextInfo
       });
       console.log(`Saved transformation for problem ${problemId} and company ${companyId} to Firestore from transformer`);
@@ -707,4 +729,188 @@ export default {
   findMostRelevantCompany,
   extractProblemInfo,
   extractCompanyInfo
-}; 
+};
+
+/**
+ * Extracts the title from the scenario text
+ */
+function extractTitle(scenarioText: string): string {
+  const titleMatch = scenarioText.match(/^#\s+(.+?)(?:\n|$)/m);
+  return titleMatch ? titleMatch[1].trim() : '';
+}
+
+/**
+ * Extracts the problem background section from the scenario text
+ */
+function extractBackground(scenarioText: string): string {
+  const backgroundMatch = scenarioText.match(/## Problem Background\s*([\s\S]*?)(?=##|$)/);
+  return backgroundMatch ? backgroundMatch[1].trim() : '';
+}
+
+/**
+ * Extracts the problem statement section from the scenario text
+ */
+function extractProblemStatement(scenarioText: string): string {
+  const problemMatch = scenarioText.match(/## The Problem\s*([\s\S]*?)(?=##|$)/);
+  return problemMatch ? problemMatch[1].trim() : '';
+}
+
+/**
+ * Extracts the function signature section from the scenario text
+ */
+function extractFunctionSignature(scenarioText: string): string {
+  const signatureMatch = scenarioText.match(/## Function Signature\s*([\s\S]*?)(?=##|$)/);
+  return signatureMatch ? signatureMatch[1].trim() : '';
+}
+
+/**
+ * Extracts the constraints section from the scenario text and returns as an array
+ */
+function extractConstraints(scenarioText: string): string[] {
+  const constraintsMatch = scenarioText.match(/## Constraints\s*([\s\S]*?)(?=##|$)/);
+  if (!constraintsMatch) return [];
+  
+  const constraintsText = constraintsMatch[1].trim();
+  // First split by bullet points or numbered items
+  const items = constraintsText.split(/\n\s*[-*•]\s*|\n\s*\d+\.\s*/)
+    .map(item => item.trim())
+    .filter(item => item.length > 0);
+  
+  // Clean any remaining bullet points from the beginning of each item
+  return items.map(item => item.replace(/^[-*•]\s*/, '').trim());
+}
+
+/**
+ * Extracts the examples section from the scenario text and returns as structured objects
+ */
+function extractExamples(scenarioText: string): Array<{input: string; output: string; explanation?: string}> {
+  const examplesMatch = scenarioText.match(/## Examples\s*([\s\S]*?)(?=##|$)/);
+  if (!examplesMatch) return [];
+  
+  const examplesText = examplesMatch[1].trim();
+  
+  // First try to identify examples by looking for "Example X:" patterns
+  const exampleBlocks = examplesText.split(/\s*(?:\*\*)?Example \d+(?:\*\*)?:?\s*/i)
+    .map(block => block.trim())
+    .filter(block => block.length > 0);
+  
+  if (exampleBlocks.length > 0) {
+    return exampleBlocks.map(block => {
+      // Handle examples where each part is on a bullet line
+      if (block.match(/^\s*[\-\*•]\s*Input:/mi)) {
+        let input = '', output = '', explanation = '';
+        
+        // Extract bullet-formatted sections
+        const inputMatch = block.match(/\s*[\-\*•]\s*Input:?\s*([^\n]*(?:\n(?![\-\*•]\s*(?:Output|Explanation))[^\n]*)*)/i);
+        const outputMatch = block.match(/\s*[\-\*•]\s*Output:?\s*([^\n]*(?:\n(?![\-\*•]\s*(?:Input|Explanation))[^\n]*)*)/i);
+        const explanationMatch = block.match(/\s*[\-\*•]\s*Explanation:?\s*([^\n]*(?:\n(?![\-\*•]\s*(?:Input|Output))[^\n]*)*)/i);
+        
+        if (inputMatch) input = inputMatch[1].trim();
+        if (outputMatch) output = outputMatch[1].trim();
+        if (explanationMatch) explanation = explanationMatch[1].trim();
+        
+        return { input, output, explanation: explanation || undefined };
+      } 
+      
+      // Standard format
+      const inputMatch = block.match(/Input:?\s*([^\n]*(?:\n(?!Output:|Explanation:)[^\n]*)*)/i);
+      const outputMatch = block.match(/Output:?\s*([^\n]*(?:\n(?!Input:|Explanation:)[^\n]*)*)/i);
+      const explanationMatch = block.match(/Explanation:?\s*([^\n]*(?:\n(?!Input:|Output:)[^\n]*)*)/i);
+      
+      return {
+        input: inputMatch ? inputMatch[1].trim() : '',
+        output: outputMatch ? outputMatch[1].trim() : '',
+        explanation: explanationMatch ? explanationMatch[1].trim() : undefined
+      };
+    });
+  }
+  
+  // Alternative approach: Find examples by looking for code blocks or input/output patterns
+  const examples = [];
+  
+  // Look for triple-backtick code blocks, assuming each represents an example
+  const codeBlocks = examplesText.match(/```[^`]*```/g);
+  if (codeBlocks && codeBlocks.length >= 2) {
+    // Group code blocks into pairs (input/output)
+    for (let i = 0; i < codeBlocks.length - 1; i += 2) {
+      examples.push({
+        input: codeBlocks[i].replace(/```(?:python|javascript|java)?\n?|\n?```/g, '').trim(),
+        output: codeBlocks[i+1].replace(/```(?:python|javascript|java)?\n?|\n?```/g, '').trim()
+      });
+    }
+    return examples;
+  }
+  
+  // Fallback to searching for "Input:" and "Output:" patterns
+  const inputMatches = examplesText.matchAll(/Input:?\s*([^\n]*(?:\n(?!Output:|Explanation:|Example \d+:)[^\n]*)*)/gi);
+  const outputMatches = examplesText.matchAll(/Output:?\s*([^\n]*(?:\n(?!Input:|Explanation:|Example \d+:)[^\n]*)*)/gi);
+  const explanationMatches = examplesText.matchAll(/Explanation:?\s*([^\n]*(?:\n(?!Input:|Output:|Example \d+:)[^\n]*)*)/gi);
+  
+  const inputs = Array.from(inputMatches).map(m => m[1].trim());
+  const outputs = Array.from(outputMatches).map(m => m[1].trim());
+  const explanations = Array.from(explanationMatches).map(m => m[1].trim());
+  
+  for (let i = 0; i < Math.min(inputs.length, outputs.length); i++) {
+    examples.push({
+      input: inputs[i],
+      output: outputs[i],
+      explanation: i < explanations.length ? explanations[i] : undefined
+    });
+  }
+  
+  return examples;
+}
+
+/**
+ * Extracts the requirements section from the scenario text and returns as an array
+ */
+function extractRequirements(scenarioText: string): string[] {
+  const requirementsMatch = scenarioText.match(/## Requirements\s*([\s\S]*?)(?=FUNCTION_MAPPING:|$)/);
+  if (!requirementsMatch) return [];
+  
+  const requirementsText = requirementsMatch[1].trim();
+  // First split by bullet points or numbered items
+  const items = requirementsText.split(/\n\s*[-*•]\s*|\n\s*\d+\.\s*/)
+    .map(item => item.trim())
+    .filter(item => item.length > 0);
+  
+  // Clean any remaining bullet points from the beginning of each item
+  return items.map(item => item.replace(/^[-*•]\s*/, '').trim());
+}
+
+/**
+ * Extracts function mapping from the scenario text
+ */
+function extractFunctionMapping(scenarioText: string): Record<string, string> {
+  const functionMapping: Record<string, string> = {};
+  const mappingRegex = /FUNCTION_MAPPING:\s*([\s\S]+?)(?:\n\n|$)/;
+  const mappingMatch = scenarioText.match(mappingRegex);
+  
+  if (mappingMatch && mappingMatch[1]) {
+    const mappingLines = mappingMatch[1].trim().split('\n');
+    mappingLines.forEach(line => {
+      const [original, renamed] = line.split('->').map(part => part.trim());
+      if (original && renamed) {
+        functionMapping[original] = renamed;
+      }
+    });
+  }
+  
+  return functionMapping;
+}
+
+/**
+ * Parse the scenario text into structured sections
+ */
+function parseScenarioIntoSections(scenarioText: string): StructuredScenario {
+  return {
+    title: extractTitle(scenarioText),
+    background: extractBackground(scenarioText),
+    problemStatement: extractProblemStatement(scenarioText),
+    functionSignature: extractFunctionSignature(scenarioText),
+    constraints: extractConstraints(scenarioText),
+    examples: extractExamples(scenarioText),
+    requirements: extractRequirements(scenarioText),
+    functionMapping: extractFunctionMapping(scenarioText)
+  };
+} 

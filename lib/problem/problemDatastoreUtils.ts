@@ -392,6 +392,53 @@ export const getProblemsbyDifficulty = async (difficulty: ProblemDifficulty): Pr
     }
 };
 
+export const getBlind75Problems = async (): Promise<Problem[]> => {
+    try {
+        const q = query(
+            problemsCollectionRef,
+            // Filter problems where isBlind75 is true
+            where("isBlind75", "==", true)
+        ).withConverter(problemConverter);
+        const querySnapshot = await getDocs(q);
+        const problems = querySnapshot.docs.map(doc => doc.data());
+        return problems;
+    } catch (error) {
+        console.error("Error fetching Blind 75 problems: ", error);
+        throw new Error("Failed to fetch Blind 75 problems.");
+    }
+};
+
+export const getFilteredProblems = async (
+    isBlind75: boolean, 
+    difficulty: ProblemDifficulty | null
+): Promise<Problem[]> => {
+    try {
+        let q;
+        
+        if (difficulty) {
+            // Filter by both isBlind75 and difficulty
+            q = query(
+                problemsCollectionRef,
+                where("isBlind75", "==", isBlind75),
+                where("difficulty", "==", difficulty)
+            ).withConverter(problemConverter);
+        } else {
+            // Filter by isBlind75 only
+            q = query(
+                problemsCollectionRef,
+                where("isBlind75", "==", isBlind75)
+            ).withConverter(problemConverter);
+        }
+        
+        const querySnapshot = await getDocs(q);
+        const problems = querySnapshot.docs.map(doc => doc.data());
+        return problems;
+    } catch (error) {
+        console.error(`Error fetching filtered problems (isBlind75=${isBlind75}, difficulty=${difficulty}): `, error);
+        throw new Error("Failed to fetch filtered problems.");
+    }
+};
+
 export const getProblemById = async (problemId: string): Promise<Problem | null> => {
      try {
         const docRef = doc(db, "problems", problemId).withConverter(problemConverter);

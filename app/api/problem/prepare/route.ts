@@ -28,12 +28,12 @@ function applyFunctionMappings(code: string, functionMapping: Record<string, str
 export async function POST(request: NextRequest) {
   try {
     // Parse request body
-    const { problemId, companyId, difficulty, transformedProblem } = await request.json();
+    const { problemId, companyId, difficulty, isBlind75, transformedProblem } = await request.json();
     
     // Validate required parameters
     if (!problemId && !difficulty) {
       return NextResponse.json(
-        { error: 'Either problemId or difficulty is required' }, 
+        { error: 'Either problemId or difficulty is required. You may also provide isBlind75 parameter when using difficulty.' }, 
         { status: 400 }
       );
     }
@@ -47,32 +47,36 @@ export async function POST(request: NextRequest) {
     
     let resolvedProblemId = problemId;
     
-    // If no problemId was provided, select one randomly based on difficulty
+    // If no problemId was provided, select one randomly based on difficulty and isBlind75
     if (!resolvedProblemId && difficulty) {
-      const problemsResponse = await fetch(
-        `${request.nextUrl.origin}/api/problem/by-difficulty/${difficulty}`
-      );
+      // Determine isBlind75 value, default to false if not provided
+      const blind75Value = isBlind75 !== undefined ? isBlind75 : false;
+      
+      // Use the filter API instead of the difficulty API
+      const filterUrl = new URL(`${request.nextUrl.origin}/api/problem/filter`);
+      filterUrl.searchParams.append('difficulty', difficulty);
+      filterUrl.searchParams.append('isBlind75', blind75Value.toString());
+      
+      const problemsResponse = await fetch(filterUrl);
       
       if (!problemsResponse.ok) {
         const errorData = await problemsResponse.json();
         return NextResponse.json(
-          { error: errorData.error || `Failed to fetch problems with ${difficulty} difficulty` },
+          { error: errorData.error || `Failed to fetch problems with ${difficulty} difficulty and isBlind75=${blind75Value}` },
           { status: problemsResponse.status }
         );
       }
       
-      const problemIds = await problemsResponse.json();
+      const problemData = await problemsResponse.json();
       
-      if (!problemIds.length) {
+      if (!problemData.problemId) {
         return NextResponse.json(
-          { error: `No problems found with ${difficulty} difficulty` },
+          { error: `No problems found with ${difficulty} difficulty and isBlind75=${blind75Value}` },
           { status: 404 }
         );
       }
       
-      // Randomly select one problem ID
-      const randomIndex = Math.floor(Math.random() * problemIds.length);
-      resolvedProblemId = problemIds[randomIndex];
+      resolvedProblemId = problemData.problemId;
     }
     
     // Fetch the problem using the existing API
@@ -125,34 +129,60 @@ export async function POST(request: NextRequest) {
       transformResult = await transformResponse.json();
     }
     
-    // Apply function mappings to code templates if we have them
-    let transformedDefaultUserCode = pythonDetails.defaultUserCode;
+    const transformedDefaultUserCode = applyFunctionMappings(
+      pythonDetails.defaultUserCode, 
+      transformResult.structuredScenario.functionMapping
+    );
+
+    const transformedBoilerplateCodeWithPlaceholder = applyFunctionMappings(
+      pythonDetails.boilerplateCodeWithPlaceholder, 
+      transformResult.structuredScenario.functionMapping
+    );
     
-    if (transformResult.functionMapping && Object.keys(transformResult.functionMapping).length > 0) {
-      // Transform only the defaultUserCode with function mappings
-      transformedDefaultUserCode = applyFunctionMappings(
-        pythonDetails.defaultUserCode, 
-        transformResult.functionMapping
-      );
-    }
+    // for each test case, apply the function mappings to the input and output
+    const transformedTestCases = problem.testCases.map(testCase => {
+      return {
+        input: applyFunctionMappings(testCase.stdin, transformResult.structuredScenario.functionMapping),
+        output: applyFunctionMappings(testCase.expectedStdout, transformResult.structuredScenario.functionMapping),
+        isSample: testCase.isSample
+      };
+    });
+
+    // apply the function mappings to the solutionFunctionNameOrClassName
+    const transformedSolutionFunctionNameOrClassName = applyFunctionMappings(
+      pythonDetails.solutionFunctionNameOrClassName, 
+      transformResult.structuredScenario.functionMapping
+    );
+
+    // apply the function mappings to the solutionStructureHint
+    const transformedSolutionStructureHint = applyFunctionMappings(
+      pythonDetails.solutionStructureHint, 
+      transformResult.structuredScenario.functionMapping
+    );
     
     // Prepare the response with both problem and code details
     const response = {
       problem: {
         id: problem.id,
-        title: problem.title,
+        title: transformResult.structuredScenario.title,
         difficulty: problem.difficulty,
-        description: problem.description,
-        constraints: problem.constraints,
-        testCases: problem.testCases
+        background: transformResult.structuredScenario.background,
+        problemStatement: transformResult.structuredScenario.problemStatement,
+        constraints: transformResult.structuredScenario.constraints,
+        examples: transformResult.structuredScenario.examples,
+        requirements: transformResult.structuredScenario.requirements,
+        testCases: transformedTestCases,
+        leetcodeUrl: problem.leetcodeLink,
+        categories: problem.categories,
+        timeComplexity: problem.timeComplexity,
+        spaceComplexity: problem.spaceComplexity
       },
       codeDetails: {
-        functionName: pythonDetails.solutionFunctionNameOrClassName,
-        solutionStructureHint: pythonDetails.solutionStructureHint,
+        functionName: transformedSolutionFunctionNameOrClassName,
+        solutionStructureHint: transformedSolutionStructureHint,
         defaultUserCode: transformedDefaultUserCode,
-        boilerplateCode: pythonDetails.boilerplateCodeWithPlaceholder
-      },
-      transformedProblem: transformResult
+        boilerplateCode: transformedBoilerplateCodeWithPlaceholder,
+      }
     };
     
     return NextResponse.json(response);

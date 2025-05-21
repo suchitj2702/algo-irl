@@ -15,6 +15,7 @@ export interface CodeSubmission {
   updatedAt?: Date;
 }
 
+// TODO: Deprecate this function
 /**
  * Prepares user-defined code for submission by applying reverse function mapping
  * @param userCode - The user-provided code containing the company-specific function names

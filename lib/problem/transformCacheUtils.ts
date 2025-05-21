@@ -13,11 +13,21 @@ const transformationsCollection = collection(db, 'problemTransformations');
 const convertTransformationToFirestore = (
   transformation: WithFieldValue<ProblemTransformation>,
 ): DocumentData => {
+  // Sanitize function mapping keys that start and end with double underscores
+  const sanitizedFunctionMapping: Record<string, string> = {};
+  if (transformation.functionMapping) {
+    Object.entries(transformation.functionMapping).forEach(([key, value]) => {
+      // Replace double underscores with a Firestore-safe alternative
+      const sanitizedKey = key.replace(/^__(.+)__$/, 'dunder_$1_dunder');
+      sanitizedFunctionMapping[sanitizedKey] = value;
+    });
+  }
+
   return {
     problemId: transformation.problemId,
     companyId: transformation.companyId,
     scenario: transformation.scenario,
-    functionMapping: transformation.functionMapping || {},
+    functionMapping: sanitizedFunctionMapping || {},
     contextInfo: transformation.contextInfo || {
       detectedAlgorithms: [],
       detectedDataStructures: [],
@@ -41,11 +51,21 @@ const transformationConverter: FirestoreDataConverter<ProblemTransformation> = {
   fromFirestore(snapshot: QueryDocumentSnapshot): ProblemTransformation {
     const data = snapshot.data();
     
+    // Restore original double underscore format in function mapping
+    const restoredFunctionMapping: Record<string, string> = {};
+    if (data.functionMapping) {
+      Object.entries(data.functionMapping).forEach(([key, value]) => {
+        // Convert sanitized keys back to double underscore format
+        const originalKey = key.replace(/^dunder_(.+)_dunder$/, '__$1__');
+        restoredFunctionMapping[originalKey] = value as string;
+      });
+    }
+    
     return {
       problemId: data.problemId,
       companyId: data.companyId,
       scenario: data.scenario,
-      functionMapping: data.functionMapping || {},
+      functionMapping: restoredFunctionMapping || {},
       contextInfo: {
         detectedAlgorithms: data.contextInfo?.detectedAlgorithms || [],
         detectedDataStructures: data.contextInfo?.detectedDataStructures || [],
