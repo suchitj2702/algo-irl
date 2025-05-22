@@ -16,7 +16,7 @@ const judge0Client = new Judge0Client({
 export async function POST(request: NextRequest) {
   try {
     // Accept both legacy format and new problem-based format
-    const { code, language, testCases, problemId } = await request.json();
+    const { code, language, testCases, boilerplateCode } = await request.json();
     
     if (!code || typeof code !== 'string') {
       return NextResponse.json({ error: 'Code is required' }, { status: 400 });
@@ -24,11 +24,12 @@ export async function POST(request: NextRequest) {
     if (!language || typeof language !== 'string') {
       return NextResponse.json({ error: 'Language is required' }, { status: 400 });
     }
-    
-    // Require either problemId or testCases, but not necessarily both
-    if ((!problemId || typeof problemId !== 'string') && (!testCases || !Array.isArray(testCases) || testCases.length === 0)) {
+    if (!boilerplateCode || typeof boilerplateCode !== 'string') {
+      return NextResponse.json({ error: 'Boilerplate code is required' }, { status: 400 });
+    }
+    if (!testCases || !Array.isArray(testCases) || testCases.length === 0) {
       return NextResponse.json(
-        { error: 'Either problemId or testCases are required' }, 
+        { error: 'Test cases are required' }, 
         { status: 400 }
       );
     }
@@ -37,24 +38,13 @@ export async function POST(request: NextRequest) {
     const submissionResult = await orchestrateJudge0Submission(judge0Client, {
       code,
       language,
-      testCases: testCases as TestCase[] | undefined,
-      problemId,
+      testCases: testCases as TestCase[],
+      boilerplateCode, // Pass boilerplateCode directly
     });
 
     // Determine the test cases to store in Firestore
     let testCasesToStore: TestCase[] = [];
-    if (problemId) {
-      // If problemId is provided, fetch the problem to get its test cases
-      const problem = await getProblemById(problemId);
-      if (problem && problem.testCases) {
-        testCasesToStore = problem.testCases;
-      } else {
-        // Handle case where problem or its test cases aren't found, though orchestration might have already failed
-        console.warn(`Problem or test cases not found for problemId: ${problemId} when preparing for Firestore.`);
-        // Decide on fallback: maybe store empty array, or re-throw error if this state is unexpected
-        testCasesToStore = []; 
-      }
-    } else if (testCases) {
+    if (testCases) {
       // If problemId is not provided, use the testCases from the request (legacy mode)
       // Apply the processing logic for nested arrays if needed (consider if this is still required)
       testCasesToStore = JSON.parse(JSON.stringify(testCases as TestCase[])).map((tc: TestCase) => {
@@ -88,7 +78,6 @@ export async function POST(request: NextRequest) {
       id: submissionResult.internalSubmissionId,
       code,
       language,
-      problemId, // Store problemId if provided
       judge0Tokens: submissionResult.judge0Tokens.map((t: { token: string }) => t.token),
       status: 'pending', // Initial status
       testCases: testCasesToStore, // Use the correctly fetched or processed test cases

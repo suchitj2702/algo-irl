@@ -1,8 +1,10 @@
 import fetch from 'node-fetch'; // Assuming node-fetch is available
+import { CodeExecutionThrottlingConfig, defaultCodeExecutionThrottlingConfig } from './codeExecutionConfig';
 
 interface Judge0ClientOptions {
   apiUrl: string;
   apiKey: string;
+  throttlingConfig?: Partial<CodeExecutionThrottlingConfig>; // Optional: Allow overriding defaults
 }
 
 // Represents the response structure for a single submission token from Judge0 batch creation
@@ -38,10 +40,15 @@ export interface Judge0SubmissionDetail {
 export class Judge0Client {
   private apiUrl: string;
   private apiKey: string;
+  private throttlingConfig: CodeExecutionThrottlingConfig;
 
   constructor(options: Judge0ClientOptions) {
     this.apiUrl = options.apiUrl.replace(/\/$/, ''); // Remove trailing slash if any
     this.apiKey = options.apiKey;
+    this.throttlingConfig = {
+      ...defaultCodeExecutionThrottlingConfig,
+      ...options.throttlingConfig, // Override defaults with provided config
+    };
   }
 
   /**
@@ -59,11 +66,13 @@ export class Judge0Client {
     endpoint: string, 
     method: 'GET' | 'POST' = 'POST', 
     body?: any, 
-    maxRetries: number = 3,
-    initialDelayMs: number = 100
+    maxRetries?: number, // Made optional to use config
+    initialDelayMs?: number // Made optional to use config
   ): Promise<T> {
     let retries = 0;
-    let delayMs = initialDelayMs;
+    // Use configured values, or provided, or defaults
+    const effectiveMaxRetries = maxRetries ?? this.throttlingConfig.requestMaxRetries;
+    let delayMs = initialDelayMs ?? this.throttlingConfig.requestInitialDelayMs;
 
     while (true) {
       try {
@@ -72,10 +81,10 @@ export class Judge0Client {
         // If it's a rate limit error (429) and we have retries left
         if (error instanceof Error && 
             error.message.includes('429') && 
-            retries < maxRetries) {
+            retries < effectiveMaxRetries) {
           
           retries++;
-          console.log(`Rate limited (429). Retry ${retries}/${maxRetries} after ${delayMs}ms delay`);
+          console.log(`Rate limited (429). Retry ${retries}/${effectiveMaxRetries} after ${delayMs}ms delay`);
           
           // Wait before retrying with exponential backoff
           await this.delay(delayMs);
@@ -156,6 +165,7 @@ export class Judge0Client {
         endpoint,
         'POST',
         submission
+        // Retries and delay will now use this.throttlingConfig.requestMaxRetries and .requestInitialDelayMs
       );
     } catch (error) {
       console.error(`Error in single submission:`, error);
@@ -175,7 +185,7 @@ export class Judge0Client {
     base64Encoded: boolean = false, // Judge0 defaults to false for source_code
     forceSingleMode: boolean = false // Force single submission mode
   ): Promise<Judge0BatchCreationTokenResponse[]> {
-    const MAX_SUBMISSIONS_PER_BATCH = 20;
+    const MAX_SUBMISSIONS_PER_BATCH = this.throttlingConfig.maxSubmissionsPerBatch;
     let allResults: Judge0BatchCreationTokenResponse[] = [];
 
     if (submissions.length === 0) {
@@ -196,7 +206,7 @@ export class Judge0Client {
           
           // Add a small delay between submissions to avoid rate limiting
           if (i < submissions.length - 1) {
-            await this.delay(100);
+            await this.delay(this.throttlingConfig.singleSubmissionDelayMs);
           }
         } catch (error) {
           console.error(`Error in single submission mode at index ${i}:`, error);
@@ -250,7 +260,7 @@ export class Judge0Client {
             
             // Add a delay between batches to avoid rate limiting
             if (i + MAX_SUBMISSIONS_PER_BATCH < submissions.length) {
-              const delayMs = 100;
+              const delayMs = this.throttlingConfig.interBatchDelayMs;
               console.log(`Adding ${delayMs}ms delay between batches to avoid rate limiting`);
               await this.delay(delayMs);
             }
@@ -296,9 +306,9 @@ export class Judge0Client {
       return { submissions: [] };
     }
 
-    console.log(`Fetching details for ${tokenArray.length} submissions in batches of max 20`);
+    console.log(`Fetching details for ${tokenArray.length} submissions in batches of max ${this.throttlingConfig.maxTokensPerStatusBatch}`);
     
-    const MAX_TOKENS_PER_BATCH = 20;
+    const MAX_TOKENS_PER_BATCH = this.throttlingConfig.maxTokensPerStatusBatch; // Use config
     let allSubmissions: Judge0SubmissionDetail[] = [];
 
     // Process tokens in batches of MAX_TOKENS_PER_BATCH
@@ -315,8 +325,8 @@ export class Judge0Client {
           endpoint, 
           'GET',
           undefined,
-          5, // More retries for status checks
-          1500 // Longer initial delay for status checks
+          this.throttlingConfig.statusCheckMaxRetries, 
+          this.throttlingConfig.statusCheckInitialDelayMs
         );
         
         if (batchResult && batchResult.submissions) {
@@ -325,7 +335,7 @@ export class Judge0Client {
           
           // Add a delay between batches to avoid rate limiting
           if (i + MAX_TOKENS_PER_BATCH < tokenArray.length) {
-            const delayMs = 100;
+            const delayMs = this.throttlingConfig.interStatusBatchDelayMs;
             console.log(`Adding ${delayMs}ms delay between status check batches to avoid rate limiting`);
             await this.delay(delayMs);
           }
@@ -350,6 +360,7 @@ export class Judge0Client {
     return this.requestWithRetry<Judge0SubmissionDetail>(
       `/submissions/${token}?fields=*&base64_encoded=false`,
       'GET'
+      // Retries and delay will now use this.throttlingConfig.requestMaxRetries and .requestInitialDelayMs by default
     );
   }
 } 

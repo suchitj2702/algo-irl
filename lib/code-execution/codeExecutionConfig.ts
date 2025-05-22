@@ -27,6 +27,30 @@ export interface CodeExecutionConfig {
   execution: ExecutionConfig;
 }
 
+export interface CodeExecutionThrottlingConfig {
+  requestMaxRetries: number;
+  requestInitialDelayMs: number;
+  singleSubmissionDelayMs: number;
+  maxSubmissionsPerBatch: number;
+  interBatchDelayMs: number;
+  maxTokensPerStatusBatch: number;
+  statusCheckMaxRetries: number;
+  statusCheckInitialDelayMs: number;
+  interStatusBatchDelayMs: number;
+}
+
+export const defaultCodeExecutionThrottlingConfig: CodeExecutionThrottlingConfig = {
+  requestMaxRetries: 3,
+  requestInitialDelayMs: 100,
+  singleSubmissionDelayMs: 100,
+  maxSubmissionsPerBatch: 20,
+  interBatchDelayMs: 500,
+  maxTokensPerStatusBatch: 20,
+  statusCheckMaxRetries: 5,
+  statusCheckInitialDelayMs: 1500,
+  interStatusBatchDelayMs: 500,
+};
+
 const config: CodeExecutionConfig = {
   execution: {
     // Timeout for code execution in milliseconds

@@ -1,8 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Judge0Client, Judge0BatchSubmissionItem, Judge0SubmissionDetail } from './judge0Client';
-import { getDriverDetails } from './languageConfigs';
 import judge0Config from './judge0Config';
-import { getProblemById } from '../problem/problemDatastoreUtils';
 
 // Assuming TestCase is correctly imported from here.
 // If not, the path might need adjustment based on your project structure.
@@ -39,8 +37,8 @@ function getJudge0CallbackUrl(internalSubmissionId: string): string | undefined 
 export interface OrchestratedSubmissionInput {
   code: string;
   language: string; // e.g., "javascript", "python"
-  testCases?: TestCase[]; // Optional when problemId is provided
-  problemId?: string; // Optional for backward compatibility
+  testCases: TestCase[]; // Optional when problemId is provided
+  boilerplateCode: string; // Added boilerplateCode
 }
 
 export interface OrchestratedSubmissionOutput {
@@ -80,48 +78,22 @@ export async function orchestrateJudge0Submission(
   client: Judge0Client,
   submissionInput: OrchestratedSubmissionInput
 ): Promise<OrchestratedSubmissionOutput> {
-  const { code, language, testCases, problemId } = submissionInput;
+  const { code, language, testCases, boilerplateCode } = submissionInput;
   let finalCode = code;
-  let finalTestCases: TestCase[] = [];
+  let finalTestCases: TestCase[] = testCases; // Use testCases directly
   let maxCpuTimeLimit: number | undefined;
   let maxMemoryLimit: number | undefined;
   let expectedOutput: string | null = null;
   
-  // If problemId is provided, load problem details and test cases from Firestore
-  if (problemId) {
-    const problem = await getProblemById(problemId);
-    if (!problem) {
-      throw new Error(`Problem with ID ${problemId} not found`);
-    }
+  // Combine user code with boilerplate
+  finalCode = combineUserCodeWithBoilerplate(
+    code, 
+    boilerplateCode, // Use provided boilerplateCode
+    language
+  );
     
-    // Get language-specific details
-    const langDetails = problem.languageSpecificDetails[language];
-    if (!langDetails) {
-      throw new Error(`Language ${language} is not supported for problem ${problemId}`);
-    }
-    
-    // Combine user code with boilerplate
-    finalCode = combineUserCodeWithBoilerplate(
-      code, 
-      langDetails.boilerplateCodeWithPlaceholder,
-      language
-    );
-    
-    // Use problem test cases
-    finalTestCases = problem.testCases;
-    
-  } else if (testCases && testCases.length > 0) {
-    // If no problemId but testCases provided, use legacy mode
-    finalTestCases = testCases;
-    
-    // In legacy mode, use the old driver template system
-    const driverDetails = getDriverDetails(language);
-    finalCode = driverDetails.driverTemplate.replace(
-      driverDetails.userCodePlaceholder,
-      code
-    );
-  } else {
-    throw new Error('Either problemId or testCases must be provided');
+  if (!finalTestCases || finalTestCases.length === 0) {
+    throw new Error('TestCases must be provided');
   }
 
   const internalSubmissionId = uuidv4();

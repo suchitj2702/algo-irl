@@ -142,8 +142,8 @@ export async function POST(request: NextRequest) {
     // for each test case, apply the function mappings to the input and output
     const transformedTestCases = problem.testCases.map(testCase => {
       return {
-        input: applyFunctionMappings(testCase.stdin, transformResult.structuredScenario.functionMapping),
-        output: applyFunctionMappings(testCase.expectedStdout, transformResult.structuredScenario.functionMapping),
+        stdin: applyFunctionMappings(testCase.stdin, transformResult.structuredScenario.functionMapping),
+        expectedStdout: applyFunctionMappings(testCase.expectedStdout, transformResult.structuredScenario.functionMapping),
         isSample: testCase.isSample
       };
     });
