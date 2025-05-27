@@ -75,7 +75,7 @@ function isInternalRequest(request: NextRequest): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Handle all API routes - temporarily allow all for testing
+  // Handle all API routes - allow all endpoints for testing CORS
   if (pathname.startsWith('/api/')) {
     // Handle CORS preflight requests
     if (request.method === 'OPTIONS') {
