@@ -11,11 +11,11 @@
     },
     "app/api/companies/initialize/route.ts": {
       "memory": 512,
-      "maxDuration": 10
+      "maxDuration": 20
     },
     "app/api/problem/prepare/route.ts": {
       "memory": 512,
-      "maxDuration": 10
+      "maxDuration": 60
     }
   },
   "headers": [
