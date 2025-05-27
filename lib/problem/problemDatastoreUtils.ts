@@ -18,7 +18,14 @@ import { db } from "@/lib/firebase/firebase";
 import { Problem, TestCase, ProblemDifficulty, LanguageSpecificProblemDetails } from "@/data-types/problem";
 import { TestCaseResult } from '../../data-types/execution';
 import { Judge0Client, Judge0BatchSubmissionItem, Judge0SubmissionDetail } from '../code-execution/judge0Client';
-import { getLanguageId, combineUserCodeWithBoilerplate, aggregateBatchResults, TestResult } from '../code-execution/codeExecution';
+import { 
+    getLanguageId, 
+    combineUserCodeWithBoilerplate, 
+    aggregateBatchResults, 
+    TestResult,
+    orchestrateJudge0Submission,
+    OrchestratedSubmissionInput
+} from '../code-execution/codeExecution';
 import judge0DefaultConfig from '../code-execution/judge0Config';
 
 // LLM Service Imports
@@ -165,32 +172,31 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
 
         if (langDetails && langDetails.optimizedSolutionCode && langDetails.boilerplateCodeWithPlaceholder && problemData.testCases && problemData.testCases.length > 0) {
             try {
-                const fullCode = combineUserCodeWithBoilerplate(
-                    langDetails.optimizedSolutionCode,
-                    langDetails.boilerplateCodeWithPlaceholder,
-                    primaryLanguage
-                );
-                const langId = getLanguageId(primaryLanguage);
-                const allTestCases: TestCase[] = problemData.testCases;
-
-                const batchItems: Judge0BatchSubmissionItem[] = allTestCases.map(tc => ({
-                    language_id: langId,
-                    source_code: fullCode,
-                    stdin: tc.stdin,
-                    expected_output: tc.expectedStdout
-                }));
-                
+                // Instantiate Judge0Client once
                 const judge0Client = new Judge0Client({
                     apiUrl: judge0DefaultConfig.apiUrl,
                     apiKey: judge0DefaultConfig.apiKey,
                 });
 
-                const tokenResponses = await judge0Client.createBatchSubmissions(batchItems);
-                if (!tokenResponses || tokenResponses.length === 0) {
-                    throw new VerificationError("Failed to create verification batch submissions with Judge0.");
-                }
-                const tokensStr = tokenResponses.map(tr => tr.token).join(',');
+                const allTestCases: TestCase[] = problemData.testCases;
+
+                // Prepare input for orchestrateJudge0Submission
+                const submissionInput: OrchestratedSubmissionInput = {
+                    code: langDetails.optimizedSolutionCode,
+                    language: primaryLanguage,
+                    testCases: allTestCases,
+                    boilerplateCode: langDetails.boilerplateCodeWithPlaceholder,
+                };
                 
+                // Call orchestrateJudge0Submission
+                const orchestrationOutput = await orchestrateJudge0Submission(judge0Client, submissionInput);
+
+                if (!orchestrationOutput.judge0Tokens || orchestrationOutput.judge0Tokens.length === 0) {
+                    throw new VerificationError("Failed to create verification batch submissions using orchestration.");
+                }
+                const tokensStr = orchestrationOutput.judge0Tokens.map(tr => tr.token).join(',');
+                
+                // Poll for results using the same client
                 const submissionDetails = await pollForResults(judge0Client, tokensStr, allTestCases.length);
                 const aggregatedResults = aggregateBatchResults(submissionDetails, allTestCases);
 
@@ -217,7 +223,7 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
                 console.error(`Error during test case verification for ${slug}: `, verificationError);
                 // If it's a known error type like LanguageNotSupported, propagate it.
                 // Replaced LanguageNotSupportedError check with a more general one for now
-                if (verificationError.name === "LanguageNotSupportedError" || verificationError.message.includes("Unsupported language")) {
+                if (verificationError.name === "LanguageNotSupportedError" || verificationError.message.includes("Unsupported language") || verificationError.message.includes("orchestration")) {
                      return { success: false, slug, error: `Verification failed: ${verificationError.message}` };
                 }
                 // Use the custom VerificationError for other verification specific issues if applicable

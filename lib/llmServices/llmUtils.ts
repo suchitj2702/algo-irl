@@ -138,7 +138,7 @@ Based on your knowledge of this common algorithmic problem, provide the followin
   "testCases": [
     {
       "stdin": "(string) A JSON string representing the input. Example: {\\\\\\\"nums\\\\\\\": [2, 7, 11, 15], \\\\\\\"target\\\\\\\": 9}",
-      "expectedStdout": "(string) A JSON string representing the expected output. Example: [0, 1]",
+      "expectedStdout": "(string) A JSON string representing the array of expected output. Example: [0, 1]. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.",
       "isSample": true
       // Explanation field was removed in user's revert, keeping it out for now unless added back
     }
@@ -174,7 +174,7 @@ IMPORTANT INSTRUCTIONS FOR AI:
 1.  The entire response MUST be a single, valid JSON object. Do not include any text, explanations, or markdown formatting like \`\`\`json ` +
     `before or after the JSON object.
 2.  Every field specified in the structure above MUST be included.
-3.  For the 'testCases' field: Generate 5 diverse test cases. It MUST be a valid JSON array of objects. Each object must be ` +
+3.  For the 'testCases' field: Generate 15 diverse test cases. It MUST be a valid JSON array of objects. Each object must be ` +
     `a complete JSON object, and array elements correctly comma-separated. NO TRAILING COMMAS. 'stdin' and 'expectedStdout' fields must be ` +
     `valid JSON STRINGS, meaning special characters (like quotes, newlines) within these strings must be properly escaped ` +
     `(e.g., use \\\\\\\\\\\" for a quote inside the string). Example of a test case object: {\\\"stdin\\\": \\\"{\\\\\\\\\\\"root\\\\\\\\\\\\\": [1,2,3,null,null,4,5]}\\\", ` +
@@ -182,7 +182,8 @@ IMPORTANT INSTRUCTIONS FOR AI:
 4. CRITICAL: The 'testCases' you generate MUST be correct. Verify that the 'expectedStdout' for each test case is the actual output ` +
     `produced when the corresponding 'stdin' is processed by the 'optimizedSolutionCode' you provide for the primary language (Python). ` +
     `Incorrect test cases are unacceptable.
-5. For each test case generated, perform a dry run of the 'optimizedSolutionCode' with the 'stdin' to ensure it is correct. IF IT IS NOT CORRECT, REMOVE IT`;
+5. For each test case generated, perform a dry run of the 'optimizedSolutionCode' with the 'stdin' to ensure it is correct. IF IT IS NOT CORRECT, REMOVE IT;`  +
+`6. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.`;
 }
 
 
@@ -262,12 +263,12 @@ export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
   problemGeneration: { 
     service: 'anthropic', 
     model: 'claude-3-7-sonnet-20250219',
-    max_tokens: 8192,
+    max_tokens: 16384,
     thinking_enabled: true,
     claude_options: {
       thinking: {
         type: "enabled",
-        budget_tokens: 4096
+        budget_tokens: 8192
       }
     }
   },

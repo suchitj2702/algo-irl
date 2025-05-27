@@ -103,11 +103,10 @@ export async function orchestrateJudge0Submission(
     // Prepare input based on test case format
     const stdin = testCase.stdin;
     expectedOutput = testCase.expectedStdout;
-
+    
     if (expectedOutput == "None") {
       expectedOutput = "null";
     }
-    
     
     const item: Judge0BatchSubmissionItem = {
       language_id: langId,
@@ -179,6 +178,176 @@ function normalizeAndCompareOutputs(actual: string | null | undefined, expected:
   } catch (e) {
     // If JSON parsing fails for either, fall back to trimmed string comparison
     return normalizedActual === normalizedExpected;
+  }
+}
+
+/**
+ * Checks if the expected output string is an array of possible outputs
+ * and compares the actual output against each of them.
+ */
+function checkMultipleExpectedOutputs(actual: string | null | undefined, expected: string | null | undefined): boolean {
+  const normalizedActual = actual?.trim() ?? "";
+  const normalizedExpectedString = expected?.trim() ?? "";
+
+  if (!normalizedExpectedString.startsWith('[') || !normalizedExpectedString.endsWith(']')) {
+    // Not a stringified array, so let the standard comparison handle it
+    return false;
+  }
+
+  // Try to parse the actual output if it looks like a JSON string
+  let parsedActual = normalizedActual;
+  try {
+    if (normalizedActual.startsWith('"') && normalizedActual.endsWith('"')) {
+      parsedActual = JSON.parse(normalizedActual);
+    }
+  } catch (e) {
+    // If parsing fails, use the original normalizedActual
+    parsedActual = normalizedActual;
+  }
+
+  try {
+    const expectedOutputsArray = JSON.parse(normalizedExpectedString);
+    if (!Array.isArray(expectedOutputsArray)) {
+      return false; // Parsed but not an array
+    }
+
+    for (const singleExpected of expectedOutputsArray) {
+      // Convert singleExpected to string if it's not already, as normalizeAndCompareOutputs expects strings
+      const singleExpectedStr = typeof singleExpected === 'string' ? singleExpected : JSON.stringify(singleExpected);
+      if (normalizeAndCompareOutputs(parsedActual, singleExpectedStr)) {
+        return true; // Found a match
+      }
+    }
+    return false; // No match in the array
+  } catch (e) {
+    // JSON parsing failed, or it wasn't an array of strings/parsable objects
+    return false;
+  }
+}
+
+/**
+ * Compares two string arrays, ignoring the order of elements.
+ * Returns true if they contain the same elements, false otherwise.
+ */
+function compareUnorderedStringArrays(actual: string | null | undefined, expected: string | null | undefined): boolean {
+  const actualStr = actual?.trim() ?? "";
+  const expectedStr = expected?.trim() ?? "";
+
+  // Ensure both are string representations of arrays
+  if (!actualStr.startsWith('[') || !actualStr.endsWith(']') || 
+      !expectedStr.startsWith('[') || !expectedStr.endsWith(']')) {
+    return false;
+  }
+
+  try {
+    const actualArray = JSON.parse(actualStr);
+    const expectedArray = JSON.parse(expectedStr);
+
+    if (!Array.isArray(actualArray) || !Array.isArray(expectedArray)) {
+      return false; // Not arrays
+    }
+
+    if (actualArray.length !== expectedArray.length) {
+      return false; // Different number of elements
+    }
+
+    if (actualArray.length === 0) {
+      return true; // Both are empty arrays, considered equal
+    }
+
+    // Convert elements to strings, sort, and compare
+    // This handles arrays of simple types like strings or numbers
+    const sortedActual = actualArray.map(String).sort();
+    const sortedExpected = expectedArray.map(String).sort();
+
+    // Compare sorted arrays element by element
+    for (let i = 0; i < sortedActual.length; i++) {
+      if (sortedActual[i] !== sortedExpected[i]) {
+        return false;
+      }
+    }
+
+    return true; // All elements match
+
+  } catch (e) {
+    return false; // JSON parsing failed or other error
+  }
+}
+
+/**
+ * Compares two arrays of arrays, where the order of elements in both the outer and inner arrays does not matter.
+ * Returns true if they contain the same inner arrays (with elements in any order), false otherwise.
+ */
+function compareUnorderedArraysOfArrays(actual: string | null | undefined, expected: string | null | undefined): boolean {
+  const actualStr = actual?.trim() ?? "";
+  const expectedStr = expected?.trim() ?? "";
+
+  // Ensure both are string representations of arrays (outer arrays)
+  if (!actualStr.startsWith('[') || !actualStr.endsWith(']') || 
+      !expectedStr.startsWith('[') || !expectedStr.endsWith(']')) {
+    return false;
+  }
+
+  try {
+    const actualOuterArray = JSON.parse(actualStr);
+    const expectedOuterArray = JSON.parse(expectedStr);
+
+    if (!Array.isArray(actualOuterArray) || !Array.isArray(expectedOuterArray)) {
+      return false; // Not arrays
+    }
+
+    if (actualOuterArray.length !== expectedOuterArray.length) {
+      return false; // Different number of inner arrays
+    }
+
+    if (actualOuterArray.length === 0) {
+      return true; // Both are empty outer arrays, considered equal
+    }
+
+    const getCanonicalInnerArrayString = (innerArray: any): string | null => {
+      if (!Array.isArray(innerArray)) {
+        return null; // Element of outer array is not an array
+      }
+      // Sort elements within the inner array. Handles numbers and other primitives consistently.
+      const sortedInnerArray = [...innerArray].sort((a, b) => {
+        if (typeof a === 'number' && typeof b === 'number') {
+          return a - b;
+        }
+        return String(a).localeCompare(String(b));
+      });
+      return JSON.stringify(sortedInnerArray);
+    };
+
+    const canonicalActualStrings = actualOuterArray.map(getCanonicalInnerArrayString);
+    const canonicalExpectedStrings = expectedOuterArray.map(getCanonicalInnerArrayString);
+
+    // If any inner element was not an array, its canonical string will be null.
+    if (canonicalActualStrings.some(s => s === null) || canonicalExpectedStrings.some(s => s === null)) {
+        return false; // Structure mismatch (expected array of arrays)
+    }
+
+    // Filter out nulls just in case, though the above check should catch it.
+    const filteredActualStrings = canonicalActualStrings.filter(s => s !== null) as string[];
+    const filteredExpectedStrings = canonicalExpectedStrings.filter(s => s !== null) as string[];
+    
+    if (filteredActualStrings.length !== actualOuterArray.length || filteredExpectedStrings.length !== expectedOuterArray.length) {
+        // This implies some elements were not arrays if lengths changed after filtering nulls from non-null map results.
+        return false;
+    }
+
+    filteredActualStrings.sort();
+    filteredExpectedStrings.sort();
+
+    for (let i = 0; i < filteredActualStrings.length; i++) {
+      if (filteredActualStrings[i] !== filteredExpectedStrings[i]) {
+        return false;
+      }
+    }
+
+    return true; // All canonical inner arrays match
+
+  } catch (e) {
+    return false; // JSON parsing failed or other error
   }
 }
 
@@ -257,9 +426,12 @@ export function aggregateBatchResults(
         totalTestCasesPassed++;
         actualOutput = parseStdout(detail.stdout);
       } else { // Not accepted initially, let's re-check with normalization
+        const multipleExpectedMatch = checkMultipleExpectedOutputs(detail.stdout, originalTestCase.expectedStdout);
         const normalizedMatch = normalizeAndCompareOutputs(detail.stdout, originalTestCase.expectedStdout);
+        const unorderedArrayMatch = compareUnorderedStringArrays(detail.stdout, originalTestCase.expectedStdout);
+        const unorderedArraysOfArraysMatch = compareUnorderedArraysOfArrays(detail.stdout, originalTestCase.expectedStdout);
 
-        if (normalizedMatch) { // Outputs match after normalization!
+        if (multipleExpectedMatch || normalizedMatch || unorderedArrayMatch || unorderedArraysOfArraysMatch) { // Outputs match after normalization, one of multiple expected outputs, unordered array match, or unordered array of arrays match!
           testPassed = true;
           totalTestCasesPassed++;
           statusDescription = "Accepted"; // Override status

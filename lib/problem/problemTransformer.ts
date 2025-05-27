@@ -614,7 +614,7 @@ original_variable_name -> new_variable_name
 
 FORMAT YOUR RESPONSE WITH THESE EXACT SECTIONS:
 1. "# [COMPANY_NAME] Technical Interview Question: [PROBLEM_TITLE]" - Use a descriptive, specific title
-2. "## Problem Background" - Brief context setting within company domain (2-3 sentences)
+2. "## Problem Background" - Context setting within company domain
 3. "## The Problem" - Clear, concise problem statement (what needs to be solved)
 4. "## Function Signature" - Code block with the function/class signature and docstring
 5. "## Constraints" - List all constraints as bullet points
@@ -622,6 +622,7 @@ FORMAT YOUR RESPONSE WITH THESE EXACT SECTIONS:
 7. "## Requirements" - Time/space complexity and any other technical requirements
 
 Format your response as a cohesive interview question, with an introduction, clear statement of the problem, and the function mapping section at the end.
+DON'T CREATE MAPPING IF THE MAPPING IS UNCHANGED FOR SOME VALUE
 `;
 
   return prompt;

@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
       return {
         stdin: applyFunctionMappings(testCase.stdin, transformResult.structuredScenario.functionMapping),
         expectedStdout: applyFunctionMappings(testCase.expectedStdout, transformResult.structuredScenario.functionMapping),
+        explanation: testCase.explanation,
         isSample: testCase.isSample
       };
     });

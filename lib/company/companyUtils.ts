@@ -317,7 +317,7 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
       products: Array.isArray(companyData.products) ? companyData.products : [],
       technologies: Array.isArray(companyData.technologies) ? companyData.technologies : [],
       interviewFocus: Array.isArray(companyData.interviewFocus) ? companyData.interviewFocus : [],
-      logoUrl: companyData.logoUrl || undefined
+      logoUrl: companyData.logoUrl || null
     };
     
     // Save company to Firestore
