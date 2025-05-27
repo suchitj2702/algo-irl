@@ -37,7 +37,7 @@ export default function VerifyEmailPage() {
     try {
       await sendEmailVerification(user);
       setMessage("Verification email sent again. Please check your inbox (and spam folder).");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Resend verification error:", err);
       setError("Failed to resend verification email. Please try again later.");
     } finally {
@@ -90,7 +90,7 @@ export default function VerifyEmailPage() {
             onClick={checkVerificationStatus}
             className="bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
           >
-            I've Verified My Email
+            I&apos;ve Verified My Email
           </button>
           <button
             onClick={handleResendVerification}

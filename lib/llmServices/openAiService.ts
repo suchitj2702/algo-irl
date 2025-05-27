@@ -48,7 +48,7 @@ export class OpenAiService {
 
         while (retries <= MAX_RETRIES) {
             try {
-                const requestParams: any = {
+                const requestParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
                     model: model,
                     messages: messages,
                     ...(options.max_tokens && { max_tokens: options.max_tokens }),
@@ -61,7 +61,8 @@ export class OpenAiService {
                 if (options.thinking_enabled || options.reasoning) {
                     // Use native OpenAI reasoning parameter
                     // This works with o1, o2, o4, and newer GPT-4 models
-                    requestParams.reasoning = options.reasoning || { effort: "medium" };
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (requestParams as any).reasoning = options.reasoning || { effort: "medium" };
                 }
 
                 const completion = await this.client.chat.completions.create(requestParams);
@@ -75,17 +76,17 @@ export class OpenAiService {
                 }
                 return responseText;
 
-            } catch (error: any) {
+            } catch (error: unknown) {
                 retries++;
                 if (retries > MAX_RETRIES) {
                     console.error(`Failed OpenAI API call to model ${model} after ${MAX_RETRIES} retries. Error: ${error}`);
                     // Consider more specific error formatting for OpenAI if needed
-                    if (error.response) { // Check for OpenAI specific error structure
-                        console.error('OpenAI API Error Details:', error.response.data);
+                    if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) { // Check for OpenAI specific error structure
+                        console.error('OpenAI API Error Details:', (error.response as {data: unknown}).data);
                     }
                     throw error; // Rethrow original error or format it
                 }
-                console.warn(`OpenAI API call to ${model} failed (attempt ${retries}/${MAX_RETRIES}), retrying in ${RETRY_DELAY * retries}ms... Error: ${error.message}`);
+                console.warn(`OpenAI API call to ${model} failed (attempt ${retries}/${MAX_RETRIES}), retrying in ${RETRY_DELAY * retries}ms... Error: ${error instanceof Error ? error.message : String(error)}`);
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * retries));
             }
         }
@@ -94,4 +95,5 @@ export class OpenAiService {
 }
 
 // Export default instance
-export default new OpenAiService(); 
+const openAiService = new OpenAiService();
+export default openAiService; 

@@ -17,7 +17,7 @@ export async function POST(request: Request) {
         }
         try {
             new URL(url); // Basic format check
-        } catch (_) {
+        } catch {
             return NextResponse.json({ success: false, error: `Invalid URL format found in array: ${url}` }, { status: 400 });
         }
     }
@@ -33,8 +33,8 @@ export async function POST(request: Request) {
       errors: result.errors
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("API Error in /api/problem/import-batch: ", error);
-    return NextResponse.json({ success: false, error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: false, error: (error instanceof Error ? error.message : String(error)) || 'Internal Server Error' }, { status: 500 });
   }
 } 

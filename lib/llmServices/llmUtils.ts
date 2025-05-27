@@ -1,4 +1,4 @@
-import { ProblemDifficulty, LanguageSpecificProblemDetails, TestCase } from '../../data-types/problem';
+import { ProblemDifficulty, LanguageSpecificProblemDetails } from '../../data-types/problem';
 import anthropicService, { ClaudeModelOptions } from "./anthropicService";
 import geminiService, { GeminiModelOptions } from "./geminiService";
 import openAiService, { OpenAiModelOptions } from "./openAiService";
@@ -343,19 +343,16 @@ export async function executeLlmTask(
                 ...baseOptions,
                 // Apply provider-specific options from task config
                 ...(config.claude_options && {
-                    // @ts-ignore - Type mismatch between our interface and actual API
                     thinking: config.claude_options.thinking
                 }),
                 // Apply provider-specific options from function call (overrides config)
                 ...(options?.claude_options && {
-                    // @ts-ignore - Type mismatch between our interface and actual API
                     thinking: options.claude_options.thinking
                 })
             };
             
             if (claudeOptions.thinking_enabled && !claudeOptions.thinking) {
                 // If thinking is enabled but no specific config provided, create a default
-                // @ts-ignore - Type mismatch between our interface and actual API
                 claudeOptions.thinking = {
                     type: "enabled"
                     // No default budget_tokens
@@ -377,7 +374,6 @@ export async function executeLlmTask(
             
             // If thinking is enabled but no thinkingConfig provided, create a default
             if (geminiOptions.thinking_enabled && !geminiOptions.thinkingConfig) {
-                // @ts-ignore - Adding custom property
                 geminiOptions.thinkingConfig = {
                     thinkingBudget: 1024 // Default value
                 };
@@ -398,7 +394,6 @@ export async function executeLlmTask(
             
             // If thinking is enabled but no reasoning config provided, create a default
             if (openaiOptions.thinking_enabled && !openaiOptions.reasoning) {
-                // @ts-ignore - Adding custom property
                 openaiOptions.reasoning = {
                     effort: "medium" // Default medium effort
                 };
@@ -413,10 +408,10 @@ export async function executeLlmTask(
             // Should be caught by type system, but good practice
             throw new Error(`Unsupported LLM service in configuration: ${config.service}`);
         }
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(`Error executing LLM task "${taskName}" with ${config.service} (${config.model}):`, error);
         // Re-throw a more informative error or handle as needed
-        throw new Error(`LLM task "${taskName}" failed: ${error.message}`);
+        throw new Error(`LLM task "${taskName}" failed: ${(error instanceof Error ? error.message : String(error))}`);
     }
 }
 
@@ -528,7 +523,7 @@ export function parseAndProcessProblemData(
     rawLlmOutput: string,
     problemName: string // For fallback generation
 ): ProcessedProblemData {
-    let jsonText = rawLlmOutput.trim();
+    const jsonText = rawLlmOutput.trim();
     let cleanedJsonText = jsonText;
     let isolatedJsonForLogging = cleanedJsonText; // For logging state after initial isolation
 
@@ -585,10 +580,10 @@ export function parseAndProcessProblemData(
                     categories: Array.isArray(data.categories) ? data.categories : [],
                     description: data.description || `Problem description for ${problemName}`,
                     constraints: Array.isArray(data.constraints) ? data.constraints : [],
-                    testCases: Array.isArray(data.testCases) ? data.testCases.map((tc: any) => ({
+                    testCases: Array.isArray(data.testCases) ? data.testCases.map((tc: Record<string, unknown>) => ({
                         stdin: typeof tc.stdin === 'string' ? tc.stdin : JSON.stringify(tc.stdin),
                         expectedStdout: typeof tc.expectedStdout === 'string' ? tc.expectedStdout : JSON.stringify(tc.expectedStdout),
-                        explanation: tc.explanation || null, // Keep handling explanation
+                        explanation: (tc.explanation as string) || null, // Keep handling explanation
                         isSample: typeof tc.isSample === 'boolean' ? tc.isSample : false,
                     })) : [],
                     solutionApproach: data.solutionApproach || generateGenericFallback(problemName),

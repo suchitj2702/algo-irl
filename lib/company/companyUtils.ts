@@ -14,7 +14,6 @@ import {
   PartialWithFieldValue,
   SetOptions,
   serverTimestamp,
-  CollectionReference,
   Query
 } from "firebase/firestore";
 import { db } from "../firebase/firebase";
@@ -29,14 +28,16 @@ const convertCompanyToFirestore = (
   modelObject: WithFieldValue<Company> | PartialWithFieldValue<Company>,
   options?: SetOptions
 ): DocumentData => {
-  const data = { ...modelObject } as any;
+  const data = { ...modelObject } as Partial<Company>;
   delete data.id;
   const isMerge = options &&
     ('merge' in options && options.merge ||
     ('mergeFields' in options && Array.isArray(options.mergeFields) && options.mergeFields.length > 0));
-  data.updatedAt = serverTimestamp();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data.updatedAt = serverTimestamp() as any;
   if (!isMerge && !data.createdAt) {
-    data.createdAt = serverTimestamp();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data.createdAt = serverTimestamp() as any;
   }
   if (data.createdAt instanceof Date) {
     data.createdAt = Timestamp.fromDate(data.createdAt);
@@ -87,7 +88,7 @@ export async function initializeTechCompanies(): Promise<void> {
       console.log(`Initializing company data for ${companyName}...`);
       
       // Use our AI generation function
-      const company = await generateCompanyDataWithAI(companyName);
+      await generateCompanyDataWithAI(companyName);
       
       console.log(`Successfully initialized ${companyName}`);
     }
@@ -187,9 +188,6 @@ export async function getCompaniesByDomain(domain: string): Promise<Company[]> {
  */
 async function validateCompanyName(companyName: string): Promise<{correctedName: string, isCorrection: boolean}> {
   try {    
-    // Create a cache key for this validation
-    const cacheKey = `company-validation-${companyName.toLowerCase()}`;
-    
     // Simpler prompt that just asks for the correct name
     const customPrompt = `
       I have a company name that might be misspelled: "${companyName}"
@@ -283,9 +281,6 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
       Do not include any text before or after the JSON.
     `;
     
-    // Create a cache key using the corrected company name
-    const cacheKey = `company-${companyId}`;
-    
     // Get the AI response using the new generateCompanyData method
     const aiResponse = await generateCompanyDataWithPrompt(customPrompt);
     
@@ -300,13 +295,13 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
       
       try {
         companyData = JSON.parse(jsonMatch[0]);
-      } catch (jsonError: any) {
-        console.error("JSON parsing error:", jsonError.message);
-        throw new Error(`Failed to parse response JSON: ${jsonError.message}`);
+      } catch (jsonError: unknown) {
+        console.error("JSON parsing error:", (jsonError instanceof Error ? jsonError.message : String(jsonError)));
+        throw new Error(`Failed to parse response JSON: ${(jsonError instanceof Error ? jsonError.message : String(jsonError))}`);
       }
-    } catch (parseError: any) {
+    } catch (parseError: unknown) {
       console.error("Error parsing AI response:", parseError);
-      throw new Error(`Failed to parse AI response for ${correctedName}: ${parseError.message}`);
+      throw new Error(`Failed to parse AI response for ${correctedName}: ${(parseError instanceof Error ? parseError.message : String(parseError))}`);
     }
     
     // Create company object with the corrected name

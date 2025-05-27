@@ -53,7 +53,7 @@ export class AnthropicService {
             
             // Use Claude's native thinking parameter
             if (options.thinking_enabled || options.thinking) {
-                // @ts-ignore - Type definition might not include thinking yet
+                // @ts-expect-error - Type definition might not include thinking yet
                 requestBody.thinking = options.thinking || { type: "enabled" };
             }
 
@@ -85,7 +85,7 @@ export class AnthropicService {
     throw new Error(`Failed to get response from model ${model} after maximum retries`);
   }
 
-  private formatError(error: any): Error { 
+  private formatError(error: unknown): Error { 
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       const data = error.response?.data;
@@ -103,4 +103,5 @@ export class AnthropicService {
 }
 
 // Export default instance
-export default new AnthropicService(); 
+const anthropicService = new AnthropicService();
+export default anthropicService; 

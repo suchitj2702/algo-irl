@@ -23,11 +23,11 @@ export default function ResetPasswordPage() {
       // await sendPasswordResetEmail(auth, email);
       await resetPassword(email); // Call context resetPassword function
       setMessage('Password reset email sent! Please check your inbox.');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Password reset error:", err);
-      if (err.code === 'auth/user-not-found') {
+      if (err instanceof Error && 'code' in err && (err as {code: string}).code === 'auth/user-not-found') {
         setError('No user found with this email address.');
-      } else if (err.code === 'auth/invalid-email') {
+      } else if (err instanceof Error && 'code' in err && (err as {code: string}).code === 'auth/invalid-email') {
         setError('Please enter a valid email address.');
       } else {
         setError('Failed to send password reset email. Please try again.');

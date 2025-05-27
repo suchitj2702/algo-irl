@@ -1,12 +1,6 @@
 // Defines language-specific driver templates and configurations for Judge0.
 import judge0Config from './judge0Config';
 
-// Simple local type, assuming Judge0Language from data-types might not be available or is structured differently.
-interface Judge0LanguageInfo {
-  id: number;
-  name: string; // Or other relevant properties from judge0Config.languages.* values
-}
-
 export const USER_CODE_PLACEHOLDER = '// {{USER_CODE_PLACEHOLDER}}';
 export const USER_CODE_PLACEHOLDER_PYTHON = '# {{USER_CODE_PLACEHOLDER}}';
 

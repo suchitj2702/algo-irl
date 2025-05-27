@@ -3,9 +3,10 @@ import { Judge0SubmissionDetail } from '../../../../lib/code-execution/judge0Cli
 import { getCodeSubmission, updateCodeSubmissionStatus } from '../../../../lib/code-execution/codeExecutionUtils';
 import { aggregateBatchResults } from '../../../../lib/code-execution/codeExecution';
 import type { CodeSubmission } from '../../../../lib/code-execution/codeExecutionUtils';
+import { TestCase } from '../../../../data-types/problem';
 
 // Helper function to process nested arrays before storing in Firestore
-function processNestedArraysForFirestore(obj: any): any {
+function processNestedArraysForFirestore(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     // If the item itself is an array, check if it contains arrays
     if (obj.some(item => Array.isArray(item) || (typeof item === 'object' && item !== null))) {
@@ -16,9 +17,9 @@ function processNestedArraysForFirestore(obj: any): any {
     return obj;
   } else if (obj && typeof obj === 'object') {
     // If object, process each property
-    const result: any = {};
+    const result: Record<string, unknown> = {};
     for (const key in obj) {
-      result[key] = processNestedArraysForFirestore(obj[key]);
+      result[key] = processNestedArraysForFirestore((obj as Record<string, unknown>)[key]);
     }
     return result;
   }
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     // or the type in CodeSubmission should be more specific if possible.
     const aggregatedResults = aggregateBatchResults(
       judge0ResultsArray,
-      originalSubmissionData.testCases as any[] // Assuming TestCase structure matches
+      originalSubmissionData.testCases as TestCase[] // Assuming TestCase structure matches
     );
 
     // Process nested arrays in the aggregated results before updating Firestore

@@ -9,7 +9,6 @@ import {
   signOut as firebaseSignOut, // Alias to avoid naming conflict
   sendPasswordResetEmail,
   sendEmailVerification,
-  AuthError
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/firebase';
 

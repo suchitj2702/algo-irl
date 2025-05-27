@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Problem, TransformationResult } from '@/data-types/problem';
+import { Problem } from '@/data-types/problem';
 
 /**
  * Apply function mappings to code by replacing original function names with company-specific ones

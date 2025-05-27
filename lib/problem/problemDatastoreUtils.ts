@@ -15,14 +15,11 @@ import {
     where
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/firebase";
-import { Problem, TestCase, ProblemDifficulty, LanguageSpecificProblemDetails } from "@/data-types/problem";
+import { Problem, TestCase, ProblemDifficulty } from "@/data-types/problem";
 import { TestCaseResult } from '../../data-types/execution';
-import { Judge0Client, Judge0BatchSubmissionItem, Judge0SubmissionDetail } from '../code-execution/judge0Client';
+import { Judge0Client, Judge0SubmissionDetail } from '../code-execution/judge0Client';
 import { 
-    getLanguageId, 
-    combineUserCodeWithBoilerplate, 
     aggregateBatchResults, 
-    TestResult,
     orchestrateJudge0Submission,
     OrchestratedSubmissionInput
 } from '../code-execution/codeExecution';
@@ -75,14 +72,16 @@ const convertProblemToFirestore = (
     modelObject: WithFieldValue<Problem> | PartialWithFieldValue<Problem>,
     options?: SetOptions
 ): DocumentData => {
-    const data = { ...modelObject } as any;
+    const data = { ...modelObject } as Partial<Problem>;
     delete data.id;
     const isMerge = options &&
         ('merge' in options && options.merge ||
         ('mergeFields' in options && Array.isArray(options.mergeFields) && options.mergeFields.length > 0));
-    data.updatedAt = serverTimestamp();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data.updatedAt = serverTimestamp() as any;
     if (!isMerge && !data.createdAt) {
-        data.createdAt = serverTimestamp();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        data.createdAt = serverTimestamp() as any;
     }
     if (data.createdAt instanceof Date) {
         data.createdAt = Timestamp.fromDate(data.createdAt);
@@ -112,10 +111,10 @@ const problemConverter: FirestoreDataConverter<Problem> = {
             constraints: Array.isArray(data.constraints) ? data.constraints : [],
             leetcodeLink: typeof data.leetcodeLink === 'string' ? data.leetcodeLink : `https://leetcode.com/problems/${snapshot.id}/`,
             isBlind75: typeof data.isBlind75 === 'boolean' ? data.isBlind75 : false,
-            testCases: Array.isArray(data.testCases) ? data.testCases.map((tc: any) => ({
-                stdin: tc.stdin || '',
-                expectedStdout: tc.expectedStdout || '',
-                explanation: tc.explanation,
+            testCases: Array.isArray(data.testCases) ? data.testCases.map((tc: Record<string, unknown>) => ({
+                stdin: (tc.stdin as string) || '',
+                expectedStdout: (tc.expectedStdout as string) || '',
+                explanation: tc.explanation as string | undefined,
                 isSample: typeof tc.isSample === 'boolean' ? tc.isSample : false,
             })) : [],
             solutionApproach: typeof data.solutionApproach === 'string' || data.solutionApproach === null ? data.solutionApproach : null,
@@ -219,18 +218,18 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
                 }
                  console.log(`Successfully verified AI-generated test cases against its solution for problem: ${slug}`);
 
-            } catch (verificationError: any) {
+            } catch (verificationError: unknown) {
                 console.error(`Error during test case verification for ${slug}: `, verificationError);
                 // If it's a known error type like LanguageNotSupported, propagate it.
                 // Replaced LanguageNotSupportedError check with a more general one for now
-                if (verificationError.name === "LanguageNotSupportedError" || verificationError.message.includes("Unsupported language") || verificationError.message.includes("orchestration")) {
+                if (verificationError instanceof Error && (verificationError.name === "LanguageNotSupportedError" || verificationError.message.includes("Unsupported language") || verificationError.message.includes("orchestration"))) {
                      return { success: false, slug, error: `Verification failed: ${verificationError.message}` };
                 }
                 // Use the custom VerificationError for other verification specific issues if applicable
                 if (verificationError instanceof VerificationError) {
                     return { success: false, slug, error: verificationError.message };
                 }
-                return { success: false, slug, error: `An unexpected error occurred during test case verification: ${verificationError.message}` };
+                return { success: false, slug, error: `An unexpected error occurred during test case verification: ${(verificationError instanceof Error ? verificationError.message : String(verificationError))}` };
             }
         } else {
             console.warn(`Skipping test case verification for ${slug} due to missing Python details, solution, boilerplate, or test cases.`);
@@ -276,9 +275,9 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
         console.log(`Successfully fetched and imported problem: ${slug}`);
         return { success: true, slug: slug };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error(`Error fetching/importing problem ${slug}: `, error);
-        return { success: false, slug: slug, error: error.message || "Unknown error occurred during fetch/import." };
+        return { success: false, slug: slug, error: (error instanceof Error ? error.message : String(error)) || "Unknown error occurred during fetch/import." };
     }
 };
 
@@ -309,49 +308,10 @@ async function pollForResults(client: Judge0Client, tokens: string, expectedCoun
     return submissionDetails;
 }
 
-/**
- * Sanitizes data to make it compatible with Firestore by handling nested arrays
- * Firestore doesn't support arrays within arrays
- */
-const sanitizeFirestoreData = (data: any): any => {
-    // If it's an array, convert it to an object with indexed keys
-    if (Array.isArray(data)) {
-        // Convert array to object with numbered keys
-        const result: Record<string, any> = {};
-        data.forEach((item, index) => {
-            result[`${index}`] = sanitizeFirestoreData(item);
-        });
-        // Add a special field to identify this as a converted array
-        result._isArray = true;
-        return result;
-    } 
-    // If it's an object, recursively sanitize its properties
-    else if (data && typeof data === 'object' && !isTimestamp(data)) {
-        const result: Record<string, any> = {};
-        for (const key in data) {
-            if (Object.prototype.hasOwnProperty.call(data, key)) {
-                result[key] = sanitizeFirestoreData(data[key]);
-            }
-        }
-        return result;
-    }
-    // Primitive values can be stored directly
-    return data;
-};
-
-/**
- * Check if value is a Firebase Timestamp
- */
-const isTimestamp = (value: any): boolean => {
-    return value && typeof value === 'object' && 
-           typeof value.toDate === 'function' && 
-           typeof value.toMillis === 'function';
-};
-
 // Function to import multiple problems from URLs
-export const importProblemsFromUrls = async (urls: string[]): Promise<{ successCount: number; errors: any[] }> => {
+export const importProblemsFromUrls = async (urls: string[]): Promise<{ successCount: number; errors: unknown[] }> => {
     let successCount = 0;
-    const errors: any[] = [];
+    const errors: unknown[] = [];
 
     // Process URLs sequentially to avoid overloading the API
     for (const url of urls) {

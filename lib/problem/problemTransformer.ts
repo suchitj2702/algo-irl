@@ -724,13 +724,14 @@ export async function transformProblem(
 /**
  * Export utility functions for use in other modules
  */
-export default {
+const problemTransformerUtils = {
   transformProblem,
   createTransformationContext,
   findMostRelevantCompany,
   extractProblemInfo,
   extractCompanyInfo
 };
+export default problemTransformerUtils;
 
 /**
  * Extracts the title from the scenario text

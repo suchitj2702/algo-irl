@@ -4,12 +4,11 @@ import { ProblemDifficulty } from '@/data-types/problem';
 
 export async function GET(
   request: NextRequest,
-  context: { params: { difficulty: string } }
+  { params }: { params: Promise<{ difficulty: string }> }
 ) {
   try {
     // Explicitly await the params object
-    const params = await Promise.resolve(context.params);
-    const difficulty = params.difficulty;
+    const { difficulty } = await params;
     
     if (!isValidDifficulty(difficulty)) {
       return NextResponse.json(
@@ -25,10 +24,10 @@ export async function GET(
     const problemIds = problems.map(problem => problem.id);
     
     return NextResponse.json(problemIds);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching problems by difficulty:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch problems' },
+      { error: (error instanceof Error ? error.message : String(error)) || 'Failed to fetch problems' },
       { status: 500 }
     );
   }

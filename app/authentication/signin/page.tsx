@@ -21,11 +21,11 @@ export default function SignInPage() {
     try {
       await signIn(email, password);
       router.push('/'); // Redirect to home page on successful sign-in
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Sign in error:", err);
-       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+       if (err instanceof Error && 'code' in err && ((err as {code: string}).code === 'auth/user-not-found' || (err as {code: string}).code === 'auth/wrong-password' || (err as {code: string}).code === 'auth/invalid-credential')) {
          setError('Invalid email or password.');
-       } else if (err.code === 'auth/invalid-email') {
+       } else if (err instanceof Error && 'code' in err && (err as {code: string}).code === 'auth/invalid-email') {
          setError('Please enter a valid email address.');
        } else {
          setError('Failed to sign in. Please try again.');
@@ -81,7 +81,7 @@ export default function SignInPage() {
             </Link>
           </p>
           <p>
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/authentication/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
               Sign Up
             </Link>

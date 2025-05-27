@@ -4,7 +4,7 @@ import judge0Config from './judge0Config';
 
 // Assuming TestCase is correctly imported from here.
 // If not, the path might need adjustment based on your project structure.
-import type { TestCase, Problem, LanguageSpecificProblemDetails } from '../../data-types/problem'; 
+import type { TestCase } from '../../data-types/problem'; 
 
 // Assuming ExecutionResults is correctly imported.
 // Local definition for TestResult to avoid import issues for now.
@@ -14,7 +14,7 @@ import type { ExecutionResults } from '../../data-types/execution';
 export interface TestResult {
   testCase: TestCase; // Original testCase input
   passed: boolean;
-  actualOutput: any; // Parsed actual output (e.g., from JSON stdout)
+  actualOutput: unknown; // Parsed actual output (e.g., from JSON stdout)
   stdout?: string | null; // Raw stdout from Judge0
   stderr?: string | null; // Raw stderr from Judge0
   compileOutput?: string | null; // Compile output from Judge0
@@ -80,7 +80,7 @@ export async function orchestrateJudge0Submission(
 ): Promise<OrchestratedSubmissionOutput> {
   const { code, language, testCases, boilerplateCode } = submissionInput;
   let finalCode = code;
-  let finalTestCases: TestCase[] = testCases; // Use testCases directly
+  const finalTestCases: TestCase[] = testCases; // Use testCases directly
   let maxCpuTimeLimit: number | undefined;
   let maxMemoryLimit: number | undefined;
   let expectedOutput: string | null = null;
@@ -175,7 +175,7 @@ function normalizeAndCompareOutputs(actual: string | null | undefined, expected:
     // This handles differences in key order or whitespace within the JSON structure
     return JSON.stringify(parsedActual) === JSON.stringify(parsedExpected);
 
-  } catch (e) {
+  } catch {
     // If JSON parsing fails for either, fall back to trimmed string comparison
     return normalizedActual === normalizedExpected;
   }
@@ -200,7 +200,7 @@ function checkMultipleExpectedOutputs(actual: string | null | undefined, expecte
     if (normalizedActual.startsWith('"') && normalizedActual.endsWith('"')) {
       parsedActual = JSON.parse(normalizedActual);
     }
-  } catch (e) {
+  } catch {
     // If parsing fails, use the original normalizedActual
     parsedActual = normalizedActual;
   }
@@ -219,7 +219,7 @@ function checkMultipleExpectedOutputs(actual: string | null | undefined, expecte
       }
     }
     return false; // No match in the array
-  } catch (e) {
+  } catch {
     // JSON parsing failed, or it wasn't an array of strings/parsable objects
     return false;
   }
@@ -269,7 +269,7 @@ function compareUnorderedStringArrays(actual: string | null | undefined, expecte
 
     return true; // All elements match
 
-  } catch (e) {
+  } catch {
     return false; // JSON parsing failed or other error
   }
 }
@@ -304,7 +304,7 @@ function compareUnorderedArraysOfArrays(actual: string | null | undefined, expec
       return true; // Both are empty outer arrays, considered equal
     }
 
-    const getCanonicalInnerArrayString = (innerArray: any): string | null => {
+    const getCanonicalInnerArrayString = (innerArray: unknown): string | null => {
       if (!Array.isArray(innerArray)) {
         return null; // Element of outer array is not an array
       }
@@ -346,7 +346,7 @@ function compareUnorderedArraysOfArrays(actual: string | null | undefined, expec
 
     return true; // All canonical inner arrays match
 
-  } catch (e) {
+  } catch {
     return false; // JSON parsing failed or other error
   }
 }
@@ -402,13 +402,13 @@ export function aggregateBatchResults(
       if (memoryKb > maxMemoryKb) maxMemoryKb = memoryKb;
 
       let testPassed = false;
-      let actualOutput: any = null;
+      let actualOutput: unknown = null;
       let currentTestError: string | null = null;
       let statusDescription = detail.status.description; // Start with original status
       let statusId = detail.status.id; // Start with original status ID
 
       // Helper to parse stdout
-      const parseStdout = (stdout: string | null | undefined): any => {
+      const parseStdout = (stdout: string | null | undefined): unknown => {
         if (!stdout) return stdout;
         const trimmedStdout = stdout.trim();
         if (trimmedStdout.startsWith('{') || trimmedStdout.startsWith('[')) {

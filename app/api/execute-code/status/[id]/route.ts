@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCodeSubmission, updateCodeSubmissionStatus, CodeSubmission } from '../../../../../lib/code-execution/codeExecutionUtils';
-import { Judge0Client, Judge0SubmissionDetail } from '../../../../../lib/code-execution/judge0Client';
+import { Judge0Client } from '../../../../../lib/code-execution/judge0Client';
 import judge0Config from '../../../../../lib/code-execution/judge0Config';
 import { aggregateBatchResults } from '../../../../../lib/code-execution/codeExecution';
+import { TestCase } from '../../../../../data-types/problem';
 // import { processJudge0Results } from '../../../../../lib/code-execution/codeExecution'; // Old function
 
 const judge0Client = new Judge0Client({
@@ -12,7 +13,7 @@ const judge0Client = new Judge0Client({
 });
 
 // Helper function to process nested arrays before storing in Firestore
-function processNestedArraysForFirestore(obj: any): any {
+function processNestedArraysForFirestore(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     // If the item itself is an array, check if it contains arrays
     if (obj.some(item => Array.isArray(item) || (typeof item === 'object' && item !== null))) {
@@ -23,9 +24,9 @@ function processNestedArraysForFirestore(obj: any): any {
     return obj;
   } else if (obj && typeof obj === 'object') {
     // If object, process each property
-    const result: any = {};
+    const result: Record<string, unknown> = {};
     for (const key in obj) {
-      result[key] = processNestedArraysForFirestore(obj[key]);
+      result[key] = processNestedArraysForFirestore((obj as Record<string, unknown>)[key]);
     }
     return result;
   }
@@ -35,12 +36,11 @@ function processNestedArraysForFirestore(obj: any): any {
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // In Next.js App Router, params needs to be properly awaited
-    const params = await Promise.resolve(context.params);
-    const submissionId = params.id;
+    const { id: submissionId } = await params;
     
     if (!submissionId) {
       return NextResponse.json({ error: 'Submission ID is required' }, { status: 400 });
@@ -57,7 +57,9 @@ export async function GET(
         status: submission.status,
         results: submission.results,
         // For error status, ensure the error message is included if available
-        ...(submission.status === 'error' && { error: submission.results?.error || 'Unknown execution error' })
+        ...(submission.status === 'error' && { 
+          error: (submission.results as Record<string, unknown>)?.error || 'Unknown execution error' 
+        })
       }, submission.status === 'error' ? { status: 500 } : {});
     }
 
@@ -96,7 +98,7 @@ export async function GET(
         // Aggregate results and update Firestore
         const aggregatedResults = aggregateBatchResults(
           judge0Submissions,
-          submission.testCases as any[] // Assuming TestCase structure matches
+          submission.testCases as TestCase[] // Assuming TestCase structure matches
         );
         
         // Process nested arrays in the aggregated results before updating Firestore
@@ -111,7 +113,7 @@ export async function GET(
           ...(finalStatus === 'error' && { error: aggregatedResults.error || 'Execution failed' })
         }, finalStatus === 'error' ? { status: 500 } : {});
 
-      } catch (e) {
+      } catch (e: unknown) {
         console.error(`Polling: Error checking Judge0 status for submission ${submissionId}:`, e);
         // Don't update submission status to error here, as it might be a temporary network issue
         // The client will continue polling.

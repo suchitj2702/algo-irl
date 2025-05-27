@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 // import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 // import { auth } from '@/lib/firebase'; // Correct filename
@@ -14,7 +13,6 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const router = useRouter();
   const { signUp } = useAuth(); // Use signUp from context
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -41,12 +39,12 @@ export default function SignUpPage() {
       setMessage('Account created successfully! Please check your email to verify your account.');
       // Optionally redirect after a delay or let user click a link
       // router.push('/authentication/signin'); // Redirect to sign-in page after success
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Sign up error:", err);
       // Provide more user-friendly error messages
-      if (err.code === 'auth/email-already-in-use') {
+      if (err instanceof Error && 'code' in err && (err as {code: string}).code === 'auth/email-already-in-use') {
         setError('This email address is already in use.');
-      } else if (err.code === 'auth/invalid-email') {
+      } else if (err instanceof Error && 'code' in err && (err as {code: string}).code === 'auth/invalid-email') {
         setError('Please enter a valid email address.');
       } else {
         setError('Failed to create an account. Please try again.');

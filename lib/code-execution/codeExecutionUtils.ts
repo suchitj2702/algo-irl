@@ -1,4 +1,4 @@
-import { collection, addDoc, getDoc, doc, updateDoc, query, where, orderBy, getDocs, DocumentData, Query, setDoc } from 'firebase/firestore';
+import { getDoc, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase/firebase';
 
 export interface CodeSubmission {
@@ -7,8 +7,8 @@ export interface CodeSubmission {
   language: string;
   judge0Tokens: string[];
   status: 'pending' | 'processing' | 'completed' | 'error';
-  testCases: any[];
-  results?: any;
+  testCases: unknown[];
+  results?: unknown;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -46,7 +46,7 @@ export async function getCodeSubmission(id: string): Promise<CodeSubmission | nu
 /**
  * Updates a code submission status and results
  */
-export async function updateCodeSubmissionStatus(id: string, status: string, results?: any) {
+export async function updateCodeSubmissionStatus(id: string, status: string, results?: unknown) {
   const docRef = doc(db, 'codeSubmissions', id);
   
   const updateData = {

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getBlind75Problems } from '@/lib/problem/problemDatastoreUtils';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get problems marked as Blind 75
     const problems = await getBlind75Problems();
@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
     }));
     
     return NextResponse.json(simplifiedProblems);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching Blind 75 problems:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch Blind 75 problems' },
+      { error: (error instanceof Error ? error.message : String(error)) || 'Failed to fetch Blind 75 problems' },
       { status: 500 }
     );
   }

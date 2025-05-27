@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, GenerativeModel, GenerateContentResult, Content, GenerationConfig } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerativeModel, GenerateContentResult, GenerationConfig, Part } from "@google/generative-ai";
 
 // Constants for Gemini Service
 const MAX_RETRIES = 3;
@@ -25,11 +25,15 @@ export class GeminiService {
         this.client = new GoogleGenerativeAI(effectiveApiKey);
     }
 
-    private getModel(modelName: string): GenerativeModel {
-        if (!this.modelCache[modelName]) {
-            this.modelCache[modelName] = this.client.getGenerativeModel({ model: modelName });
+    private getModel(modelName: string, systemInstruction?: string): GenerativeModel {
+        const cacheKey = systemInstruction ? `${modelName}-${systemInstruction}` : modelName;
+        if (!this.modelCache[cacheKey]) {
+            this.modelCache[cacheKey] = this.client.getGenerativeModel({ 
+                model: modelName, 
+                ...(systemInstruction && { systemInstruction }) 
+            });
         }
-        return this.modelCache[modelName];
+        return this.modelCache[cacheKey];
     }
 
     /**
@@ -41,12 +45,13 @@ export class GeminiService {
         optionsOrSystemPrompt?: string | GeminiModelOptions
     ): Promise<string> {
         let retries = 0;
-        const model = this.getModel(modelName);
 
         // Handle both legacy string systemPrompt and new options object
         const options: GeminiModelOptions = typeof optionsOrSystemPrompt === 'string' 
           ? { systemPrompt: optionsOrSystemPrompt }
           : optionsOrSystemPrompt || {};
+        
+        const model = this.getModel(modelName, options.systemPrompt);
 
         const generationConfig: GenerationConfig = {
             temperature: 1,
@@ -54,27 +59,14 @@ export class GeminiService {
             ...(options.max_tokens && { maxOutputTokens: options.max_tokens }),
         };
         
-        // System instructions are passed as a Content object with role: "system"
-        const systemInstructionParts: Content[] | undefined = options.systemPrompt
-            ? [{ role: "system", parts: [{ text: options.systemPrompt }] }]
-            : undefined;
+        const userPromptParts: Part[] = [{text: prompt}];
 
         while (retries <= MAX_RETRIES) {
             try {
-                const requestConfig: any = {
-                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                const result: GenerateContentResult = await model.generateContent({
+                    contents: [{ role: "user", parts: userPromptParts }],
                     generationConfig: generationConfig,
-                    ...(systemInstructionParts && { systemInstruction: systemInstructionParts[0] })
-                };
-                
-                // Add thinkingConfig if thinking is enabled or explicitly provided
-                if (options.thinking_enabled || options.thinkingConfig) {
-                    requestConfig.config = {
-                        thinkingConfig: options.thinkingConfig || { thinkingBudget: 1024 }
-                    };
-                }
-
-                const result: GenerateContentResult = await model.generateContent(requestConfig);
+                });
 
                 const response = result.response;
                 const responseText = response.text(); 
@@ -87,7 +79,7 @@ export class GeminiService {
                 }
                 return responseText;
 
-            } catch (error: any) {
+            } catch (error: unknown) {
                 retries++;
                 if (retries > MAX_RETRIES) {
                     console.error(`Failed Gemini API call to model ${modelName} after ${MAX_RETRIES} retries. Error: ${error}`);
@@ -105,4 +97,5 @@ export class GeminiService {
 }
 
 // Export default instance
-export default new GeminiService(); 
+const geminiService = new GeminiService();
+export default geminiService; 

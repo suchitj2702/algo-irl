@@ -47,10 +47,10 @@ export async function GET(request: NextRequest) {
     const randomProblem = problems[randomIndex];
     
     return NextResponse.json({ problemId: randomProblem.id });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error filtering problems:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to filter problems' },
+      { error: (error instanceof Error ? error.message : String(error)) || 'Failed to filter problems' },
       { status: 500 }
     );
   }

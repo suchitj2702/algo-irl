@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
 import { editor } from 'monaco-editor';
 import type { UserPreferences } from '../../data-types/user';
@@ -50,7 +50,6 @@ export default function CodeEditor({
 }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
-  const [isEditorReady, setIsEditorReady] = useState(false);
 
   // Configure editor options based on user preferences
   const editorOptions = {
@@ -64,7 +63,6 @@ export default function CodeEditor({
   const handleEditorDidMount = (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
-    setIsEditorReady(true);
   };
 
   // Get selected language

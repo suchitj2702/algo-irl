@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'; // Assuming node-fetch is available
+import fetch, { RequestInit } from 'node-fetch'; // Assuming node-fetch is available
 import { CodeExecutionThrottlingConfig, defaultCodeExecutionThrottlingConfig } from './codeExecutionConfig';
 
 interface Judge0ClientOptions {
@@ -65,7 +65,7 @@ export class Judge0Client {
   private async requestWithRetry<T>(
     endpoint: string, 
     method: 'GET' | 'POST' = 'POST', 
-    body?: any, 
+    body?: unknown, 
     maxRetries?: number, // Made optional to use config
     initialDelayMs?: number // Made optional to use config
   ): Promise<T> {
@@ -99,14 +99,14 @@ export class Judge0Client {
     }
   }
 
-  private async request<T>(endpoint: string, method: 'GET' | 'POST' = 'POST', body?: any): Promise<T> {
+  private async request<T>(endpoint: string, method: 'GET' | 'POST' = 'POST', body?: unknown): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-RapidAPI-Key': this.apiKey,
       'X-RapidAPI-Host': new URL(this.apiUrl).host,
     };
 
-    const config: any = {
+    const config: RequestInit = {
       method,
       headers,
     };
@@ -137,10 +137,11 @@ export class Judge0Client {
       if (error instanceof Error) {
         console.error(`Request failed: ${error.message}`);
         if (body && method === 'POST') {
+          const bodyAsRecord = body as Record<string, unknown>;
           // Log first item in submissions array if it exists (for debugging)
-          if (body.submissions && Array.isArray(body.submissions) && body.submissions.length > 0) {
-            console.log(`First submission in batch: ${JSON.stringify(body.submissions[0]).substring(0, 200)}...`);
-            console.log(`Batch size: ${body.submissions.length}`);
+          if (bodyAsRecord.submissions && Array.isArray(bodyAsRecord.submissions) && bodyAsRecord.submissions.length > 0) {
+            console.log(`First submission in batch: ${JSON.stringify(bodyAsRecord.submissions[0]).substring(0, 200)}...`);
+            console.log(`Batch size: ${bodyAsRecord.submissions.length}`);
           }
         }
       }
@@ -274,7 +275,7 @@ export class Judge0Client {
           break;
         }
       }
-    } catch (error) {
+    } catch {
       console.error("Batch mode failed, falling back to single mode");
       batchError = true;
     }

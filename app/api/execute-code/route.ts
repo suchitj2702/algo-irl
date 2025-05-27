@@ -4,7 +4,6 @@ import judge0Config from '../../../lib/code-execution/judge0Config';
 import { Judge0Client } from '../../../lib/code-execution/judge0Client';
 import { createCodeSubmission } from '../../../lib/code-execution/codeExecutionUtils';
 import type { TestCase } from '../../../data-types/problem';
-import { getProblemById } from '../../../lib/problem/problemDatastoreUtils';
 
 // Initialize Judge0Client without the global callbackUrl, 
 // as it's now handled per-batch by orchestrateJudge0Submission
@@ -49,16 +48,19 @@ export async function POST(request: NextRequest) {
       // Apply the processing logic for nested arrays if needed (consider if this is still required)
       testCasesToStore = JSON.parse(JSON.stringify(testCases as TestCase[])).map((tc: TestCase) => {
         // Helper function to recursively process all nested arrays
-        const processNestedArrays = (obj: any): any => {
+        const processNestedArrays = (obj: unknown): unknown => {
+          if (typeof obj === 'string') {
+            return obj; // Return string as is if it's not a JSON string of an array/object
+          }
           if (Array.isArray(obj)) {
-            if (obj.some(item => Array.isArray(item))) {
+            if (obj.some(item => Array.isArray(item) || (typeof item === 'object' && item !== null))) {
               return JSON.stringify(obj);
             }
             return obj;
           } else if (obj && typeof obj === 'object') {
-            const result: any = {};
+            const result: Record<string, unknown> = {};
             for (const key in obj) {
-              result[key] = processNestedArrays(obj[key]);
+              result[key] = processNestedArrays((obj as Record<string, unknown>)[key]);
             }
             return result;
           }
