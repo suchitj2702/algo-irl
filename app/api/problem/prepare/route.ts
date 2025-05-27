@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Problem } from '@/data-types/problem';
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept',
+  'Access-Control-Max-Age': '86400',
+};
+
+// Handle CORS preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
+
 /**
  * Apply function mappings to code by replacing original function names with company-specific ones
  */
@@ -34,14 +50,14 @@ export async function POST(request: NextRequest) {
     if (!problemId && !difficulty) {
       return NextResponse.json(
         { error: 'Either problemId or difficulty is required. You may also provide isBlind75 parameter when using difficulty.' }, 
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
     
     if (!companyId || typeof companyId !== 'string') {
       return NextResponse.json(
         { error: 'Company ID is required' }, 
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
     
@@ -63,7 +79,7 @@ export async function POST(request: NextRequest) {
         const errorData = await problemsResponse.json();
         return NextResponse.json(
           { error: errorData.error || `Failed to fetch problems with ${difficulty} difficulty and isBlind75=${blind75Value}` },
-          { status: problemsResponse.status }
+          { status: problemsResponse.status, headers: corsHeaders }
         );
       }
       
@@ -72,7 +88,7 @@ export async function POST(request: NextRequest) {
       if (!problemData.problemId) {
         return NextResponse.json(
           { error: `No problems found with ${difficulty} difficulty and isBlind75=${blind75Value}` },
-          { status: 404 }
+          { status: 404, headers: corsHeaders }
         );
       }
       
@@ -88,7 +104,7 @@ export async function POST(request: NextRequest) {
       const errorData = await problemResponse.json();
       return NextResponse.json(
         { error: errorData.error || `Failed to fetch problem ${resolvedProblemId}` },
-        { status: problemResponse.status }
+        { status: problemResponse.status, headers: corsHeaders }
       );
     }
     
@@ -100,7 +116,7 @@ export async function POST(request: NextRequest) {
     if (!pythonDetails) {
       return NextResponse.json(
         { error: 'Python implementation details not available for this problem' },
-        { status: 404 }
+        { status: 404, headers: corsHeaders }
       );
     }
     
@@ -122,7 +138,7 @@ export async function POST(request: NextRequest) {
         const errorData = await transformResponse.json();
         return NextResponse.json(
           { error: errorData.error || 'Failed to transform problem' },
-          { status: transformResponse.status }
+          { status: transformResponse.status, headers: corsHeaders }
         );
       }
       
@@ -186,12 +202,12 @@ export async function POST(request: NextRequest) {
       }
     };
     
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers: corsHeaders });
   } catch (error) {
     console.error('Error preparing problem:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 } 

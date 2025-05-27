@@ -5,6 +5,22 @@ import { Judge0Client } from '../../../lib/code-execution/judge0Client';
 import { createCodeSubmission } from '../../../lib/code-execution/codeExecutionUtils';
 import type { TestCase } from '../../../data-types/problem';
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept',
+  'Access-Control-Max-Age': '86400',
+};
+
+// Handle CORS preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
+
 // Initialize Judge0Client without the global callbackUrl, 
 // as it's now handled per-batch by orchestrateJudge0Submission
 const judge0Client = new Judge0Client({
@@ -18,18 +34,18 @@ export async function POST(request: NextRequest) {
     const { code, language, testCases, boilerplateCode } = await request.json();
     
     if (!code || typeof code !== 'string') {
-      return NextResponse.json({ error: 'Code is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Code is required' }, { status: 400, headers: corsHeaders });
     }
     if (!language || typeof language !== 'string') {
-      return NextResponse.json({ error: 'Language is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Language is required' }, { status: 400, headers: corsHeaders });
     }
     if (!boilerplateCode || typeof boilerplateCode !== 'string') {
-      return NextResponse.json({ error: 'Boilerplate code is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Boilerplate code is required' }, { status: 400, headers: corsHeaders });
     }
     if (!testCases || !Array.isArray(testCases) || testCases.length === 0) {
       return NextResponse.json(
         { error: 'Test cases are required' }, 
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -90,7 +106,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       submissionId: submissionResult.internalSubmissionId, 
       message: 'Code submitted successfully. Poll for results using the submissionId.' 
-    });
+    }, { headers: corsHeaders });
     
   } catch (error) {
     console.error('Code submission API error:', error);
@@ -104,6 +120,6 @@ export async function POST(request: NextRequest) {
       memoryUsage: null,
       status: 'error' // Add a status field to the error response
     };
-    return NextResponse.json(errorResponse, { status: 500 });
+    return NextResponse.json(errorResponse, { status: 500, headers: corsHeaders });
   }
 } 

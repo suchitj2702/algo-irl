@@ -6,6 +6,22 @@ import { aggregateBatchResults } from '../../../../../lib/code-execution/codeExe
 import { TestCase } from '../../../../../data-types/problem';
 // import { processJudge0Results } from '../../../../../lib/code-execution/codeExecution'; // Old function
 
+// CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept',
+  'Access-Control-Max-Age': '86400',
+};
+
+// Handle CORS preflight requests
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
+
 const judge0Client = new Judge0Client({
   apiUrl: judge0Config.apiUrl,
   apiKey: judge0Config.apiKey,
@@ -43,12 +59,12 @@ export async function GET(
     const { id: submissionId } = await params;
     
     if (!submissionId) {
-      return NextResponse.json({ error: 'Submission ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Submission ID is required' }, { status: 400, headers: corsHeaders });
     }
     
     const submission: CodeSubmission | null = await getCodeSubmission(submissionId);
     if (!submission) {
-      return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Submission not found' }, { status: 404, headers: corsHeaders });
     }
 
     // If status is already completed or errored, return stored results
@@ -60,7 +76,10 @@ export async function GET(
         ...(submission.status === 'error' && { 
           error: (submission.results as Record<string, unknown>)?.error || 'Unknown execution error' 
         })
-      }, submission.status === 'error' ? { status: 500 } : {});
+      }, { 
+        status: submission.status === 'error' ? 500 : 200,
+        headers: corsHeaders 
+      });
     }
 
     // If pending or processing, we might need to check with Judge0
@@ -70,7 +89,7 @@ export async function GET(
         console.error(`Polling: Submission ${submissionId} has no Judge0 tokens.`);
         // This indicates an issue during submission creation. Update to error.
         await updateCodeSubmissionStatus(submissionId, 'error', { error: 'Missing Judge0 tokens, cannot poll status.'});
-        return NextResponse.json({ error: 'Internal error: Missing Judge0 tokens.' }, { status: 500 });
+        return NextResponse.json({ error: 'Internal error: Missing Judge0 tokens.' }, { status: 500, headers: corsHeaders });
       }
 
       try {
@@ -91,7 +110,7 @@ export async function GET(
           return NextResponse.json({ 
             status: 'processing',
             message: 'Submission is still processing by Judge0.'
-          });
+          }, { headers: corsHeaders });
         }
 
         // If none are processing, then all are completed (or errored from Judge0 side)
@@ -111,7 +130,10 @@ export async function GET(
           status: finalStatus,
           results: aggregatedResults, // Return original unprocessed results to client
           ...(finalStatus === 'error' && { error: aggregatedResults.error || 'Execution failed' })
-        }, finalStatus === 'error' ? { status: 500 } : {});
+        }, { 
+          status: finalStatus === 'error' ? 500 : 200,
+          headers: corsHeaders 
+        });
 
       } catch (e: unknown) {
         console.error(`Polling: Error checking Judge0 status for submission ${submissionId}:`, e);
@@ -121,7 +143,7 @@ export async function GET(
           status: submission.status, // Return current DB status
           message: 'Error communicating with Judge0. Please try again shortly.',
           error: e instanceof Error ? e.message : 'Failed to get status from Judge0'
-        }, {status: 503 }); // Service Unavailable for Judge0 comms error
+        }, { status: 503, headers: corsHeaders }); // Service Unavailable for Judge0 comms error
       }
     }
     
@@ -129,13 +151,13 @@ export async function GET(
     return NextResponse.json({ 
       status: 'unknown',
       message: 'Unknown submission status in database.'
-    }, { status: 500 });
+    }, { status: 500, headers: corsHeaders });
     
   } catch (error) {
     console.error('Error fetching submission results by ID:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'An unknown server error occurred' }, 
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 } 

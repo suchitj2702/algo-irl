@@ -5,7 +5,7 @@
       "memory": 1024,
       "maxDuration": 30
     },
-    "app/api/execute-code/status/[submissionId]/route.ts": {
+    "app/api/execute-code/status/[id]/route.ts": {
       "memory": 512,
       "maxDuration": 10
     },

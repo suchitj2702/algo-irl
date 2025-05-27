@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test for algo-irl API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>CORS Test for algo-irl API</h1>
+    <p>This page tests CORS functionality for the deployed API endpoints.</p>
+    
+    <div class="test-section">
+        <h3>Test 1: Problem Prepare Endpoint</h3>
+        <button onclick="testProblemPrepare()">Test /api/problem/prepare</button>
+        <div id="problem-prepare-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 2: Companies Initialize Endpoint</h3>
+        <button onclick="testCompaniesInitialize()">Test /api/companies/initialize</button>
+        <div id="companies-init-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 3: Execute Code Endpoint</h3>
+        <button onclick="testExecuteCode()">Test /api/execute-code</button>
+        <div id="execute-code-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Test 4: Blocked Endpoint</h3>
+        <button onclick="testBlockedEndpoint()">Test /api/problem (should be blocked)</button>
+        <div id="blocked-endpoint-result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://algo-irl.vercel.app'; // Update this to your deployed URL
+        
+        function displayResult(elementId, success, message, data = null) {
+            const element = document.getElementById(elementId);
+            element.className = `test-section ${success ? 'success' : 'error'}`;
+            element.innerHTML = `
+                <h4>${success ? '✅ Success' : '❌ Error'}</h4>
+                <p>${message}</p>
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+            `;
+        }
+        
+        async function testProblemPrepare() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/problem/prepare`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        companyId: 'test-company',
+                        difficulty: 'Easy'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResult('problem-prepare-result', true, 'CORS working! Problem prepare endpoint accessible.', data);
+                } else {
+                    displayResult('problem-prepare-result', false, `API returned error: ${response.status}`, data);
+                }
+            } catch (error) {
+                displayResult('problem-prepare-result', false, `CORS Error: ${error.message}`);
+            }
+        }
+        
+        async function testCompaniesInitialize() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/companies/initialize`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResult('companies-init-result', true, 'CORS working! Companies initialize endpoint accessible.', data);
+                } else {
+                    displayResult('companies-init-result', false, `API returned error: ${response.status}`, data);
+                }
+            } catch (error) {
+                displayResult('companies-init-result', false, `CORS Error: ${error.message}`);
+            }
+        }
+        
+        async function testExecuteCode() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/execute-code`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: 'print("Hello World")',
+                        language: 'python',
+                        testCases: [{ stdin: '', expectedStdout: 'Hello World\n' }],
+                        boilerplateCode: 'print("Hello World")'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayResult('execute-code-result', true, 'CORS working! Execute code endpoint accessible.', data);
+                } else {
+                    displayResult('execute-code-result', false, `API returned error: ${response.status}`, data);
+                }
+            } catch (error) {
+                displayResult('execute-code-result', false, `CORS Error: ${error.message}`);
+            }
+        }
+        
+        async function testBlockedEndpoint() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/problem`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.status === 404 && data.error === 'API endpoint not available') {
+                    displayResult('blocked-endpoint-result', true, 'Endpoint correctly blocked! CORS headers present on blocked endpoint.', data);
+                } else {
+                    displayResult('blocked-endpoint-result', false, `Unexpected response: ${response.status}`, data);
+                }
+            } catch (error) {
+                displayResult('blocked-endpoint-result', false, `CORS Error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html> 
