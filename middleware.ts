@@ -8,7 +8,9 @@ const allowedEndpoints = [
   '/api/execute-code/status',
   // Temporarily allow these for internal calls from /api/problem/prepare
   '/api/problem/filter',
-  '/api/problem/transform'
+  '/api/problem/transform',
+  // Debug endpoint to check Firebase configuration
+  '/api/debug/firebase-config'
 ];
 
 // Define endpoints that are allowed for internal calls but should be blocked for external access
