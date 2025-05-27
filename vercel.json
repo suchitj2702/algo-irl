@@ -1,25 +1,59 @@
 {
   "version": 2,
   "functions": {
-    "pages/api/code/execute.js": {
+    "app/api/execute-code/route.ts": {
       "memory": 1024,
+      "maxDuration": 30
+    },
+    "app/api/execute-code/status/[submissionId]/route.ts": {
+      "memory": 512,
+      "maxDuration": 10
+    },
+    "app/api/companies/initialize/route.ts": {
+      "memory": 512,
+      "maxDuration": 10
+    },
+    "app/api/problem/prepare/route.ts": {
+      "memory": 512,
       "maxDuration": 10
     }
   },
   "headers": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/(companies/initialize|problem/prepare|execute-code|execute-code/status/.*)",
       "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-Requested-With" },
+        { "key": "Access-Control-Max-Age", "value": "86400" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" },
-        { "key": "Referrer-Policy", "value": "origin-when-cross-origin" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self';" }
+        { "key": "Referrer-Policy", "value": "origin-when-cross-origin" }
       ]
     }
   ],
   "env": {
-    "CODE_EXECUTION_TIMEOUT": "5000",
-    "CODE_EXECUTION_MEMORY_LIMIT": "128"
-  }
+    "CODE_EXECUTION_TIMEOUT": "25000",
+    "CODE_EXECUTION_MEMORY_LIMIT": "128",
+    "NODE_ENV": "production"
+  },
+  "rewrites": [
+    {
+      "source": "/api/companies/initialize",
+      "destination": "/api/companies/initialize"
+    },
+    {
+      "source": "/api/problem/prepare",
+      "destination": "/api/problem/prepare"
+    },
+    {
+      "source": "/api/execute-code",
+      "destination": "/api/execute-code"
+    },
+    {
+      "source": "/api/execute-code/status/:submissionId",
+      "destination": "/api/execute-code/status/:submissionId"
+    }
+  ]
 } 
