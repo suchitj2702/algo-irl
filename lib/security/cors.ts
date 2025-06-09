@@ -10,7 +10,7 @@ export function getCorsHeaders(origin: string | null): HeadersInit {
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin || '*' : '',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Timestamp, X-Signature, X-Hp-Field, X-Requested-With',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Timestamp, X-Signature, X-Hp-Field, X-Client-Fingerprint, X-Requested-With',
     'Access-Control-Max-Age': '86400',
   };
 } 
