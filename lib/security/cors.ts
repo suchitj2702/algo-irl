@@ -1,6 +1,7 @@
 export function getCorsHeaders(origin: string | null): HeadersInit {
   // Define allowed origins (update for production)
   const allowedOrigins = [
+    'https://www.algoirl.ai',
     'https://algoirl.ai',
   ];
   
