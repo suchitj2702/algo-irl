@@ -1,6 +1,17 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+
+// NOTE: This file is for CLIENT-SIDE Firebase SDK usage only
+// For server-side operations, use lib/firebase/firebaseAdmin.ts
+// 
+// Client-side usage:
+// - Authentication (sign in, sign up, sign out)
+// - Real-time listeners (if needed)
+// 
+// Server-side usage (Admin SDK):
+// - All database operations (CRUD)
+// - Server-side authentication verification
+// - Firestore operations in API routes
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -14,9 +25,10 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase for SSR
+// Initialize Firebase for client-side usage (authentication only)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
 const auth = getAuth(app);
 
-export { app, db, auth };
+// NOTE: We no longer export 'db' from here as all database operations
+// should use the Admin SDK from firebaseAdmin.ts
+export { app, auth };

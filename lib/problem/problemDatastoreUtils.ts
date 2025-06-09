@@ -1,20 +1,5 @@
-import {
-    collection,
-    doc,
-    getDoc,
-    getDocs,
-    serverTimestamp,
-    query,
-    DocumentData,
-    FirestoreDataConverter,
-    Timestamp,
-    SetOptions,
-    WithFieldValue,
-    PartialWithFieldValue,
-    setDoc,
-    where
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/firebase";
+import { adminDb } from "@/lib/firebase/firebaseAdmin";
+import { Timestamp } from "firebase-admin/firestore";
 import { Problem, TestCase, ProblemDifficulty } from "@/data-types/problem";
 import { TestCaseResult } from '../../data-types/execution';
 import { Judge0Client, Judge0SubmissionDetail } from '../code-execution/judge0Client';
@@ -64,75 +49,60 @@ export const extractSlugFromUrl = (url: string): string | null => {
     }
 };
 
-// Firestore collection reference
-const problemsCollectionRef = collection(db, "problems");
-
-// Helper function for converting Problem objects to Firestore data
+// Helper function for converting Problem objects to Firestore data (Admin SDK)
 const convertProblemToFirestore = (
-    modelObject: WithFieldValue<Problem> | PartialWithFieldValue<Problem>,
-    options?: SetOptions
-): DocumentData => {
+    modelObject: Partial<Problem>
+): Record<string, unknown> => {
     const data = { ...modelObject } as Partial<Problem>;
     delete data.id;
-    const isMerge = options &&
-        ('merge' in options && options.merge ||
-        ('mergeFields' in options && Array.isArray(options.mergeFields) && options.mergeFields.length > 0));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.updatedAt = serverTimestamp() as any;
-    if (!isMerge && !data.createdAt) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        data.createdAt = serverTimestamp() as any;
+    
+    data.updatedAt = Timestamp.now();
+    if (!data.createdAt) {
+        data.createdAt = Timestamp.now();
     }
+    
     if (data.createdAt instanceof Date) {
         data.createdAt = Timestamp.fromDate(data.createdAt);
     }
     if (data.updatedAt instanceof Date) {
         data.updatedAt = Timestamp.fromDate(data.updatedAt);
     }
-    return data;
+    return data as Record<string, unknown>;
 };
 
-// Firestore Data Converter for Problem objects
-const problemConverter: FirestoreDataConverter<Problem> = {
-    toFirestore(
-        modelObject: WithFieldValue<Problem> | PartialWithFieldValue<Problem>,
-        options?: SetOptions
-    ): DocumentData {
-        return convertProblemToFirestore(modelObject, options);
-    },
-    fromFirestore(snapshot, options): Problem {
-        const data = snapshot.data(options)!;
-        return {
-            id: snapshot.id,
-            title: typeof data.title === 'string' ? data.title : "Untitled Problem",
-            difficulty: typeof data.difficulty === 'string' ? data.difficulty as ProblemDifficulty : "Medium",
-            categories: Array.isArray(data.categories) ? data.categories : [],
-            description: typeof data.description === 'string' ? data.description : "No description",
-            constraints: Array.isArray(data.constraints) ? data.constraints : [],
-            leetcodeLink: typeof data.leetcodeLink === 'string' ? data.leetcodeLink : `https://leetcode.com/problems/${snapshot.id}/`,
-            isBlind75: typeof data.isBlind75 === 'boolean' ? data.isBlind75 : false,
-            testCases: Array.isArray(data.testCases) ? data.testCases.map((tc: Record<string, unknown>) => ({
-                stdin: (tc.stdin as string) || '',
-                expectedStdout: (tc.expectedStdout as string) || '',
-                explanation: tc.explanation as string | undefined,
-                isSample: typeof tc.isSample === 'boolean' ? tc.isSample : false,
-            })) : [],
-            solutionApproach: typeof data.solutionApproach === 'string' || data.solutionApproach === null ? data.solutionApproach : null,
-            timeComplexity: typeof data.timeComplexity === 'string' || data.timeComplexity === null ? data.timeComplexity : null,
-            spaceComplexity: typeof data.spaceComplexity === 'string' || data.spaceComplexity === null ? data.spaceComplexity : null,
-            languageSpecificDetails: data.languageSpecificDetails || { 
-                python: { 
-                    solutionFunctionNameOrClassName: 'fallback_func', 
-                    solutionStructureHint:'', 
-                    defaultUserCode: '', 
-                    boilerplateCodeWithPlaceholder: '',
-                    optimizedSolutionCode: ''
-                } 
-            },
-            createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
-            updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now(),
-        };
-    }
+// Helper function for converting Firestore data to Problem objects (Admin SDK)
+const convertFirestoreToProblem = (doc: FirebaseFirestore.DocumentSnapshot): Problem => {
+    const data = doc.data()!;
+    return {
+        id: doc.id,
+        title: typeof data.title === 'string' ? data.title : "Untitled Problem",
+        difficulty: typeof data.difficulty === 'string' ? data.difficulty as ProblemDifficulty : "Medium",
+        categories: Array.isArray(data.categories) ? data.categories : [],
+        description: typeof data.description === 'string' ? data.description : "No description",
+        constraints: Array.isArray(data.constraints) ? data.constraints : [],
+        leetcodeLink: typeof data.leetcodeLink === 'string' ? data.leetcodeLink : `https://leetcode.com/problems/${doc.id}/`,
+        isBlind75: typeof data.isBlind75 === 'boolean' ? data.isBlind75 : false,
+        testCases: Array.isArray(data.testCases) ? data.testCases.map((tc: Record<string, unknown>) => ({
+            stdin: (tc.stdin as string) || '',
+            expectedStdout: (tc.expectedStdout as string) || '',
+            explanation: tc.explanation as string | undefined,
+            isSample: typeof tc.isSample === 'boolean' ? tc.isSample : false,
+        })) : [],
+        solutionApproach: typeof data.solutionApproach === 'string' || data.solutionApproach === null ? data.solutionApproach : null,
+        timeComplexity: typeof data.timeComplexity === 'string' || data.timeComplexity === null ? data.timeComplexity : null,
+        spaceComplexity: typeof data.spaceComplexity === 'string' || data.spaceComplexity === null ? data.spaceComplexity : null,
+        languageSpecificDetails: data.languageSpecificDetails || { 
+            python: { 
+                solutionFunctionNameOrClassName: 'fallback_func', 
+                solutionStructureHint:'', 
+                defaultUserCode: '', 
+                boilerplateCodeWithPlaceholder: '',
+                optimizedSolutionCode: ''
+            } 
+        },
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now(),
+    };
 };
 
 // Function to fetch and import a single problem by URL, dispatching to configured LLM service
@@ -267,10 +237,11 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
         };
 
         // Get Firestore document reference with converter
-        const docRef = doc(problemsCollectionRef, slug).withConverter(problemConverter);
+        const db = adminDb();
+        const docRef = db.collection("problems").doc(slug);
 
         // Save to Firestore (will add timestamps via converter)
-        await setDoc(docRef, problem);
+        await docRef.set(convertProblemToFirestore(problem));
 
         console.log(`Successfully fetched and imported problem: ${slug}`);
         return { success: true, slug: slug };
@@ -332,9 +303,10 @@ export const importProblemsFromUrls = async (urls: string[]): Promise<{ successC
 
 export const getAllProblems = async (): Promise<Problem[]> => {
     try {
-        const q = query(problemsCollectionRef).withConverter(problemConverter);
-        const querySnapshot = await getDocs(q);
-        const problems = querySnapshot.docs.map(doc => doc.data());
+        const db = adminDb();
+        const problemsCollectionRef = db.collection("problems");
+        const querySnapshot = await problemsCollectionRef.get();
+        const problems = querySnapshot.docs.map((doc: FirebaseFirestore.DocumentSnapshot) => convertFirestoreToProblem(doc));
         return problems;
     } catch (error) {
         console.error("Error fetching all problems: ", error);
@@ -344,13 +316,10 @@ export const getAllProblems = async (): Promise<Problem[]> => {
 
 export const getProblemsbyDifficulty = async (difficulty: ProblemDifficulty): Promise<Problem[]> => {
     try {
-        const q = query(
-            problemsCollectionRef,
-            // Filter problems by the specified difficulty
-            where("difficulty", "==", difficulty)
-        ).withConverter(problemConverter);
-        const querySnapshot = await getDocs(q);
-        const problems = querySnapshot.docs.map(doc => doc.data());
+        const db = adminDb();
+        const problemsCollectionRef = db.collection("problems");
+        const querySnapshot = await problemsCollectionRef.where("difficulty", "==", difficulty).get();
+        const problems = querySnapshot.docs.map((doc: FirebaseFirestore.DocumentSnapshot) => convertFirestoreToProblem(doc));
         return problems;
     } catch (error) {
         console.error(`Error fetching problems with difficulty ${difficulty}: `, error);
@@ -360,13 +329,10 @@ export const getProblemsbyDifficulty = async (difficulty: ProblemDifficulty): Pr
 
 export const getBlind75Problems = async (): Promise<Problem[]> => {
     try {
-        const q = query(
-            problemsCollectionRef,
-            // Filter problems where isBlind75 is true
-            where("isBlind75", "==", true)
-        ).withConverter(problemConverter);
-        const querySnapshot = await getDocs(q);
-        const problems = querySnapshot.docs.map(doc => doc.data());
+        const db = adminDb();
+        const problemsCollectionRef = db.collection("problems");
+        const querySnapshot = await problemsCollectionRef.where("isBlind75", "==", true).get();
+        const problems = querySnapshot.docs.map((doc: FirebaseFirestore.DocumentSnapshot) => convertFirestoreToProblem(doc));
         return problems;
     } catch (error) {
         console.error("Error fetching Blind 75 problems: ", error);
@@ -379,25 +345,18 @@ export const getFilteredProblems = async (
     difficulty: ProblemDifficulty | null
 ): Promise<Problem[]> => {
     try {
-        let q;
+        const db = adminDb();
+        const collection = db.collection("problems");
         
+        let querySnapshot;
         if (difficulty) {
             // Filter by both isBlind75 and difficulty
-            q = query(
-                problemsCollectionRef,
-                where("isBlind75", "==", isBlind75),
-                where("difficulty", "==", difficulty)
-            ).withConverter(problemConverter);
+            querySnapshot = await collection.where("isBlind75", "==", isBlind75).where("difficulty", "==", difficulty).get();
         } else {
             // Filter by isBlind75 only
-            q = query(
-                problemsCollectionRef,
-                where("isBlind75", "==", isBlind75)
-            ).withConverter(problemConverter);
+            querySnapshot = await collection.where("isBlind75", "==", isBlind75).get();
         }
-        
-        const querySnapshot = await getDocs(q);
-        const problems = querySnapshot.docs.map(doc => doc.data());
+        const problems = querySnapshot.docs.map((doc: FirebaseFirestore.DocumentSnapshot) => convertFirestoreToProblem(doc));
         return problems;
     } catch (error) {
         console.error(`Error fetching filtered problems (isBlind75=${isBlind75}, difficulty=${difficulty}): `, error);
@@ -407,11 +366,12 @@ export const getFilteredProblems = async (
 
 export const getProblemById = async (problemId: string): Promise<Problem | null> => {
      try {
-        const docRef = doc(db, "problems", problemId).withConverter(problemConverter);
-        const docSnap = await getDoc(docRef);
+        const db = adminDb();
+        const docRef = db.collection("problems").doc(problemId);
+        const docSnap = await docRef.get();
 
-        if (docSnap.exists()) {
-            return docSnap.data();
+        if (docSnap.exists) {
+            return convertFirestoreToProblem(docSnap);
         } else {
             console.log("No such problem document!");
             return null;

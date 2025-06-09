@@ -1,18 +1,13 @@
-import { collection, doc, getDoc, setDoc, FirestoreDataConverter, DocumentData, WithFieldValue, QueryDocumentSnapshot, Timestamp } from 'firebase/firestore';
-import { db } from '../firebase/firebase';
+import { adminDb } from '../firebase/firebaseAdmin';
+import { Timestamp } from 'firebase-admin/firestore';
 import { ProblemTransformation } from '@/data-types/problem';
-
-/**
- * Firestore collection reference for problem transformations
- */
-const transformationsCollection = collection(db, 'problemTransformations');
 
 /**
  * Helper function for converting ProblemTransformation objects to Firestore data
  */
 const convertTransformationToFirestore = (
-  transformation: WithFieldValue<ProblemTransformation>,
-): DocumentData => {
+  transformation: Partial<ProblemTransformation>,
+): Record<string, unknown> => {
   // Sanitize function mapping keys that start and end with double underscores
   const sanitizedFunctionMapping: Record<string, string> = {};
   if (transformation.functionMapping) {
@@ -40,42 +35,35 @@ const convertTransformationToFirestore = (
 };
 
 /**
- * Firestore Data Converter for ProblemTransformation objects
+ * Helper function for converting Firestore data to ProblemTransformation objects
  */
-const transformationConverter: FirestoreDataConverter<ProblemTransformation> = {
-  toFirestore(
-    modelObject: WithFieldValue<ProblemTransformation>,
-  ): DocumentData {
-    return convertTransformationToFirestore(modelObject);
-  },
-  fromFirestore(snapshot: QueryDocumentSnapshot): ProblemTransformation {
-    const data = snapshot.data();
-    
-    // Restore original double underscore format in function mapping
-    const restoredFunctionMapping: Record<string, string> = {};
-    if (data.functionMapping) {
-      Object.entries(data.functionMapping).forEach(([key, value]) => {
-        // Convert sanitized keys back to double underscore format
-        const originalKey = key.replace(/^dunder_(.+)_dunder$/, '__$1__');
-        restoredFunctionMapping[originalKey] = value as string;
-      });
-    }
-    
-    return {
-      problemId: data.problemId,
-      companyId: data.companyId,
-      scenario: data.scenario,
-      functionMapping: restoredFunctionMapping || {},
-      contextInfo: {
-        detectedAlgorithms: data.contextInfo?.detectedAlgorithms || [],
-        detectedDataStructures: data.contextInfo?.detectedDataStructures || [],
-        relevanceScore: data.contextInfo?.relevanceScore || 0,
-        suggestedAnalogyPoints: data.contextInfo?.suggestedAnalogyPoints || []
-      },
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt
-    };
+const convertFirestoreToTransformation = (doc: FirebaseFirestore.DocumentSnapshot): ProblemTransformation => {
+  const data = doc.data()!;
+  
+  // Restore original double underscore format in function mapping
+  const restoredFunctionMapping: Record<string, string> = {};
+  if (data.functionMapping) {
+    Object.entries(data.functionMapping).forEach(([key, value]) => {
+      // Convert sanitized keys back to double underscore format
+      const originalKey = key.replace(/^dunder_(.+)_dunder$/, '__$1__');
+      restoredFunctionMapping[originalKey] = value as string;
+    });
   }
+  
+  return {
+    problemId: data.problemId,
+    companyId: data.companyId,
+    scenario: data.scenario,
+    functionMapping: restoredFunctionMapping || {},
+    contextInfo: {
+      detectedAlgorithms: data.contextInfo?.detectedAlgorithms || [],
+      detectedDataStructures: data.contextInfo?.detectedDataStructures || [],
+      relevanceScore: data.contextInfo?.relevanceScore || 0,
+      suggestedAnalogyPoints: data.contextInfo?.suggestedAnalogyPoints || []
+    },
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt
+  };
 };
 
 /**
@@ -90,12 +78,13 @@ function getTransformationDocId(problemId: string, companyId: string): string {
  */
 export async function getTransformation(problemId: string, companyId: string): Promise<ProblemTransformation | null> {
   try {
+    const db = adminDb();
     const docId = getTransformationDocId(problemId, companyId);
-    const docRef = doc(transformationsCollection, docId).withConverter(transformationConverter);
-    const docSnap = await getDoc(docRef);
+    const docRef = db.collection('problemTransformations').doc(docId);
+    const docSnap = await docRef.get();
     
-    if (docSnap.exists()) {
-      return docSnap.data();
+    if (docSnap.exists) {
+      return convertFirestoreToTransformation(docSnap);
     }
     
     return null;
@@ -110,26 +99,28 @@ export async function getTransformation(problemId: string, companyId: string): P
  */
 export async function saveTransformation(transformation: Omit<ProblemTransformation, 'createdAt' | 'updatedAt'>): Promise<void> {
   try {
+    const db = adminDb();
     const docId = getTransformationDocId(transformation.problemId, transformation.companyId);
-    const docRef = doc(transformationsCollection, docId).withConverter(transformationConverter);
+    const docRef = db.collection('problemTransformations').doc(docId);
     
     // Check if the document already exists
-    const docSnap = await getDoc(docRef);
+    const docSnap = await docRef.get();
     
-    if (docSnap.exists()) {
+    if (docSnap.exists) {
       // Update existing document
-      await setDoc(docRef, {
+      const existingData = convertFirestoreToTransformation(docSnap);
+      await docRef.set(convertTransformationToFirestore({
         ...transformation,
         updatedAt: Timestamp.now(),
-        createdAt: docSnap.data().createdAt
-      });
+        createdAt: existingData.createdAt
+      }));
     } else {
       // Create new document
-      await setDoc(docRef, {
+      await docRef.set(convertTransformationToFirestore({
         ...transformation,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
-      });
+      }));
     }
   } catch (error) {
     console.error('Error saving transformation:', error);

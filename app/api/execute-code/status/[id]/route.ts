@@ -6,7 +6,7 @@ import { aggregateBatchResults } from '../../../../../lib/code-execution/codeExe
 import { TestCase } from '../../../../../data-types/problem';
 // import { processJudge0Results } from '../../../../../lib/code-execution/codeExecution'; // Old function
 
-// CORS headers
+// CORS headers - keeping simple for this endpoint
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',

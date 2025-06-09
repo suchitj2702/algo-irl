@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Problems collection - read-only for clients
+    match /problems/{problemId} {
+      allow read: if true;
+      allow write: if false; // Only backend can write
+    }
+    
+    // Companies collection - read-only for clients
+    match /companies/{companyId} {
+      allow read: if true;
+      allow write: if false; // Only backend can write
+    }
+    
+    // Code submissions - no direct client access
+    match /codeSubmissions/{submissionId} {
+      allow read: if false;
+      allow write: if false;
+    }
+    
+    // Problem transformations cache - no direct client access
+    match /problemTransformations/{transformId} {
+      allow read: if false;
+      allow write: if false;
+    }
+    
+    // Scenarios cache - no direct client access
+    match /scenarios/{scenarioId} {
+      allow read: if false;
+      allow write: if false;
+    }
+    
+    // Block all other collections by default
+    match /{document=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}
+
+// Additional security considerations for Firestore:
+// 1. Enable App Check to prevent unauthorized API access
+// 2. Set up monitoring and alerting for unusual patterns
+// 3. Implement collection-level quotas in Firebase console
+// 4. Regular backups of critical data

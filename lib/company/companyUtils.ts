@@ -1,76 +1,44 @@
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  limit, 
-  Timestamp,
-  DocumentData,
-  FirestoreDataConverter,
-  WithFieldValue,
-  PartialWithFieldValue,
-  SetOptions,
-  serverTimestamp,
-  Query
-} from "firebase/firestore";
-import { db } from "../firebase/firebase";
+import { adminDb } from '../firebase/firebaseAdmin';
+import { Timestamp } from 'firebase-admin/firestore';
 import { Company } from "@/data-types/company";
 import { generateCompanyDataWithPrompt } from "@/lib/llmServices/llmUtils";
 
-// Firestore collection reference
-const companiesCollectionRef = collection(db, "companies");
-
-// Helper function for converting Company objects to Firestore data
+// Helper function for converting Company objects to Firestore data (Admin SDK)
 const convertCompanyToFirestore = (
-  modelObject: WithFieldValue<Company> | PartialWithFieldValue<Company>,
-  options?: SetOptions
-): DocumentData => {
+  modelObject: Partial<Company>
+): Record<string, unknown> => {
   const data = { ...modelObject } as Partial<Company>;
   delete data.id;
-  const isMerge = options &&
-    ('merge' in options && options.merge ||
-    ('mergeFields' in options && Array.isArray(options.mergeFields) && options.mergeFields.length > 0));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data.updatedAt = serverTimestamp() as any;
-  if (!isMerge && !data.createdAt) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data.createdAt = serverTimestamp() as any;
+  
+  data.updatedAt = Timestamp.now();
+  if (!data.createdAt) {
+    data.createdAt = Timestamp.now();
   }
+  
   if (data.createdAt instanceof Date) {
     data.createdAt = Timestamp.fromDate(data.createdAt);
   }
   if (data.updatedAt instanceof Date) {
     data.updatedAt = Timestamp.fromDate(data.updatedAt);
   }
-  return data;
+  return data as Record<string, unknown>;
 };
 
-// Firestore Data Converter for Company objects
-const companyConverter: FirestoreDataConverter<Company> = {
-  toFirestore(
-    modelObject: WithFieldValue<Company> | PartialWithFieldValue<Company>,
-    options?: SetOptions
-  ): DocumentData {
-    return convertCompanyToFirestore(modelObject, options);
-  },
-  fromFirestore(snapshot, options): Company {
-    const data = snapshot.data(options)!;
-    return {
-      id: snapshot.id,
-      name: typeof data.name === 'string' ? data.name : "Unknown Company",
-      description: typeof data.description === 'string' ? data.description : "No description available",
-      domain: typeof data.domain === 'string' ? data.domain : "Technology",
-      products: Array.isArray(data.products) ? data.products : [],
-      technologies: Array.isArray(data.technologies) ? data.technologies : [],
-      interviewFocus: Array.isArray(data.interviewFocus) ? data.interviewFocus : [],
-      logoUrl: typeof data.logoUrl === 'string' ? data.logoUrl : undefined,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now(),
-    };
-  }
+// Helper function for converting Firestore data to Company objects (Admin SDK)
+const convertFirestoreToCompany = (doc: FirebaseFirestore.DocumentSnapshot): Company => {
+  const data = doc.data()!;
+  return {
+    id: doc.id,
+    name: typeof data.name === 'string' ? data.name : "Unknown Company",
+    description: typeof data.description === 'string' ? data.description : "No description available",
+    domain: typeof data.domain === 'string' ? data.domain : "Technology",
+    products: Array.isArray(data.products) ? data.products : [],
+    technologies: Array.isArray(data.technologies) ? data.technologies : [],
+    interviewFocus: Array.isArray(data.interviewFocus) ? data.interviewFocus : [],
+    logoUrl: typeof data.logoUrl === 'string' ? data.logoUrl : undefined,
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt : Timestamp.now(),
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt : Timestamp.now(),
+  };
 };
 
 /**
@@ -108,11 +76,12 @@ export async function initializeTechCompanies(): Promise<void> {
  */
 export async function getCompanyById(companyId: string): Promise<Company | null> {
   try {
-    const companyDocRef = doc(companiesCollectionRef, companyId).withConverter(companyConverter);
-    const docSnap = await getDoc(companyDocRef);
+    const db = adminDb();
+    const docRef = db.collection('companies').doc(companyId);
+    const docSnap = await docRef.get();
     
-    if (docSnap.exists()) {
-      return docSnap.data();
+    if (docSnap.exists) {
+      return convertFirestoreToCompany(docSnap);
     } else {
       console.log(`Company with ID ${companyId} not found`);
       return null;
@@ -131,21 +100,28 @@ export async function getCompanyById(companyId: string): Promise<Company | null>
  */
 export async function getAllCompanies(options?: { limit?: number }): Promise<Company[]> {
   try {
-    const companiesRef = collection(db, "companies").withConverter(companyConverter);
-    let companiesQuery: Query<Company> = companiesRef;
+    const db = adminDb();
+    const collectionRef = db.collection('companies');
     
     if (options?.limit) {
-      companiesQuery = query(companiesRef, limit(options.limit));
+      const querySnapshot = await collectionRef.limit(options.limit).get();
+      const companies: Company[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        companies.push(convertFirestoreToCompany(doc));
+      });
+      
+      return companies;
+    } else {
+      const querySnapshot = await collectionRef.get();
+      const companies: Company[] = [];
+      
+      querySnapshot.forEach((doc) => {
+        companies.push(convertFirestoreToCompany(doc));
+      });
+      
+      return companies;
     }
-    
-    const querySnapshot = await getDocs(companiesQuery);
-    const companies: Company[] = [];
-    
-    querySnapshot.forEach((doc) => {
-      companies.push(doc.data());
-    });
-    
-    return companies;
   } catch (error) {
     console.error("Error getting all companies:", error);
     throw error;
@@ -160,17 +136,15 @@ export async function getAllCompanies(options?: { limit?: number }): Promise<Com
  */
 export async function getCompaniesByDomain(domain: string): Promise<Company[]> {
   try {
-    const companiesRef = collection(db, "companies").withConverter(companyConverter);
-    const companiesQuery = query(
-      companiesRef,
-      where("domain", "==", domain)
-    );
+    const db = adminDb();
+    const querySnapshot = await db.collection('companies')
+      .where('domain', '==', domain)
+      .get();
     
-    const querySnapshot = await getDocs(companiesQuery);
     const companies: Company[] = [];
     
     querySnapshot.forEach((doc) => {
-      companies.push(doc.data());
+      companies.push(convertFirestoreToCompany(doc));
     });
     
     return companies;
@@ -242,13 +216,14 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
     const companyId = correctedName.toLowerCase().replace(/\s+/g, '');
     
     // Check if company already exists in Firestore
-    const companyDocRef = doc(companiesCollectionRef, companyId).withConverter(companyConverter);
-    const docSnap = await getDoc(companyDocRef);
+    const db = adminDb();
+    const docRef = db.collection('companies').doc(companyId);
+    const docSnap = await docRef.get();
     
-    if (docSnap.exists()) {
+    if (docSnap.exists) {
       console.log(`Company ${correctedName} already exists, returning existing data`);
       // Add the isCorrection flag to the returned data
-      const existingData = docSnap.data();
+      const existingData = convertFirestoreToCompany(docSnap);
       return {
         ...existingData,
         // Add a non-persistent property to indicate if name was corrected
@@ -316,16 +291,17 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
     };
     
     // Save company to Firestore
-    await setDoc(companyDocRef, company);
+    const companyDataForFirestore = convertCompanyToFirestore(company);
+    await docRef.set(companyDataForFirestore);
     console.log(`Created company: ${correctedName}`);
     
     // Get the created company with ID
-    const newDocSnap = await getDoc(companyDocRef);
-    if (!newDocSnap.exists()) {
+    const newDocSnap = await docRef.get();
+    if (!newDocSnap.exists) {
       throw new Error(`Failed to retrieve created company: ${correctedName}`);
     }
     
-    const createdCompany = newDocSnap.data();
+    const createdCompany = convertFirestoreToCompany(newDocSnap);
     
     // Return company data with additional property to indicate name correction
     return {

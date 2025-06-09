@@ -513,7 +513,7 @@ export async function findMostRelevantCompany(problemId: string): Promise<string
       
       if (score > maxScore) {
         maxScore = score;
-        mostRelevantCompanyId = company.id;
+        mostRelevantCompanyId = company.id || null;
       }
     }
     

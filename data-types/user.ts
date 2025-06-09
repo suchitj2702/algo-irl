@@ -1,4 +1,4 @@
-import { Timestamp } from "firebase/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 
 export interface User {
   uid: string;
@@ -33,4 +33,18 @@ export interface History {
   completed: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  bio?: string;
+  profilePictureUrl?: string;
+  preferences?: UserPreferences;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  lastLoginAt?: Timestamp;
 } 

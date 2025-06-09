@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Firebase service account key (contains sensitive credentials)
+service-account-key.json
+
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
