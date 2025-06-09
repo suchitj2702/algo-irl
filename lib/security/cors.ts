@@ -1,9 +1,7 @@
 export function getCorsHeaders(origin: string | null): HeadersInit {
   // Define allowed origins (update for production)
   const allowedOrigins = [
-    'http://localhost:3000',
-    'https://algo-irl.vercel.app',
-    // Add your production domains
+    'https://algoirl.ai',
   ];
   
   const isAllowed = !origin || allowedOrigins.includes(origin);
