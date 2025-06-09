@@ -6,7 +6,7 @@ import { generateFingerprint } from './fingerprint';
 const rateLimiters = {
   codeExecution: new RateLimiter(10, 60 * 1000), // 10 requests per minute
   problemGeneration: new RateLimiter(30, 60 * 1000), // 30 requests per minute
-  companyCreation: new RateLimiter(5, 60 * 60 * 1000), // 5 per hour
+  companyCreation: new RateLimiter(20, 60 * 60 * 1000), // 20 per hour
   general: new RateLimiter(100, 60 * 1000), // 100 requests per minute
 };
 
