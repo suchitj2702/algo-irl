@@ -3,18 +3,35 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { Company } from "@/data-types/company";
 import { generateCompanyDataWithPrompt } from "@/lib/llmServices/llmUtils";
 
-// Helper function for converting Company objects to Firestore data (Admin SDK)
+/**
+ * Company Management Utilities
+ * 
+ * This module provides comprehensive company data management functionality including:
+ * - AI-powered company data generation
+ * - Firestore CRUD operations for company records
+ * - Company name validation and correction
+ * - Bulk company initialization for major tech companies
+ */
+
+/**
+ * Converts Company objects to Firestore-compatible data format.
+ * This function handles timestamp conversion and removes the ID field for storage.
+ * 
+ * @param modelObject - Partial Company object to convert
+ * @returns Firestore-compatible data object with proper timestamp handling
+ */
 const convertCompanyToFirestore = (
   modelObject: Partial<Company>
 ): Record<string, unknown> => {
   const data = { ...modelObject } as Partial<Company>;
-  delete data.id;
+  delete data.id; // Remove ID as it's handled by Firestore document ID
   
   data.updatedAt = Timestamp.now();
   if (!data.createdAt) {
     data.createdAt = Timestamp.now();
   }
   
+  // Convert Date objects to Firestore Timestamps if needed
   if (data.createdAt instanceof Date) {
     data.createdAt = Timestamp.fromDate(data.createdAt);
   }
@@ -24,7 +41,13 @@ const convertCompanyToFirestore = (
   return data as Record<string, unknown>;
 };
 
-// Helper function for converting Firestore data to Company objects (Admin SDK)
+/**
+ * Converts Firestore document data to Company objects.
+ * This function provides type safety and default values for company data.
+ * 
+ * @param doc - Firestore document snapshot containing company data
+ * @returns Properly typed Company object with defaults for missing fields
+ */
 const convertFirestoreToCompany = (doc: FirebaseFirestore.DocumentSnapshot): Company => {
   const data = doc.data()!;
   return {
@@ -42,9 +65,25 @@ const convertFirestoreToCompany = (doc: FirebaseFirestore.DocumentSnapshot): Com
 };
 
 /**
- * Initialize the tech companies in Firestore using AI generation
+ * Initializes major tech companies in Firestore using AI-powered data generation.
+ * This function bootstraps the system with data for major technology companies
+ * commonly used in technical interviews.
  * 
- * @returns {Promise<void>}
+ * Companies Initialized:
+ * - Meta (Facebook)
+ * - Amazon
+ * - Apple
+ * - Netflix
+ * - Google
+ * - Microsoft
+ * 
+ * Process:
+ * 1. Iterate through predefined list of major tech companies
+ * 2. Generate comprehensive company data using AI
+ * 3. Store each company in Firestore
+ * 4. Handle errors gracefully and log progress
+ * 
+ * @throws Error if any company initialization fails
  */
 export async function initializeTechCompanies(): Promise<void> {
   try {
@@ -69,10 +108,11 @@ export async function initializeTechCompanies(): Promise<void> {
 }
 
 /**
- * Get a company by ID
+ * Retrieves a company by its unique identifier from Firestore.
  * 
- * @param companyId - The ID of the company to retrieve
- * @returns {Promise<Company | null>}
+ * @param companyId - The unique ID of the company to retrieve
+ * @returns Promise resolving to Company object or null if not found
+ * @throws Error if database operation fails
  */
 export async function getCompanyById(companyId: string): Promise<Company | null> {
   try {
@@ -93,10 +133,11 @@ export async function getCompanyById(companyId: string): Promise<Company | null>
 }
 
 /**
- * Get all tech companies
+ * Retrieves all companies from Firestore with optional pagination.
  * 
- * @param options - Optional query parameters
- * @returns {Promise<Company[]>}
+ * @param options - Optional query parameters including limit for pagination
+ * @returns Promise resolving to array of all Company objects
+ * @throws Error if database operation fails
  */
 export async function getAllCompanies(options?: { limit?: number }): Promise<Company[]> {
   try {
@@ -129,10 +170,12 @@ export async function getAllCompanies(options?: { limit?: number }): Promise<Com
 }
 
 /**
- * Get companies by domain
+ * Retrieves companies filtered by their business domain.
+ * This function enables filtering companies by industry or domain type.
  * 
- * @param domain - The domain to filter by
- * @returns {Promise<Company[]>}
+ * @param domain - The business domain to filter by (e.g., "Technology", "Finance")
+ * @returns Promise resolving to array of companies in the specified domain
+ * @throws Error if database operation fails
  */
 export async function getCompaniesByDomain(domain: string): Promise<Company[]> {
   try {
@@ -155,10 +198,19 @@ export async function getCompaniesByDomain(domain: string): Promise<Company[]> {
 }
 
 /**
- * Validates and corrects company name spelling using AI
+ * Validates and corrects company name spelling using AI.
+ * This function helps handle user input with potential misspellings or
+ * incorrect capitalization of well-known company names.
+ * 
+ * Algorithm:
+ * 1. Send company name to AI with correction instructions
+ * 2. AI analyzes name against known company database
+ * 3. Returns corrected name if misspelling detected
+ * 4. Returns original name if already correct or unrecognized
+ * 5. Compare corrected vs original to determine if correction was made
  * 
  * @param companyName - Potentially misspelled company name
- * @returns {Promise<{correctedName: string, isCorrection: boolean}>} - Corrected name and whether a correction was made
+ * @returns Promise resolving to object with corrected name and correction flag
  */
 async function validateCompanyName(companyName: string): Promise<{correctedName: string, isCorrection: boolean}> {
   try {    
@@ -202,17 +254,33 @@ async function validateCompanyName(companyName: string): Promise<{correctedName:
 }
 
 /**
- * Generate company details using AI and save to Firestore
+ * Generates comprehensive company data using AI and saves to Firestore.
+ * This is the main function for creating new company records with AI-generated content.
  * 
- * @param companyName - The name of the company to generate (potentially misspelled)
- * @returns {Promise<Company>} - The generated company data
+ * Workflow:
+ * 1. Validate and potentially correct the company name using AI
+ * 2. Check if company already exists in database
+ * 3. If exists, return existing data with correction flag
+ * 4. If new, generate comprehensive company data using AI:
+ *    - Company description and domain
+ *    - List of main products/services
+ *    - Key technologies used
+ *    - Interview focus areas for engineers
+ *    - Logo URL if available
+ * 5. Parse AI response and validate JSON format
+ * 6. Save to Firestore with proper error handling
+ * 7. Return complete company object with metadata
+ * 
+ * @param companyName - The name of the company to generate (may contain misspellings)
+ * @returns Promise resolving to complete Company object with wasNameCorrected flag
+ * @throws Error if AI generation fails or database operation fails
  */
 export async function generateCompanyDataWithAI(companyName: string): Promise<Company> {
   try {
     // First, validate and possibly correct the company name
     const { correctedName, isCorrection } = await validateCompanyName(companyName);
     
-    // Create company ID from the corrected name
+    // Create company ID from the corrected name (normalized for storage)
     const companyId = correctedName.toLowerCase().replace(/\s+/g, '');
     
     // Check if company already exists in Firestore
@@ -231,7 +299,7 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
       } as Company;
     }
     
-    // Construct prompt for the AI using the corrected name
+    // Construct comprehensive prompt for AI company data generation
     const customPrompt = `
       I need detailed information about the company "${correctedName}" in JSON format. 
       Please provide the following information:
@@ -256,10 +324,10 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
       Do not include any text before or after the JSON.
     `;
     
-    // Get the AI response using the new generateCompanyData method
+    // Get the AI response using the prompt generation utility
     const aiResponse = await generateCompanyDataWithPrompt(customPrompt);
     
-    // Parse the JSON response
+    // Parse and validate the JSON response from AI
     let companyData;
     try {
       // Extract JSON from the response (handle potential text before/after JSON)
@@ -279,7 +347,7 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
       throw new Error(`Failed to parse AI response for ${correctedName}: ${(parseError instanceof Error ? parseError.message : String(parseError))}`);
     }
     
-    // Create company object with the corrected name
+    // Create company object with validated data and defaults
     const company: Omit<Company, 'id' | 'createdAt' | 'updatedAt'> = {
       name: correctedName, // Use the corrected name
       description: companyData.description || `Company specializing in ${companyData.domain || 'technology'}`,
@@ -290,12 +358,12 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
       logoUrl: companyData.logoUrl || null
     };
     
-    // Save company to Firestore
+    // Save company to Firestore with proper error handling
     const companyDataForFirestore = convertCompanyToFirestore(company);
     await docRef.set(companyDataForFirestore);
     console.log(`Created company: ${correctedName}`);
     
-    // Get the created company with ID
+    // Retrieve the created company to get complete data with timestamps
     const newDocSnap = await docRef.get();
     if (!newDocSnap.exists) {
       throw new Error(`Failed to retrieve created company: ${correctedName}`);
@@ -303,7 +371,7 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
     
     const createdCompany = convertFirestoreToCompany(newDocSnap);
     
-    // Return company data with additional property to indicate name correction
+    // Return company data with additional metadata about name correction
     return {
       ...createdCompany,
       // Add a non-persistent property to indicate if name was corrected

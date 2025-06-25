@@ -6,7 +6,8 @@ import { transformWithPrompt } from '../llmServices/llmUtils';
 import { getTransformation, saveTransformation } from './transformCacheUtils';
 
 /**
- * Represents extracted key information from a problem
+ * Represents extracted key information from a problem.
+ * This is a simplified representation optimized for AI transformation.
  */
 interface ExtractedProblemInfo {
   title: string;
@@ -27,7 +28,8 @@ interface ExtractedProblemInfo {
 }
 
 /**
- * Represents extracted key information from a company
+ * Represents extracted key information from a company.
+ * This focuses on aspects relevant to problem transformation.
  */
 interface ExtractedCompanyInfo {
   name: string;
@@ -39,7 +41,8 @@ interface ExtractedCompanyInfo {
 }
 
 /**
- * Represents enhanced prompt context combining problem and company information
+ * Represents enhanced prompt context combining problem and company information.
+ * This is used to generate contextually relevant problem transformations.
  */
 export interface TransformationContext {
   problem: ExtractedProblemInfo;
@@ -49,7 +52,8 @@ export interface TransformationContext {
 }
 
 /**
- * Represents the structured sections of a transformed problem scenario
+ * Represents the structured sections of a transformed problem scenario.
+ * This defines the expected output format for transformed problems.
  */
 export interface StructuredScenario {
   title: string;
@@ -67,7 +71,8 @@ export interface StructuredScenario {
 }
 
 /**
- * Common data structures and algorithms for keyword extraction
+ * Common data structures used in algorithm problems.
+ * These are used for automatic detection and categorization.
  */
 const DATA_STRUCTURES = [
   'Array', 'LinkedList', 'Stack', 'Queue', 'HashMap', 'HashSet', 'HashTable',
@@ -75,6 +80,10 @@ const DATA_STRUCTURES = [
   'Graph', 'Trie', 'Matrix', 'String'
 ];
 
+/**
+ * Common algorithms used in coding problems.
+ * These are used for automatic detection and categorization.
+ */
 const ALGORITHMS = [
   'BFS', 'DFS', 'BinarySearch', 'Sorting', 'MergeSort', 'QuickSort',
   'DynamicProgramming', 'Recursion', 'Backtracking', 'Greedy', 'TwoPointers',
@@ -82,7 +91,21 @@ const ALGORITHMS = [
 ];
 
 /**
- * Extracts key information from a problem description
+ * Extracts keywords from a problem description using pattern matching.
+ * This function analyzes the problem text to identify relevant data structures,
+ * algorithms, and complexity requirements.
+ * 
+ * Algorithm:
+ * 1. Combine all problem text fields
+ * 2. Convert to lowercase for case-insensitive matching
+ * 3. Search for predefined data structure patterns
+ * 4. Search for algorithm patterns
+ * 5. Search for complexity indicators (O(n), O(1), etc.)
+ * 6. Include all explicit categories
+ * 7. Remove duplicates and return
+ * 
+ * @param problem - The problem object to analyze
+ * @returns Array of extracted keywords
  */
 function extractProblemKeywords(problem: Problem): string[] {
   // Combine all text fields for keyword extraction
@@ -139,7 +162,18 @@ function extractProblemKeywords(problem: Problem): string[] {
 }
 
 /**
- * Detects core algorithms used in the problem
+ * Detects core algorithms used in the problem using pattern matching.
+ * This function uses regex patterns to identify algorithmic approaches
+ * required to solve the problem.
+ * 
+ * Algorithm:
+ * 1. Combine problem text and categories
+ * 2. Apply regex patterns for common algorithmic approaches
+ * 3. Check both problem description and categories
+ * 4. Return unique list of detected algorithms
+ * 
+ * @param problem - The problem object to analyze
+ * @returns Array of detected algorithm names
  */
 function detectCoreAlgorithms(problem: Problem): string[] {
   const combinedText = `${problem.title} ${problem.description} ${problem.categories.join(' ')}`;
@@ -185,7 +219,17 @@ function detectCoreAlgorithms(problem: Problem): string[] {
 }
 
 /**
- * Detects data structures used in the problem
+ * Detects data structures used in the problem using pattern matching.
+ * This function identifies the primary data structures needed to solve the problem.
+ * 
+ * Algorithm:
+ * 1. Combine problem text and categories
+ * 2. Apply regex patterns for common data structures
+ * 3. Check both problem description and categories
+ * 4. Return unique list of detected data structures
+ * 
+ * @param problem - The problem object to analyze
+ * @returns Array of detected data structure names
  */
 function detectDataStructures(problem: Problem): string[] {
   const combinedText = `${problem.title} ${problem.description} ${problem.categories.join(' ')}`;
@@ -231,7 +275,12 @@ function detectDataStructures(problem: Problem): string[] {
 }
 
 /**
- * Extract key information from a problem
+ * Extracts comprehensive information from a problem for transformation.
+ * This function consolidates all relevant problem data into a structured format
+ * optimized for AI-based problem transformation.
+ * 
+ * @param problem - The complete problem object from database
+ * @returns Structured problem information for transformation
  */
 function extractProblemInfo(problem: Problem): ExtractedProblemInfo {
   const keywords = extractProblemKeywords(problem);
@@ -241,7 +290,7 @@ function extractProblemInfo(problem: Problem): ExtractedProblemInfo {
   // Extract Python specific defaultUserCode if available
   const defaultUserCode = problem.languageSpecificDetails?.python?.defaultUserCode;
 
-  // extract test cases where isSample is true
+  // Extract sample test cases for transformation examples
   const testCases = problem.testCases.filter(testCase => testCase.isSample).map(testCase => ({
     input: testCase.stdin,
     output: testCase.expectedStdout
@@ -264,7 +313,19 @@ function extractProblemInfo(problem: Problem): ExtractedProblemInfo {
 }
 
 /**
- * Extract relevant company information for problem context
+ * Extracts relevant company information for problem transformation context.
+ * This function identifies company attributes that are relevant to the problem
+ * and can be used to create meaningful analogies.
+ * 
+ * Algorithm:
+ * 1. Find technologies that align with problem keywords
+ * 2. Find products that relate to problem domain
+ * 3. Create consolidated list of relevant keywords
+ * 4. Return structured company information
+ * 
+ * @param company - The company object from database
+ * @param problemKeywords - Keywords extracted from the problem
+ * @returns Structured company information for transformation
  */
 function extractCompanyInfo(company: Company, problemKeywords: string[]): ExtractedCompanyInfo {
   // Extract keywords that might be relevant to the company
@@ -301,7 +362,19 @@ function extractCompanyInfo(company: Company, problemKeywords: string[]): Extrac
 }
 
 /**
- * Calculate relevance score between a problem and company
+ * Calculates a relevance score between a problem and company.
+ * This scoring algorithm determines how well a company context
+ * matches with a given problem for transformation purposes.
+ * 
+ * Scoring Algorithm:
+ * 1. Technology alignment: +2 points for each tech matching problem concepts
+ * 2. Interview focus alignment: +2 points for relevant focus areas
+ * 3. Domain relevance: +1 point for domain keyword matches
+ * 4. Relevant keywords: +1 point per relevant keyword
+ * 
+ * @param problemInfo - Extracted problem information
+ * @param companyInfo - Extracted company information
+ * @returns Numerical relevance score (higher = more relevant)
  */
 function calculateRelevanceScore(problemInfo: ExtractedProblemInfo, companyInfo: ExtractedCompanyInfo): number {
   let score = 0;
@@ -356,7 +429,19 @@ function calculateRelevanceScore(problemInfo: ExtractedProblemInfo, companyInfo:
 }
 
 /**
- * Generate suggested analogy points for connecting problem to company context
+ * Generates suggested analogy points for connecting problem to company context.
+ * This function creates specific, contextual analogies that help transform
+ * abstract algorithm problems into real-world company scenarios.
+ * 
+ * Algorithm:
+ * 1. Map data structures to company-specific product analogies
+ * 2. Create company-specific contexts for major tech companies
+ * 3. Generate fallback analogies for unknown companies
+ * 4. Ensure at least one analogy is always provided
+ * 
+ * @param problemInfo - Extracted problem information
+ * @param companyInfo - Extracted company information
+ * @returns Array of specific analogy suggestions
  */
 function generateSuggestedAnalogyPoints(
   problemInfo: ExtractedProblemInfo, 
@@ -414,7 +499,7 @@ function generateSuggestedAnalogyPoints(
     }
   });
   
-  // Add company-specific contexts
+  // Add company-specific contexts for major tech companies
   if (companyInfo.name.toLowerCase() === 'google') {
     if (problemInfo.dataStructures.includes('Tree')) {
       analogyPoints.push('Google\'s PageRank algorithm for organizing search results');
@@ -447,7 +532,21 @@ function generateSuggestedAnalogyPoints(
 }
 
 /**
- * Main function to create transformation context for a problem and company
+ * Creates a comprehensive transformation context for a problem and company pair.
+ * This is the main function that orchestrates the context creation process,
+ * combining problem analysis, company analysis, and relevance scoring.
+ * 
+ * Workflow:
+ * 1. Fetch problem and company data from database
+ * 2. Extract and analyze problem information
+ * 3. Extract relevant company information
+ * 4. Calculate relevance score
+ * 5. Generate contextual analogy suggestions
+ * 6. Return complete transformation context
+ * 
+ * @param problemId - Unique identifier for the problem
+ * @param companyId - Unique identifier for the company
+ * @returns Complete transformation context or null if data not found
  */
 export async function createTransformationContext(
   problemId: string, 
@@ -486,7 +585,18 @@ export async function createTransformationContext(
 }
 
 /**
- * Find the most relevant company for a specific problem
+ * Finds the most relevant company for a specific problem.
+ * This function evaluates all companies in the database to find the best match
+ * for transforming a given problem.
+ * 
+ * Algorithm:
+ * 1. Extract problem information
+ * 2. Evaluate all companies in parallel
+ * 3. Calculate relevance scores for each company
+ * 4. Return the company with the highest relevance score
+ * 
+ * @param problemId - Unique identifier for the problem
+ * @returns Company ID of the most relevant company, or null if none found
  */
 export async function findMostRelevantCompany(problemId: string): Promise<string | null> {
   try {
@@ -525,13 +635,26 @@ export async function findMostRelevantCompany(problemId: string): Promise<string
 }
 
 /**
- * Generate an optimized prompt for the Anthropic API
+ * Generates an optimized prompt for AI transformation of coding problems.
+ * This function creates a comprehensive prompt that includes all necessary context
+ * for transforming a generic coding problem into a company-specific interview scenario.
+ * 
+ * Prompt Structure:
+ * 1. Company context and background
+ * 2. Original problem details and code template
+ * 3. Technical analysis (algorithms, data structures, complexity)
+ * 4. Company-specific analogies and suggestions
+ * 5. Detailed transformation requirements and constraints
+ * 6. Required output format specifications
+ * 
+ * @param context - Complete transformation context with problem and company information
+ * @returns Comprehensive prompt string for AI transformation
  */
 function generateOptimizedPrompt(context: TransformationContext): string {
   // Extract info for prompt - rename to make it clear this is the extracted problem info
   const { problem: extractedProblem, company, suggestedAnalogyPoints } = context;
   
-  // Extract function names from defaultUserCode
+  // Extract function names from defaultUserCode for mapping requirements
   let functionNamesToMap = '';
   if (extractedProblem.defaultUserCode) {
     // Look for function/class definitions in the code
@@ -553,7 +676,7 @@ Make sure your mapping includes ALL of these names from the original code.
     }
   }
   
-  // Build the enhanced prompt
+  // Build the enhanced prompt with comprehensive transformation instructions
   const prompt = `
 I need you to transform a coding problem into a company-specific interview scenario for ${company.name}. This should feel like a real technical interview question.
 
@@ -629,7 +752,24 @@ DON'T CREATE MAPPING IF THE MAPPING IS UNCHANGED FOR SOME VALUE
 }
 
 /**
- * Main function to transform a problem into a company-specific scenario
+ * Main function to transform a problem into a company-specific scenario.
+ * This is the primary entry point for the problem transformation workflow,
+ * orchestrating caching, AI transformation, and result parsing.
+ * 
+ * Workflow:
+ * 1. Check for cached transformation in Firestore (if caching enabled)
+ * 2. If not cached, create transformation context
+ * 3. Generate optimized prompt for AI transformation
+ * 4. Call AI service to transform the problem
+ * 5. Parse the AI response into structured sections
+ * 6. Save transformation to cache for future use
+ * 7. Return structured result with context information
+ * 
+ * @param problemId - Unique identifier for the problem to transform
+ * @param companyId - Unique identifier for the target company
+ * @param useCache - Whether to use cached transformations (default: true)
+ * @returns Promise resolving to structured scenario and context information
+ * @throws Error if transformation fails or required data is missing
  */
 export async function transformProblem(
   problemId: string,
@@ -678,7 +818,7 @@ export async function transformProblem(
     // Create a cache key for this specific transformation task
     const cacheKey = `transform-prompt-${problemId}-${companyId}`.toLowerCase().replace(/\s+/g, '-');
 
-    // Use the generic utility from llmUtils, now passing cache parameters
+    // Use the generic utility from llmUtils to get AI transformation
     const scenarioText = await transformWithPrompt(
       optimizedPrompt, 
       transformationSystemPrompt,
@@ -710,7 +850,7 @@ export async function transformProblem(
       });
       console.log(`Saved transformation for problem ${problemId} and company ${companyId} to Firestore from transformer`);
     } catch (error) {
-      // Log the error but continue with the request
+      // Log the error but continue with the request - caching failure shouldn't block transformation
       console.error('Error saving transformation to Firestore from transformer:', error);
     }
     
@@ -734,7 +874,11 @@ const problemTransformerUtils = {
 export default problemTransformerUtils;
 
 /**
- * Extracts the title from the scenario text
+ * Extracts the title from the scenario text using regex pattern matching.
+ * Looks for the main heading (# title) format in the AI-generated response.
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Extracted title string or empty string if not found
  */
 function extractTitle(scenarioText: string): string {
   const titleMatch = scenarioText.match(/^#\s+(.+?)(?:\n|$)/m);
@@ -742,7 +886,11 @@ function extractTitle(scenarioText: string): string {
 }
 
 /**
- * Extracts the problem background section from the scenario text
+ * Extracts the problem background section from the scenario text.
+ * This section provides company-specific context for the problem.
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Extracted background text or empty string if not found
  */
 function extractBackground(scenarioText: string): string {
   const backgroundMatch = scenarioText.match(/## Problem Background\s*([\s\S]*?)(?=##|$)/);
@@ -750,7 +898,11 @@ function extractBackground(scenarioText: string): string {
 }
 
 /**
- * Extracts the problem statement section from the scenario text
+ * Extracts the core problem statement from the scenario text.
+ * This section contains the actual problem to be solved.
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Extracted problem statement or empty string if not found
  */
 function extractProblemStatement(scenarioText: string): string {
   const problemMatch = scenarioText.match(/## The Problem\s*([\s\S]*?)(?=##|$)/);
@@ -758,7 +910,11 @@ function extractProblemStatement(scenarioText: string): string {
 }
 
 /**
- * Extracts the function signature section from the scenario text
+ * Extracts the function signature section from the scenario text.
+ * This includes the code template with function/class definitions.
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Extracted function signature text or empty string if not found
  */
 function extractFunctionSignature(scenarioText: string): string {
   const signatureMatch = scenarioText.match(/## Function Signature\s*([\s\S]*?)(?=##|$)/);
@@ -766,7 +922,17 @@ function extractFunctionSignature(scenarioText: string): string {
 }
 
 /**
- * Extracts the constraints section from the scenario text and returns as an array
+ * Extracts and parses the constraints section into an array of individual constraints.
+ * This function handles various bullet point formats and numbering styles.
+ * 
+ * Algorithm:
+ * 1. Find the constraints section using regex
+ * 2. Split text by bullet points or numbered items
+ * 3. Clean up formatting and remove empty items
+ * 4. Return array of constraint strings
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Array of constraint strings
  */
 function extractConstraints(scenarioText: string): string[] {
   const constraintsMatch = scenarioText.match(/## Constraints\s*([\s\S]*?)(?=##|$)/);
@@ -783,7 +949,20 @@ function extractConstraints(scenarioText: string): string[] {
 }
 
 /**
- * Extracts the examples section from the scenario text and returns as structured objects
+ * Extracts and parses examples into structured objects with input/output pairs.
+ * This function handles multiple example formats and attempts to extract explanations.
+ * 
+ * Algorithm:
+ * 1. Find examples section in text
+ * 2. Try multiple parsing strategies:
+ *    - Example blocks with "Example X:" headers
+ *    - Bullet-formatted input/output pairs
+ *    - Code blocks representing examples
+ *    - Simple Input:/Output: patterns
+ * 3. Return structured array with input, output, and optional explanations
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Array of example objects with input, output, and optional explanation
  */
 function extractExamples(scenarioText: string): Array<{input: string; output: string; explanation?: string}> {
   const examplesMatch = scenarioText.match(/## Examples\s*([\s\S]*?)(?=##|$)/);
@@ -864,7 +1043,11 @@ function extractExamples(scenarioText: string): Array<{input: string; output: st
 }
 
 /**
- * Extracts the requirements section from the scenario text and returns as an array
+ * Extracts and parses the requirements section into an array of requirement strings.
+ * This function handles various formatting styles for technical requirements.
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Array of requirement strings
  */
 function extractRequirements(scenarioText: string): string[] {
   const requirementsMatch = scenarioText.match(/## Requirements\s*([\s\S]*?)(?=FUNCTION_MAPPING:|$)/);
@@ -881,7 +1064,18 @@ function extractRequirements(scenarioText: string): string[] {
 }
 
 /**
- * Extracts function mapping from the scenario text
+ * Extracts function mapping from the scenario text.
+ * This function parses the AI-generated mapping of original function names
+ * to company-specific function names.
+ * 
+ * Algorithm:
+ * 1. Find FUNCTION_MAPPING section in text
+ * 2. Parse mapping lines in format "original -> new"
+ * 3. Handle various arrow formats and whitespace
+ * 4. Return object with original names as keys, new names as values
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Object mapping original function names to new names
  */
 function extractFunctionMapping(scenarioText: string): Record<string, string> {
   const functionMapping: Record<string, string> = {};
@@ -902,7 +1096,22 @@ function extractFunctionMapping(scenarioText: string): Record<string, string> {
 }
 
 /**
- * Parse the scenario text into structured sections
+ * Parses AI-generated scenario text into structured sections.
+ * This is the main parsing function that coordinates all section extraction
+ * to create a complete StructuredScenario object.
+ * 
+ * Process:
+ * 1. Extract title from markdown heading
+ * 2. Parse background section for company context
+ * 3. Extract core problem statement
+ * 4. Get function signature and code template
+ * 5. Parse constraints into array format
+ * 6. Extract and structure examples with input/output pairs
+ * 7. Parse technical requirements
+ * 8. Extract function name mappings
+ * 
+ * @param scenarioText - Complete AI-generated scenario text
+ * @returns Structured scenario object with all parsed sections
  */
 function parseScenarioIntoSections(scenarioText: string): StructuredScenario {
   return {

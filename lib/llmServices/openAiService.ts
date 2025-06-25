@@ -1,6 +1,13 @@
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
+// Extended interface for OpenAI request parameters with reasoning support
+interface ExtendedChatCompletionCreateParams extends OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming {
+  reasoning?: {
+    effort: "low" | "medium" | "high";
+  };
+}
+
 // Constants for OpenAI Service
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // ms
@@ -48,7 +55,7 @@ export class OpenAiService {
 
         while (retries <= MAX_RETRIES) {
             try {
-                const requestParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
+                const requestParams: ExtendedChatCompletionCreateParams = {
                     model: model,
                     messages: messages,
                     ...(options.max_tokens && { max_tokens: options.max_tokens }),
@@ -61,8 +68,7 @@ export class OpenAiService {
                 if (options.thinking_enabled || options.reasoning) {
                     // Use native OpenAI reasoning parameter
                     // This works with o1, o2, o4, and newer GPT-4 models
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (requestParams as any).reasoning = options.reasoning || { effort: "medium" };
+                    requestParams.reasoning = options.reasoning || { effort: "medium" };
                 }
 
                 const completion = await this.client.chat.completions.create(requestParams);

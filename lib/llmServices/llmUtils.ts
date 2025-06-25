@@ -3,11 +3,28 @@ import anthropicService, { ClaudeModelOptions } from "./anthropicService";
 import geminiService, { GeminiModelOptions } from "./geminiService";
 import openAiService, { OpenAiModelOptions } from "./openAiService";
 
+/**
+ * LLM Services Integration Utilities
+ * 
+ * This module provides a unified interface for interacting with multiple AI/LLM providers:
+ * - Anthropic Claude (advanced reasoning, thinking mode)
+ * - Google Gemini (multimodal capabilities)
+ * - OpenAI GPT (industry standard, reasoning mode)
+ * 
+ * Key Features:
+ * - Provider-agnostic task execution
+ * - Native thinking/reasoning mode support for each provider
+ * - Comprehensive caching system
+ * - Specialized prompts for problem generation and company data
+ * - Error handling and fallback mechanisms
+ */
+
 // Define our unified options type based on all service types
 export type LlmModelOptions = ClaudeModelOptions | GeminiModelOptions | OpenAiModelOptions;
 
 /**
  * Provider-specific options for Anthropic Claude models.
+ * These options leverage Claude's native thinking capabilities for enhanced reasoning.
  * @see https://docs.anthropic.com/claude/reference/messages_post
  */
 export interface ClaudeOptions {
@@ -31,6 +48,7 @@ export interface ClaudeOptions {
 
 /**
  * Provider-specific options for Google Gemini models.
+ * These options control Gemini's multimodal and reasoning capabilities.
  * @see https://ai.google.dev/api/rest/v1beta/GenerationConfig
  */
 export interface GeminiOptions {
@@ -56,6 +74,7 @@ export interface GeminiOptions {
 
 /**
  * Provider-specific options for OpenAI models.
+ * These options leverage OpenAI's reasoning modes and fine-tuning capabilities.
  * @see https://platform.openai.com/docs/api-reference/chat/create
  */
 export interface OpenAiOptions {
@@ -96,7 +115,10 @@ export interface OpenAiOptions {
   frequency_penalty?: number;
 }
 
-// --- Cache for Custom Prompts ---
+/**
+ * Cache configuration and storage for custom prompt responses.
+ * Implements a simple in-memory cache with TTL (Time To Live) expiration.
+ */
 const CUSTOM_PROMPT_CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 interface CustomPromptCacheEntry {
   response: string;
@@ -104,8 +126,11 @@ interface CustomPromptCacheEntry {
 }
 const customPromptCache: { [key: string]: CustomPromptCacheEntry } = {};
 
-// --- System Prompts ---
-
+/**
+ * System prompt for algorithm problem generation.
+ * This prompt instructs the AI to generate comprehensive problem data
+ * including test cases, solution approaches, and language-specific details.
+ */
 export const PROBLEM_GENERATION_SYSTEM_PROMPT = `You are a specialized data generator for algorithm problems.
 You know the details of common LeetCode problems.
 When given a problem name/slug, generate realistic, detailed problem data.
@@ -114,12 +139,23 @@ Your solution approaches should be detailed, including code examples and explana
 `Every field requested in the prompt MUST be included in your response. Make the problem description detailed ` +
 `and the test cases realistic.`;
 
+/**
+ * System prompt for company data generation.
+ * This prompt ensures accurate and structured company information generation.
+ */
 export const COMPANY_DATA_SYSTEM_PROMPT = `You are an expert data analyst who specializes in providing accurate and structured information about companies.
 Your task is to generate detailed information about companies in JSON format.
 Ensure all responses are factually accurate, concise, and formatted exactly as requested.`;
 
-// --- Prompt Generation ---
-
+/**
+ * Generates a comprehensive prompt for LeetCode problem data generation.
+ * This function creates detailed instructions for AI to generate complete problem data
+ * including test cases, constraints, solution approaches, and language-specific code.
+ * 
+ * @param problemName - The display name of the LeetCode problem
+ * @param problemSlug - The URL slug identifier for the problem
+ * @returns Comprehensive prompt string for AI problem generation
+ */
 export function getProblemDataGenerationPrompt(problemName: string, problemSlug: string): string {
     // If language/version specific details are needed later, pass context object
     const pythonVersionString = '3.8'; // Use a generic placeholder if needed in string
@@ -140,7 +176,6 @@ Based on your knowledge of this common algorithmic problem, provide the followin
       "stdin": "(string) A JSON string representing the input. Example: {\\\\\\\"nums\\\\\\\": [2, 7, 11, 15], \\\\\\\"target\\\\\\\": 9}",
       "expectedStdout": "(string) A JSON string representing the array of expected output. Example: [0, 1]. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.",
       "isSample": true
-      // Explanation field was removed in user's revert, keeping it out for now unless added back
     }
   ],
   "solutionApproach": "(string) Detailed explanation of efficient solution approaches. Must not be null or empty. No need to include code.",
@@ -186,24 +221,25 @@ IMPORTANT INSTRUCTIONS FOR AI:
 `6. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.`;
 }
 
-
-// --- Fallback Function ---
-
 /**
- * Generates a generic fallback solution approach
+ * Generates a generic fallback solution approach when AI generation fails.
+ * This function provides a basic solution description as a safety net.
+ * 
+ * @param problemName - Name of the problem for context
+ * @returns Generic fallback solution approach string
  */
 export function generateGenericFallback(problemName: string): string {
     return `Fallback solution approach for ${problemName}. Details should be researched.`;
 }
 
-
-// --- Configuration ---
-
+/**
+ * Supported LLM service providers for the application.
+ */
 export type LlmServiceType = 'anthropic' | 'gemini' | 'openai';
 
 /**
  * Configuration for an LLM task, specifying the model, parameters, and
- * provider-specific settings.
+ * provider-specific settings for optimal performance.
  */
 export interface LlmTaskConfig {
   /**
@@ -259,6 +295,11 @@ export interface LlmTaskConfig {
   openai_options?: OpenAiOptions;
 }
 
+/**
+ * Predefined configurations for common LLM tasks.
+ * Each configuration is optimized for specific use cases with appropriate
+ * models, token limits, and thinking capabilities.
+ */
 export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
   problemGeneration: { 
     service: 'anthropic', 
@@ -292,22 +333,22 @@ export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
   }
 };
 
-
-// --- Generic Task Execution ---
-
 /**
  * Executes an LLM task by dispatching to the configured service and model.
- * Each service implementation uses its native capabilities for token limits,
- * thinking mode, and budget management.
+ * This function provides a unified interface for all AI providers while
+ * leveraging each provider's native capabilities and optimizations.
  * 
- * This function handles merging of generic options with provider-specific options
- * to ensure optimal use of each model's capabilities.
+ * Provider Integration:
+ * - Anthropic Claude: Uses thinking mode for complex reasoning tasks
+ * - Google Gemini: Leverages multimodal capabilities and thinking config
+ * - OpenAI: Utilizes reasoning mode and fine-tuned parameters
  * 
- * @param taskName The name of the task in llmTaskConfigurations
- * @param prompt The prompt text to send to the model
- * @param systemPrompt Optional system prompt to guide model behavior
- * @param options Optional config overrides including provider-specific options
- * @returns The model's response as a string
+ * @param taskName - The name of the task in llmTaskConfigurations
+ * @param prompt - The prompt text to send to the model
+ * @param systemPrompt - Optional system prompt to guide model behavior
+ * @param options - Optional config overrides including provider-specific options
+ * @returns Promise resolving to the model's response as a string
+ * @throws Error if task configuration not found or service call fails
  */
 export async function executeLlmTask(
     taskName: string, 
@@ -331,7 +372,7 @@ export async function executeLlmTask(
         thinking_enabled: options?.thinking_enabled ?? config.thinking_enabled
     };
 
-    // Log basic configuration
+    // Log basic configuration for debugging
     console.log(`Executing LLM task "${taskName}" using ${config.service} (${config.model})...`);
     if (baseOptions.max_tokens) console.log(`Max tokens: ${baseOptions.max_tokens}`);
     if (baseOptions.thinking_enabled !== undefined) console.log(`Thinking enabled: ${baseOptions.thinking_enabled}`);
@@ -410,20 +451,28 @@ export async function executeLlmTask(
         }
     } catch (error: unknown) {
         console.error(`Error executing LLM task "${taskName}" with ${config.service} (${config.model}):`, error);
-        // Re-throw a more informative error or handle as needed
+        // Re-throw a more informative error
         throw new Error(`LLM task "${taskName}" failed: ${(error instanceof Error ? error.message : String(error))}`);
     }
 }
 
 /**
- * Transforms content using a custom prompt and system prompt, with caching.
+ * Transforms content using a custom prompt with intelligent caching.
+ * This function provides a high-level interface for custom AI transformations
+ * with automatic caching and expiration management.
  * 
- * @param customPrompt The prompt to transform
- * @param systemPrompt The system prompt to guide model behavior
- * @param cacheKey Optional key for caching the response
- * @param useCache Whether to use the cache (default: true)
- * @param options LLM configuration options including provider-specific settings
- * @returns The transformed content as a string
+ * Caching Strategy:
+ * - In-memory cache with 24-hour TTL
+ * - Automatic cache invalidation on expiry
+ * - Optional cache bypass for real-time updates
+ * - Efficient cache key management
+ * 
+ * @param customPrompt - The prompt to transform
+ * @param systemPrompt - The system prompt to guide model behavior
+ * @param cacheKey - Optional key for caching the response
+ * @param useCache - Whether to use the cache (default: true)
+ * @param options - LLM configuration options including provider-specific settings
+ * @returns Promise resolving to the transformed content as a string
  */
 export async function transformWithPrompt(
     customPrompt: string,
@@ -465,11 +514,13 @@ export async function transformWithPrompt(
 }
 
 /**
- * Generates company data based on a custom prompt.
+ * Generates company data based on a custom prompt using optimized AI configuration.
+ * This function uses a lighter, faster model configuration suitable for
+ * structured data generation tasks.
  * 
- * @param customPrompt The prompt describing the company data to generate
- * @param options LLM configuration options including provider-specific settings
- * @returns The generated company data as a string
+ * @param customPrompt - The prompt describing the company data to generate
+ * @param options - Optional LLM configuration overrides
+ * @returns Promise resolving to the generated company data as a string
  */
 export async function generateCompanyDataWithPrompt(
     customPrompt: string,
@@ -487,11 +538,10 @@ export async function generateCompanyDataWithPrompt(
     );
 }
 
-
-// --- Post-Processing ---
-
-// Define the structure expected after successful parsing and processing
-// This mirrors the return type of the original fetchProblemDataFromUrl
+/**
+ * Structured interface for processed problem data after AI generation and validation.
+ * This interface ensures type safety and consistency across the problem processing pipeline.
+ */
 export interface ProcessedProblemData {
     title: string;
     difficulty: ProblemDifficulty;
@@ -501,7 +551,7 @@ export interface ProcessedProblemData {
     testCases: Array<{
       stdin: string; // JSON string
       expectedStdout: string; // JSON string
-      explanation?: string; // Keeping this optional based on user revert
+      explanation?: string; // Optional explanation
       isSample?: boolean;
     }>;
     solutionApproach: string | null;
@@ -514,10 +564,19 @@ export interface ProcessedProblemData {
     error?: string; // Include error field for parsing/processing errors
 }
 
+// Consider moving extractSlugFromUrl here
+/*
+export function extractSlugFromUrl(url: string): string | null { ... }
+*/
+
 /**
- * Parses the raw LLM output (expected to be JSON), cleans it,
- * and maps it to the ProcessedProblemData structure.
- * Includes fallback logic for missing fields.
+ * Parses and processes raw LLM response into structured problem data.
+ * This function handles JSON parsing, validation, and error handling for
+ * AI-generated problem data, ensuring all required fields are present.
+ * 
+ * @param rawResponse - Raw string response from the LLM
+ * @param problemName - Name of the problem for error context
+ * @returns ProcessedProblemData object with parsed data or error information
  */
 export function parseAndProcessProblemData(
     rawLlmOutput: string,
@@ -667,11 +726,6 @@ export function parseAndProcessProblemData(
     }
 }
 
-// Consider moving extractSlugFromUrl here
-/*
-export function extractSlugFromUrl(url: string): string | null { ... }
-*/
-
 // Function to clear specific caches if needed, or all.
 export function clearLlmUtilsCache(cacheName?: 'customPrompt' | 'all'): void {
     if (cacheName === 'customPrompt' || cacheName === 'all') {
@@ -684,55 +738,3 @@ export function clearLlmUtilsCache(cacheName?: 'customPrompt' | 'all'): void {
     }
 }
 
-/**
- * Example usage of provider-specific options:
- * 
- * // Using Claude with native thinking
- * const claudeResponse = await executeLlmTask(
- *   'customTask',
- *   'Explain quantum entanglement',
- *   'You are a physics expert',
- *   {
- *     thinking_enabled: true,
- *     claude_options: {
- *       thinking: {
- *         type: 'enabled',
- *         budget_tokens: 8000
- *       }
- *     }
- *   }
- * );
- * 
- * // Using Gemini with thinkingConfig
- * const geminiResponse = await executeLlmTask(
- *   'customTask',
- *   'Compare different sorting algorithms',
- *   'You are a computer science expert',
- *   {
- *     thinking_enabled: true,
- *     gemini_options: {
- *       thinkingConfig: {
- *         thinkingBudget: 1500
- *       },
- *       temperature: 0.2
- *     }
- *   }
- * );
- * 
- * // Using OpenAI with reasoning
- * const openaiResponse = await executeLlmTask(
- *   'customTask',
- *   'Analyze the causes of the 2008 financial crisis',
- *   'You are an economics expert',
- *   {
- *     thinking_enabled: true,
- *     openai_options: {
- *       reasoning: {
- *         effort: 'high'
- *       },
- *       temperature: 0.7,
- *       presence_penalty: 0.1
- *     }
- *   }
- * );
- */ 

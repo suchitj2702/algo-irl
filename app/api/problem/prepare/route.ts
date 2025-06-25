@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Problem } from '@/data-types/problem';
-
-// CORS headers
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Timestamp, X-Signature, X-Hp-Field, X-Client-Fingerprint, X-Requested-With, Accept',
-  'Access-Control-Max-Age': '86400',
-};
+import { enhancedSecurityMiddleware } from '@/lib/security/enhanced-middleware';
+import { getCorsHeaders } from '@/lib/security/cors';
 
 // Handle CORS preflight requests
-export async function OPTIONS() {
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+  
   return new NextResponse(null, {
     status: 200,
     headers: corsHeaders,
@@ -42,172 +39,182 @@ function applyFunctionMappings(code: string, functionMapping: Record<string, str
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    // Parse request body
-    const { problemId, companyId, difficulty, isBlind75, transformedProblem } = await request.json();
+  return enhancedSecurityMiddleware(request, async (req, parsedBody) => {
+    const origin = req.headers.get('origin');
+    const corsHeaders = getCorsHeaders(origin);
     
-    // Validate required parameters
-    if (!problemId && !difficulty) {
-      return NextResponse.json(
-        { error: 'Either problemId or difficulty is required. You may also provide isBlind75 parameter when using difficulty.' }, 
-        { status: 400, headers: corsHeaders }
-      );
-    }
-    
-    if (!companyId || typeof companyId !== 'string') {
-      return NextResponse.json(
-        { error: 'Company ID is required' }, 
-        { status: 400, headers: corsHeaders }
-      );
-    }
-    
-    let resolvedProblemId = problemId;
-    
-    // If no problemId was provided, select one randomly based on difficulty and isBlind75
-    if (!resolvedProblemId && difficulty) {
-      // Determine isBlind75 value, default to false if not provided
-      const blind75Value = isBlind75 !== undefined ? isBlind75 : false;
+    try {
+      // Use the parsed body from middleware instead of reading it again
+      const body = parsedBody || await req.json();
+      const { problemId, companyId, difficulty, isBlind75, transformedProblem } = body;
       
-      // Use the filter API instead of the difficulty API
-      const filterUrl = new URL(`${request.nextUrl.origin}/api/problem/filter`);
-      filterUrl.searchParams.append('difficulty', difficulty);
-      filterUrl.searchParams.append('isBlind75', blind75Value.toString());
-      
-      const problemsResponse = await fetch(filterUrl);
-      
-      if (!problemsResponse.ok) {
-        const errorData = await problemsResponse.json();
+      // Validate required parameters
+      if (!problemId && !difficulty) {
         return NextResponse.json(
-          { error: errorData.error || `Failed to fetch problems with ${difficulty} difficulty and isBlind75=${blind75Value}` },
-          { status: problemsResponse.status, headers: corsHeaders }
+          { error: 'Either problemId or difficulty is required. You may also provide isBlind75 parameter when using difficulty.' }, 
+          { status: 400, headers: corsHeaders }
         );
       }
       
-      const problemData = await problemsResponse.json();
-      
-      if (!problemData.problemId) {
+      if (!companyId || typeof companyId !== 'string') {
         return NextResponse.json(
-          { error: `No problems found with ${difficulty} difficulty and isBlind75=${blind75Value}` },
+          { error: 'Company ID is required' }, 
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      
+      let resolvedProblemId = problemId;
+      
+      // If no problemId was provided, select one randomly based on difficulty and isBlind75
+      if (!resolvedProblemId && difficulty) {
+        // Determine isBlind75 value, default to false if not provided
+        const blind75Value = isBlind75 !== undefined ? isBlind75 : false;
+        
+        // Use the filter API instead of the difficulty API
+        const filterUrl = new URL(`${req.nextUrl.origin}/api/problem/filter`);
+        filterUrl.searchParams.append('difficulty', difficulty);
+        filterUrl.searchParams.append('isBlind75', blind75Value.toString());
+        
+        const problemsResponse = await fetch(filterUrl);
+        
+        if (!problemsResponse.ok) {
+          const errorData = await problemsResponse.json();
+          return NextResponse.json(
+            { error: errorData.error || `Failed to fetch problems with ${difficulty} difficulty and isBlind75=${blind75Value}` },
+            { status: problemsResponse.status, headers: corsHeaders }
+          );
+        }
+        
+        const problemData = await problemsResponse.json();
+        
+        if (!problemData.problemId) {
+          return NextResponse.json(
+            { error: `No problems found with ${difficulty} difficulty and isBlind75=${blind75Value}` },
+            { status: 404, headers: corsHeaders }
+          );
+        }
+        
+        resolvedProblemId = problemData.problemId;
+      }
+      
+      // Fetch the problem using the existing API
+      const problemResponse = await fetch(
+        `${req.nextUrl.origin}/api/problem/${resolvedProblemId}?language=python`
+      );
+      
+      if (!problemResponse.ok) {
+        const errorData = await problemResponse.json();
+        return NextResponse.json(
+          { error: errorData.error || `Failed to fetch problem ${resolvedProblemId}` },
+          { status: problemResponse.status, headers: corsHeaders }
+        );
+      }
+      
+      const problem: Problem = await problemResponse.json();
+      
+      // Extract the Python-specific details
+      const pythonDetails = problem.languageSpecificDetails?.python;
+      
+      if (!pythonDetails) {
+        return NextResponse.json(
+          { error: 'Python implementation details not available for this problem' },
           { status: 404, headers: corsHeaders }
         );
       }
       
-      resolvedProblemId = problemData.problemId;
-    }
-    
-    // Fetch the problem using the existing API
-    const problemResponse = await fetch(
-      `${request.nextUrl.origin}/api/problem/${resolvedProblemId}?language=python`
-    );
-    
-    if (!problemResponse.ok) {
-      const errorData = await problemResponse.json();
-      return NextResponse.json(
-        { error: errorData.error || `Failed to fetch problem ${resolvedProblemId}` },
-        { status: problemResponse.status, headers: corsHeaders }
+      // If transformedProblem is not provided, call the transform API
+      let transformResult = transformedProblem;
+      
+      if (!transformResult) {
+        const transformResponse = await fetch(`${req.nextUrl.origin}/api/problem/transform`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            problemId: resolvedProblemId,
+            companyId: companyId,
+            useCache: true
+          }),
+        });
+        
+        if (!transformResponse.ok) {
+          const errorData = await transformResponse.json();
+          return NextResponse.json(
+            { error: errorData.error || 'Failed to transform problem' },
+            { status: transformResponse.status, headers: corsHeaders }
+          );
+        }
+        
+        transformResult = await transformResponse.json();
+      }
+      
+      const transformedDefaultUserCode = applyFunctionMappings(
+        pythonDetails.defaultUserCode, 
+        transformResult.structuredScenario.functionMapping
       );
-    }
-    
-    const problem: Problem = await problemResponse.json();
-    
-    // Extract the Python-specific details
-    const pythonDetails = problem.languageSpecificDetails?.python;
-    
-    if (!pythonDetails) {
-      return NextResponse.json(
-        { error: 'Python implementation details not available for this problem' },
-        { status: 404, headers: corsHeaders }
+
+      const transformedBoilerplateCodeWithPlaceholder = applyFunctionMappings(
+        pythonDetails.boilerplateCodeWithPlaceholder, 
+        transformResult.structuredScenario.functionMapping
       );
-    }
-    
-    // If transformedProblem is not provided, call the transform API
-    let transformResult = transformedProblem;
-    
-    if (!transformResult) {
-      const transformResponse = await fetch(`${request.nextUrl.origin}/api/problem/transform`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          problemId: resolvedProblemId,
-          companyId: companyId,
-          useCache: true
-        }),
+      
+      // for each test case, apply the function mappings to the input and output
+      const transformedTestCases = problem.testCases.map(testCase => {
+        return {
+          stdin: applyFunctionMappings(testCase.stdin, transformResult.structuredScenario.functionMapping),
+          expectedStdout: applyFunctionMappings(testCase.expectedStdout, transformResult.structuredScenario.functionMapping),
+          explanation: testCase.explanation,
+          isSample: testCase.isSample
+        };
       });
-      
-      if (!transformResponse.ok) {
-        const errorData = await transformResponse.json();
-        return NextResponse.json(
-          { error: errorData.error || 'Failed to transform problem' },
-          { status: transformResponse.status, headers: corsHeaders }
-        );
-      }
-      
-      transformResult = await transformResponse.json();
-    }
-    
-    const transformedDefaultUserCode = applyFunctionMappings(
-      pythonDetails.defaultUserCode, 
-      transformResult.structuredScenario.functionMapping
-    );
 
-    const transformedBoilerplateCodeWithPlaceholder = applyFunctionMappings(
-      pythonDetails.boilerplateCodeWithPlaceholder, 
-      transformResult.structuredScenario.functionMapping
-    );
-    
-    // for each test case, apply the function mappings to the input and output
-    const transformedTestCases = problem.testCases.map(testCase => {
-      return {
-        stdin: applyFunctionMappings(testCase.stdin, transformResult.structuredScenario.functionMapping),
-        expectedStdout: applyFunctionMappings(testCase.expectedStdout, transformResult.structuredScenario.functionMapping),
-        explanation: testCase.explanation,
-        isSample: testCase.isSample
+      // apply the function mappings to the solutionFunctionNameOrClassName
+      const transformedSolutionFunctionNameOrClassName = applyFunctionMappings(
+        pythonDetails.solutionFunctionNameOrClassName, 
+        transformResult.structuredScenario.functionMapping
+      );
+
+      // apply the function mappings to the solutionStructureHint
+      const transformedSolutionStructureHint = applyFunctionMappings(
+        pythonDetails.solutionStructureHint, 
+        transformResult.structuredScenario.functionMapping
+      );
+      
+      // Prepare the response with both problem and code details
+      const response = {
+        problem: {
+          id: problem.id,
+          title: transformResult.structuredScenario.title,
+          difficulty: problem.difficulty,
+          background: transformResult.structuredScenario.background,
+          problemStatement: transformResult.structuredScenario.problemStatement,
+          constraints: transformResult.structuredScenario.constraints,
+          examples: transformResult.structuredScenario.examples,
+          requirements: transformResult.structuredScenario.requirements,
+          testCases: transformedTestCases,
+          leetcodeUrl: problem.leetcodeLink,
+          categories: problem.categories,
+          timeComplexity: problem.timeComplexity,
+          spaceComplexity: problem.spaceComplexity
+        },
+        codeDetails: {
+          functionName: transformedSolutionFunctionNameOrClassName,
+          solutionStructureHint: transformedSolutionStructureHint,
+          defaultUserCode: transformedDefaultUserCode,
+          boilerplateCode: transformedBoilerplateCodeWithPlaceholder,
+        }
       };
-    });
-
-    // apply the function mappings to the solutionFunctionNameOrClassName
-    const transformedSolutionFunctionNameOrClassName = applyFunctionMappings(
-      pythonDetails.solutionFunctionNameOrClassName, 
-      transformResult.structuredScenario.functionMapping
-    );
-
-    // apply the function mappings to the solutionStructureHint
-    const transformedSolutionStructureHint = applyFunctionMappings(
-      pythonDetails.solutionStructureHint, 
-      transformResult.structuredScenario.functionMapping
-    );
-    
-    // Prepare the response with both problem and code details
-    const response = {
-      problem: {
-        id: problem.id,
-        title: transformResult.structuredScenario.title,
-        difficulty: problem.difficulty,
-        background: transformResult.structuredScenario.background,
-        problemStatement: transformResult.structuredScenario.problemStatement,
-        constraints: transformResult.structuredScenario.constraints,
-        examples: transformResult.structuredScenario.examples,
-        requirements: transformResult.structuredScenario.requirements,
-        testCases: transformedTestCases,
-        leetcodeUrl: problem.leetcodeLink,
-        categories: problem.categories,
-        timeComplexity: problem.timeComplexity,
-        spaceComplexity: problem.spaceComplexity
-      },
-      codeDetails: {
-        functionName: transformedSolutionFunctionNameOrClassName,
-        solutionStructureHint: transformedSolutionStructureHint,
-        defaultUserCode: transformedDefaultUserCode,
-        boilerplateCode: transformedBoilerplateCodeWithPlaceholder,
-      }
-    };
-    
-    return NextResponse.json(response, { headers: corsHeaders });
-  } catch (error) {
-    console.error('Error preparing problem:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
-      { status: 500, headers: corsHeaders }
-    );
-  }
+      
+      return NextResponse.json(response, { headers: corsHeaders });
+    } catch (error) {
+      console.error('Error preparing problem:', error);
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+  }, {
+    rateLimiterType: 'problemGeneration',
+    checkHoneypotField: true,
+    requireSignature: true // Require signature from frontend
+  });
 } 

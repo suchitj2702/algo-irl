@@ -80,6 +80,6 @@ export async function POST(request: NextRequest) {
   }, {
     rateLimiterType: 'companyCreation',
     checkHoneypotField: true,
-    requireSignature: false
+    requireSignature: true // Require signature from frontend
   });
 } 

@@ -3,7 +3,32 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { ProblemTransformation } from '@/data-types/problem';
 
 /**
- * Helper function for converting ProblemTransformation objects to Firestore data
+ * Transform Cache Utilities for Problem Transformations
+ * 
+ * This module implements a comprehensive caching strategy for AI-generated problem transformations.
+ * The cache uses Firestore to persist transformations and includes special handling for function
+ * name mappings that may contain Firestore-incompatible characters.
+ * 
+ * Caching Strategy:
+ * - Key: Combination of problemId and companyId
+ * - Storage: Firestore collection 'problemTransformations'
+ * - Expiration: Manual invalidation (transformations are generally stable)
+ * - Sanitization: Special handling for function names with double underscores
+ */
+
+/**
+ * Converts ProblemTransformation objects to Firestore-compatible data format.
+ * This function handles sanitization of function mapping keys that may contain
+ * characters incompatible with Firestore field naming conventions.
+ * 
+ * Sanitization Algorithm:
+ * 1. Identify function names with double underscores (Python dunder methods)
+ * 2. Replace "__name__" format with "dunder_name_dunder" for Firestore compatibility
+ * 3. Preserve all other transformation data as-is
+ * 4. Add default values for missing optional fields
+ * 
+ * @param transformation - Partial transformation object to convert
+ * @returns Firestore-compatible data object
  */
 const convertTransformationToFirestore = (
   transformation: Partial<ProblemTransformation>,
@@ -35,7 +60,18 @@ const convertTransformationToFirestore = (
 };
 
 /**
- * Helper function for converting Firestore data to ProblemTransformation objects
+ * Converts Firestore document data back to ProblemTransformation objects.
+ * This function reverses the sanitization process applied during storage,
+ * restoring original function names with double underscores.
+ * 
+ * Restoration Algorithm:
+ * 1. Extract data from Firestore document snapshot
+ * 2. Restore function mapping keys from "dunder_name_dunder" to "__name__"
+ * 3. Provide default values for any missing context information
+ * 4. Return properly typed ProblemTransformation object
+ * 
+ * @param doc - Firestore document snapshot containing cached transformation
+ * @returns Restored ProblemTransformation object
  */
 const convertFirestoreToTransformation = (doc: FirebaseFirestore.DocumentSnapshot): ProblemTransformation => {
   const data = doc.data()!;
@@ -67,14 +103,30 @@ const convertFirestoreToTransformation = (doc: FirebaseFirestore.DocumentSnapsho
 };
 
 /**
- * Generate a document ID for a problem transformation
+ * Generates a consistent document ID for caching problem transformations.
+ * This function creates a deterministic cache key based on the problem and company.
+ * 
+ * @param problemId - Unique identifier for the problem
+ * @param companyId - Unique identifier for the company
+ * @returns Consistent document ID for Firestore storage
  */
 function getTransformationDocId(problemId: string, companyId: string): string {
   return `${problemId}_${companyId}`;
 }
 
 /**
- * Get a problem transformation from Firestore by problemId and companyId
+ * Retrieves a cached problem transformation from Firestore.
+ * This function implements the cache lookup logic for problem transformations.
+ * 
+ * Cache Lookup Process:
+ * 1. Generate deterministic document ID from problemId and companyId
+ * 2. Query Firestore collection for existing transformation
+ * 3. If found, deserialize and restore function mappings
+ * 4. Return null if not found or on error
+ * 
+ * @param problemId - Unique identifier for the problem
+ * @param companyId - Unique identifier for the company
+ * @returns Cached transformation or null if not found
  */
 export async function getTransformation(problemId: string, companyId: string): Promise<ProblemTransformation | null> {
   try {
@@ -95,7 +147,18 @@ export async function getTransformation(problemId: string, companyId: string): P
 }
 
 /**
- * Save a problem transformation to Firestore
+ * Saves a problem transformation to the Firestore cache.
+ * This function implements the cache storage logic with smart update handling.
+ * 
+ * Cache Storage Strategy:
+ * 1. Generate document ID from problem and company identifiers
+ * 2. Check if transformation already exists in cache
+ * 3. If exists, update with new data while preserving creation timestamp
+ * 4. If new, create with both creation and update timestamps
+ * 5. Apply Firestore sanitization for function mappings
+ * 
+ * @param transformation - Complete transformation data to cache (without timestamps)
+ * @throws Error if save operation fails
  */
 export async function saveTransformation(transformation: Omit<ProblemTransformation, 'createdAt' | 'updatedAt'>): Promise<void> {
   try {
@@ -107,7 +170,7 @@ export async function saveTransformation(transformation: Omit<ProblemTransformat
     const docSnap = await docRef.get();
     
     if (docSnap.exists) {
-      // Update existing document
+      // Update existing document while preserving creation timestamp
       const existingData = convertFirestoreToTransformation(docSnap);
       await docRef.set(convertTransformationToFirestore({
         ...transformation,
@@ -115,7 +178,7 @@ export async function saveTransformation(transformation: Omit<ProblemTransformat
         createdAt: existingData.createdAt
       }));
     } else {
-      // Create new document
+      // Create new document with fresh timestamps
       await docRef.set(convertTransformationToFirestore({
         ...transformation,
         createdAt: Timestamp.now(),

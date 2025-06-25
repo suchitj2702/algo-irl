@@ -9,12 +9,12 @@ import type { TestCase } from '../../data-types/problem';
 // Assuming ExecutionResults is correctly imported.
 // Local definition for TestResult to avoid import issues for now.
 // Ideally, TestResult would also come from a shared data-types definition.
-import type { ExecutionResults } from '../../data-types/execution';
+import type { ExecutionResults, TestCaseOutput } from '../../data-types/execution';
 
 export interface TestResult {
   testCase: TestCase; // Original testCase input
   passed: boolean;
-  actualOutput: unknown; // Parsed actual output (e.g., from JSON stdout)
+  actualOutput: TestCaseOutput; // Parsed actual output (e.g., from JSON stdout)
   stdout?: string | null; // Raw stdout from Judge0
   stderr?: string | null; // Raw stderr from Judge0
   compileOutput?: string | null; // Compile output from Judge0
@@ -25,7 +25,13 @@ export interface TestResult {
   error?: string | null; // Aggregated error message for this test case
 }
 
-// Helper to create the full callback URL with submissionId
+/**
+ * Constructs the callback URL for Judge0 submissions with the internal submission ID.
+ * This URL is used by Judge0 to notify our system when execution is complete.
+ * 
+ * @param internalSubmissionId - UUID generated internally to track this submission
+ * @returns The full callback URL with submission ID parameter, or undefined if not in production
+ */
 function getJudge0CallbackUrl(internalSubmissionId: string): string | undefined {
   if (process.env.NODE_ENV === 'production' && judge0Config.callbackUrl) {
     const separator = judge0Config.callbackUrl.includes('?') ? '&' : '?';
@@ -37,8 +43,8 @@ function getJudge0CallbackUrl(internalSubmissionId: string): string | undefined 
 export interface OrchestratedSubmissionInput {
   code: string;
   language: string; // e.g., "javascript", "python"
-  testCases: TestCase[]; // Optional when problemId is provided
-  boilerplateCode: string; // Added boilerplateCode
+  testCases: TestCase[]; // Test cases to execute against
+  boilerplateCode: string; // Template code with placeholder for user code
 }
 
 export interface OrchestratedSubmissionOutput {
@@ -47,7 +53,19 @@ export interface OrchestratedSubmissionOutput {
 }
 
 /**
- * Combines user code with problem boilerplate by replacing the placeholder.
+ * Combines user-written code with problem-specific boilerplate code.
+ * This function replaces language-specific placeholders in the boilerplate
+ * with the actual user code, creating executable code for Judge0.
+ * 
+ * Algorithm:
+ * 1. Define language-specific placeholders (e.g., %%USER_CODE_PYTHON%%)
+ * 2. Locate the appropriate placeholder for the given language
+ * 3. Replace the placeholder with trimmed user code to prevent injection
+ * 
+ * @param userCode - The raw code written by the user
+ * @param boilerplate - Template code containing language-specific placeholder
+ * @param language - Programming language identifier (python, javascript, etc.)
+ * @returns Complete executable code ready for Judge0 submission
  */
 export function combineUserCodeWithBoilerplate(userCode: string, boilerplate: string, language: string): string {
   // Define language-specific placeholders
@@ -71,8 +89,24 @@ export function combineUserCodeWithBoilerplate(userCode: string, boilerplate: st
 }
 
 /**
- * Orchestrates the submission of code to Judge0 as a batch.
- * Now supports both direct test cases and loading from problems.
+ * Orchestrates the complete code execution workflow with Judge0.
+ * This is the main entry point for code execution, handling:
+ * - Code combination with boilerplate
+ * - Batch submission creation
+ * - Callback URL generation for async processing
+ * 
+ * Algorithm:
+ * 1. Combine user code with boilerplate template
+ * 2. Validate test cases are provided
+ * 3. Generate unique internal submission ID for tracking
+ * 4. Create Judge0 batch submission items for each test case
+ * 5. Apply resource limits (CPU time, memory) if specified
+ * 6. Submit batch to Judge0 with optional callback URL
+ * 
+ * @param client - Configured Judge0Client instance for API communication
+ * @param submissionInput - Complete submission data including code, language, and test cases
+ * @returns Promise resolving to submission tracking information
+ * @throws Error if test cases are missing or language is unsupported
  */
 export async function orchestrateJudge0Submission(
   client: Judge0Client,
@@ -80,7 +114,7 @@ export async function orchestrateJudge0Submission(
 ): Promise<OrchestratedSubmissionOutput> {
   const { code, language, testCases, boilerplateCode } = submissionInput;
   let finalCode = code;
-  const finalTestCases: TestCase[] = testCases; // Use testCases directly
+  const finalTestCases: TestCase[] = testCases;
   let maxCpuTimeLimit: number | undefined;
   let maxMemoryLimit: number | undefined;
   let expectedOutput: string | null = null;
@@ -88,7 +122,7 @@ export async function orchestrateJudge0Submission(
   // Combine user code with boilerplate
   finalCode = combineUserCodeWithBoilerplate(
     code, 
-    boilerplateCode, // Use provided boilerplateCode
+    boilerplateCode,
     language
   );
     
@@ -99,11 +133,13 @@ export async function orchestrateJudge0Submission(
   const internalSubmissionId = uuidv4();
   const langId = getLanguageId(language); // Get language ID for Judge0
 
+  // Create batch submission items - one for each test case
   const batchItems: Judge0BatchSubmissionItem[] = finalTestCases.map(testCase => {
     // Prepare input based on test case format
     const stdin = testCase.stdin;
     expectedOutput = testCase.expectedStdout;
     
+    // Normalize "None" output to "null" for consistent JSON handling
     if (expectedOutput == "None") {
       expectedOutput = "null";
     }
@@ -115,7 +151,7 @@ export async function orchestrateJudge0Submission(
       expected_output: expectedOutput,
     };
     
-    // Add resource limits if provided
+    // Apply global resource limits if provided
     if (maxCpuTimeLimit) {
       item.cpu_time_limit = maxCpuTimeLimit;
     }
@@ -123,7 +159,7 @@ export async function orchestrateJudge0Submission(
       item.memory_limit = maxMemoryLimit;
     }
     
-    // Add test case specific limits if available
+    // Override with test case specific limits if available
     if (testCase.maxCpuTimeLimit) {
       item.cpu_time_limit = testCase.maxCpuTimeLimit;
     }
@@ -144,7 +180,12 @@ export async function orchestrateJudge0Submission(
 }
 
 /**
- * Helper function to get the Judge0 language ID from our language name.
+ * Retrieves the Judge0 language ID for a given language string.
+ * Maps our internal language identifiers to Judge0's numeric language IDs.
+ * 
+ * @param language - Internal language identifier (e.g., "python", "javascript")
+ * @returns Judge0 numeric language ID
+ * @throws Error if language is not supported or not configured
  */
 export function getLanguageId(language: string): number {
   const langConfig = judge0Config.languages[language as keyof typeof judge0Config.languages];
@@ -155,8 +196,19 @@ export function getLanguageId(language: string): number {
 }
 
 /**
- * Normalizes and compares two output strings.
- * Tries to parse them as JSON first, otherwise compares trimmed strings.
+ * Intelligent output comparison that handles various data formats.
+ * This function implements a multi-step comparison algorithm:
+ * 
+ * Algorithm:
+ * 1. Normalize inputs by trimming whitespace
+ * 2. Handle empty string cases
+ * 3. Attempt JSON parsing for structured data comparison
+ * 4. Fall back to string comparison for non-JSON data
+ * 5. Use deep equality for JSON objects/arrays
+ * 
+ * @param actual - The actual output from code execution
+ * @param expected - The expected output for comparison
+ * @returns true if outputs are considered equivalent, false otherwise
  */
 function normalizeAndCompareOutputs(actual: string | null | undefined, expected: string | null | undefined): boolean {
   const normalizedActual = actual?.trim() ?? "";
@@ -167,7 +219,7 @@ function normalizeAndCompareOutputs(actual: string | null | undefined, expected:
   if (normalizedActual === "" || normalizedExpected === "") return false; // Only one is empty
 
   try {
-    // Attempt to parse both as JSON
+    // Attempt to parse both as JSON for structured comparison
     const parsedActual = JSON.parse(normalizedActual);
     const parsedExpected = JSON.parse(normalizedExpected);
 
@@ -182,8 +234,18 @@ function normalizeAndCompareOutputs(actual: string | null | undefined, expected:
 }
 
 /**
- * Checks if the expected output string is an array of possible outputs
- * and compares the actual output against each of them.
+ * Handles test cases with multiple valid expected outputs.
+ * Some problems may have multiple correct answers, stored as a JSON array.
+ * 
+ * Algorithm:
+ * 1. Check if expected output is formatted as JSON array
+ * 2. Parse the actual output if it's JSON-escaped
+ * 3. Compare actual output against each possible expected output
+ * 4. Return true if any comparison matches
+ * 
+ * @param actual - The actual output from code execution
+ * @param expected - String containing JSON array of possible expected outputs
+ * @returns true if actual matches any expected output, false otherwise
  */
 function checkMultipleExpectedOutputs(actual: string | null | undefined, expected: string | null | undefined): boolean {
   const normalizedActual = actual?.trim() ?? "";
@@ -211,6 +273,7 @@ function checkMultipleExpectedOutputs(actual: string | null | undefined, expecte
       return false; // Parsed but not an array
     }
 
+    // Check if actual output matches any of the expected outputs
     for (const singleExpected of expectedOutputsArray) {
       // Convert singleExpected to string if it's not already, as normalizeAndCompareOutputs expects strings
       const singleExpectedStr = typeof singleExpected === 'string' ? singleExpected : JSON.stringify(singleExpected);
@@ -220,14 +283,25 @@ function checkMultipleExpectedOutputs(actual: string | null | undefined, expecte
     }
     return false; // No match in the array
   } catch {
-    // JSON parsing failed, or it wasn't an array of strings/parsable objects
+    // JSON parsing failed, or it wasn't an array of valid elements
     return false;
   }
 }
 
 /**
- * Compares two string arrays, ignoring the order of elements.
- * Returns true if they contain the same elements, false otherwise.
+ * Compares arrays where element order doesn't matter.
+ * Used for problems where the solution can return elements in any order.
+ * 
+ * Algorithm:
+ * 1. Parse both inputs as JSON arrays
+ * 2. Validate both are arrays of same length
+ * 3. Convert all elements to strings for consistent comparison
+ * 4. Sort both arrays
+ * 5. Compare element by element
+ * 
+ * @param actual - Actual array output as JSON string
+ * @param expected - Expected array output as JSON string
+ * @returns true if arrays contain same elements regardless of order
  */
 function compareUnorderedStringArrays(actual: string | null | undefined, expected: string | null | undefined): boolean {
   const actualStr = actual?.trim() ?? "";
@@ -275,8 +349,18 @@ function compareUnorderedStringArrays(actual: string | null | undefined, expecte
 }
 
 /**
- * Compares two arrays of arrays, where the order of elements in both the outer and inner arrays does not matter.
- * Returns true if they contain the same inner arrays (with elements in any order), false otherwise.
+ * Compares nested arrays where both outer and inner array order doesn't matter.
+ * Used for complex problems returning arrays of arrays (e.g., graph problems, combinations).
+ * 
+ * Algorithm:
+ * 1. Parse both inputs as arrays of arrays
+ * 2. For each inner array, sort elements and create canonical string representation
+ * 3. Sort the canonical strings of all inner arrays
+ * 4. Compare the sorted lists of canonical strings
+ * 
+ * @param actual - Actual nested array output as JSON string
+ * @param expected - Expected nested array output as JSON string  
+ * @returns true if both contain same inner arrays regardless of any order
  */
 function compareUnorderedArraysOfArrays(actual: string | null | undefined, expected: string | null | undefined): boolean {
   const actualStr = actual?.trim() ?? "";
@@ -304,6 +388,7 @@ function compareUnorderedArraysOfArrays(actual: string | null | undefined, expec
       return true; // Both are empty outer arrays, considered equal
     }
 
+    // Create canonical string representation for each inner array
     const getCanonicalInnerArrayString = (innerArray: unknown): string | null => {
       if (!Array.isArray(innerArray)) {
         return null; // Element of outer array is not an array
@@ -335,6 +420,7 @@ function compareUnorderedArraysOfArrays(actual: string | null | undefined, expec
         return false;
     }
 
+    // Sort canonical strings and compare
     filteredActualStrings.sort();
     filteredExpectedStrings.sort();
 
@@ -352,8 +438,22 @@ function compareUnorderedArraysOfArrays(actual: string | null | undefined, expec
 }
 
 /**
- * Aggregates results from multiple Judge0 submission details (for a batch)
- * into a single ExecutionResults object.
+ * Aggregates results from multiple Judge0 submission details into a single execution result.
+ * This is the core algorithm for processing batch execution results.
+ * 
+ * Algorithm:
+ * 1. Check for compilation errors (affects all test cases)
+ * 2. For each test case:
+ *    - Parse execution results and resource usage
+ *    - Apply intelligent output comparison strategies
+ *    - Override Judge0 status if our comparison logic finds a match
+ * 3. Aggregate timing and memory usage (takes maximum values)
+ * 4. Determine overall pass/fail status
+ * 5. Compile detailed results for each test case
+ * 
+ * @param judge0Details - Array of Judge0 execution results, one per test case
+ * @param originalTestCases - Original test case definitions with expected outputs
+ * @returns Aggregated execution results with overall status and detailed test results
  */
 export function aggregateBatchResults(
   judge0Details: Judge0SubmissionDetail[],
@@ -395,9 +495,11 @@ export function aggregateBatchResults(
       const detail = judge0Details[i];
       const originalTestCase = originalTestCases[i];
 
+      // Convert Judge0 time (seconds) to milliseconds and extract memory usage
       const timeMs = detail.time ? parseFloat(detail.time) * 1000 : 0;
       const memoryKb = detail.memory || 0;
 
+      // Track maximum resource usage across all test cases
       if (timeMs > maxTimeMs) maxTimeMs = timeMs;
       if (memoryKb > maxMemoryKb) maxMemoryKb = memoryKb;
 
@@ -407,43 +509,46 @@ export function aggregateBatchResults(
       let statusDescription = detail.status.description; // Start with original status
       let statusId = detail.status.id; // Start with original status ID
 
-      // Helper to parse stdout
-      const parseStdout = (stdout: string | null | undefined): unknown => {
-        if (!stdout) return stdout;
+      // Helper to parse stdout output into appropriate data type
+      const parseStdout = (stdout: string | null | undefined): TestCaseOutput => {
+        if (!stdout) return null;
         const trimmedStdout = stdout.trim();
         if (trimmedStdout.startsWith('{') || trimmedStdout.startsWith('[')) {
           try {
-            return JSON.parse(trimmedStdout);
+            return JSON.parse(trimmedStdout) as TestCaseOutput;
           } catch {
-            // Fallback to raw if JSON parsing fails
+            // Fallback to raw string if JSON parsing fails
+            return stdout;
           }
         }
-        return stdout; // Return raw (trimmed or original if not JSON-like)
+        return stdout; // Return raw string for non-JSON output
       };
 
-      if (detail.status.id === 3) { // Accepted initially
+      if (detail.status.id === 3) { // Status 3: Accepted by Judge0
         testPassed = true;
         totalTestCasesPassed++;
         actualOutput = parseStdout(detail.stdout);
-      } else { // Not accepted initially, let's re-check with normalization
+      } else { 
+        // Judge0 says not accepted, but apply our intelligent comparison algorithms
         const multipleExpectedMatch = checkMultipleExpectedOutputs(detail.stdout, originalTestCase.expectedStdout);
         const normalizedMatch = normalizeAndCompareOutputs(detail.stdout, originalTestCase.expectedStdout);
         const unorderedArrayMatch = compareUnorderedStringArrays(detail.stdout, originalTestCase.expectedStdout);
         const unorderedArraysOfArraysMatch = compareUnorderedArraysOfArrays(detail.stdout, originalTestCase.expectedStdout);
 
-        if (multipleExpectedMatch || normalizedMatch || unorderedArrayMatch || unorderedArraysOfArraysMatch) { // Outputs match after normalization, one of multiple expected outputs, unordered array match, or unordered array of arrays match!
+        if (multipleExpectedMatch || normalizedMatch || unorderedArrayMatch || unorderedArraysOfArraysMatch) { 
+          // Outputs match after applying intelligent comparison strategies
           testPassed = true;
           totalTestCasesPassed++;
-          statusDescription = "Accepted"; // Override status
-          statusId = 3; // Override status ID
-          currentTestError = null; // Clear potential error message
-          actualOutput = parseStdout(detail.stdout); // Still parse the output
-          // Do not set passedOverall = false for this case
-        } else { // Outputs still don't match after normalization
+          statusDescription = "Accepted"; // Override Judge0 status
+          statusId = 3; // Override Judge0 status ID
+          currentTestError = null; // Clear any error message
+          actualOutput = parseStdout(detail.stdout);
+        } else { 
+          // Outputs still don't match after all comparison strategies
           passedOverall = false; // Mark overall submission as failed
           currentTestError = detail.message || detail.status.description;
           if (detail.stderr) currentTestError += ` (Stderr: ${detail.stderr})`;
-          // Keep original statusDescription and statusId
+          // Keep original statusDescription and statusId from Judge0
           if (!overallError && detail.status.id !== 4) { // Don't override with "Wrong Answer" if a more severe error exists
               overallError = currentTestError;
           }
@@ -454,7 +559,7 @@ export function aggregateBatchResults(
       individualTestResults.push({
         testCase: originalTestCase,
         passed: testPassed,
-        actualOutput: actualOutput,
+        actualOutput: actualOutput as TestCaseOutput,
         stdout: detail.stdout,
         stderr: detail.stderr,
         compileOutput: detail.compile_output,
@@ -467,7 +572,7 @@ export function aggregateBatchResults(
     }
   }
   
-  // Final overall status
+  // Final overall status determination
   if (totalTestCasesPassed !== originalTestCases.length && passedOverall && !compilationErrorDetail) {
       passedOverall = false; // If not all passed, overall is false
   }

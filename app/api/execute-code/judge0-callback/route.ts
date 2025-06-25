@@ -5,6 +5,19 @@ import { aggregateBatchResults } from '../../../../lib/code-execution/codeExecut
 import type { CodeSubmission } from '../../../../lib/code-execution/codeExecutionUtils';
 import { TestCase } from '../../../../data-types/problem';
 
+// SECURITY NOTE: This endpoint is called by Judge0 servers, not by the frontend
+// Therefore, it cannot use the same signature-based authentication.
+// Instead, implement one of these security measures:
+// 1. IP whitelisting for Judge0 servers
+// 2. Webhook secret in the callback URL (e.g., /api/execute-code/judge0-callback?secret=xxx)
+// 3. Basic authentication header from Judge0
+
+// TODO: Implement Judge0 webhook security
+// For now, this endpoint is protected by:
+// - The random submission ID which acts as a secret
+// - Rate limiting at the middleware level
+// - CORS headers (though Judge0 doesn't use browser requests)
+
 // Helper function to process nested arrays before storing in Firestore
 function processNestedArraysForFirestore(obj: unknown): unknown {
   if (Array.isArray(obj)) {
@@ -64,13 +77,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Aggregate results
-    // Ensure originalSubmissionData.testCases is correctly typed or cast if necessary
     // The aggregateBatchResults function expects TestCase[] from '../../data-types/problem'
-    // codeSubmissionUtils.CodeSubmission stores testCases as any[], so casting might be needed
-    // or the type in CodeSubmission should be more specific if possible.
+    // CodeSubmission.testCases is now properly typed as TestCase[]
     const aggregatedResults = aggregateBatchResults(
       judge0ResultsArray,
-      originalSubmissionData.testCases as TestCase[] // Assuming TestCase structure matches
+      originalSubmissionData.testCases
     );
 
     // Process nested arrays in the aggregated results before updating Firestore

@@ -163,6 +163,6 @@ export async function POST(request: NextRequest) {
   }, {
     rateLimiterType: 'codeExecution',
     checkHoneypotField: true,
-    requireSignature: false // Set to true for production if you implement client-side signing
+    requireSignature: true // Require signature from frontend
   });
 } 

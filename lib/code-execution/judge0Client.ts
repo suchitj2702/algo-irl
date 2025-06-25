@@ -7,12 +7,16 @@ interface Judge0ClientOptions {
   throttlingConfig?: Partial<CodeExecutionThrottlingConfig>; // Optional: Allow overriding defaults
 }
 
-// Represents the response structure for a single submission token from Judge0 batch creation
+/**
+ * Represents the response structure for a single submission token from Judge0 batch creation
+ */
 interface Judge0BatchCreationTokenResponse {
   token: string;
 }
 
-// Represents a single submission object when creating a batch
+/**
+ * Represents a single submission object when creating a batch
+ */
 export interface Judge0BatchSubmissionItem {
   language_id: number;
   source_code: string;
@@ -24,8 +28,10 @@ export interface Judge0BatchSubmissionItem {
   // Add any other per-submission parameters Judge0 allows in a batch
 }
 
-// Represents the structure of a submission result from Judge0
-// (can be more detailed based on Judge0 API docs for submission details)
+/**
+ * Represents the structure of a submission result from Judge0
+ * (can be more detailed based on Judge0 API docs for submission details)
+ */
 export interface Judge0SubmissionDetail {
   token: string;
   status: { id: number; description: string };
@@ -37,11 +43,27 @@ export interface Judge0SubmissionDetail {
   memory?: number; // in kilobytes
 }
 
+/**
+ * Judge0 API client with built-in throttling, retry logic, and batch processing capabilities.
+ * Handles rate limiting, exponential backoff, and automatic fallback to single submission mode.
+ * 
+ * Features:
+ * - Automatic retry with exponential backoff for rate-limited requests
+ * - Batch submission support with configurable batch sizes
+ * - Fallback to single submission mode when batch mode fails
+ * - Built-in throttling to respect Judge0 API limits
+ * - Comprehensive error handling and logging
+ */
 export class Judge0Client {
   private apiUrl: string;
   private apiKey: string;
   private throttlingConfig: CodeExecutionThrottlingConfig;
 
+  /**
+   * Creates a new Judge0 client instance with throttling configuration.
+   * 
+   * @param options - Client configuration including API URL, key, and throttling settings
+   */
   constructor(options: Judge0ClientOptions) {
     this.apiUrl = options.apiUrl.replace(/\/$/, ''); // Remove trailing slash if any
     this.apiKey = options.apiKey;
@@ -52,15 +74,33 @@ export class Judge0Client {
   }
 
   /**
-   * Helper function to delay execution
-   * @param ms milliseconds to delay
+   * Helper function to delay execution for throttling and retry logic.
+   * 
+   * @param ms - Milliseconds to delay
+   * @returns Promise that resolves after the specified delay
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
-   * Makes a request with retry logic for rate limiting
+   * Makes HTTP requests with built-in retry logic for rate limiting.
+   * Implements exponential backoff with jitter to handle Judge0 rate limits gracefully.
+   * 
+   * Algorithm:
+   * 1. Attempt the request
+   * 2. If rate limited (429), wait and retry with exponential backoff
+   * 3. Add random jitter to prevent thundering herd
+   * 4. Increase delay exponentially: delay = delay * 2 * (0.8 + random * 0.4)
+   * 5. Retry up to configured maximum attempts
+   * 
+   * @param endpoint - API endpoint to call
+   * @param method - HTTP method (GET or POST)
+   * @param body - Request body for POST requests
+   * @param maxRetries - Maximum retry attempts (uses config default if not provided)
+   * @param initialDelayMs - Initial delay before first retry (uses config default if not provided)
+   * @returns Promise resolving to the API response
+   * @throws Error if all retries are exhausted or non-retryable error occurs
    */
   private async requestWithRetry<T>(
     endpoint: string, 
@@ -99,6 +139,16 @@ export class Judge0Client {
     }
   }
 
+  /**
+   * Makes a raw HTTP request to the Judge0 API.
+   * Handles authentication, headers, and response parsing.
+   * 
+   * @param endpoint - API endpoint to call
+   * @param method - HTTP method (GET or POST)
+   * @param body - Request body for POST requests
+   * @returns Promise resolving to the parsed JSON response
+   * @throws Error if request fails or response is not ok
+   */
   private async request<T>(endpoint: string, method: 'GET' | 'POST' = 'POST', body?: unknown): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -151,8 +201,12 @@ export class Judge0Client {
 
   /**
    * Submits a single code submission to Judge0.
-   * @param submission A single submission object
-   * @returns A promise that resolves to a token response
+   * Used as fallback when batch submission fails or for single test cases.
+   * 
+   * @param submission - Single submission object with code and test data
+   * @param base64Encoded - Whether source code is base64 encoded
+   * @returns Promise resolving to submission token
+   * @throws Error if submission fails
    */
   async createSingleSubmission(
     submission: Judge0BatchSubmissionItem,
@@ -175,10 +229,26 @@ export class Judge0Client {
   }
 
   /**
-   * Submits a batch of code submissions to Judge0.
-   * @param submissions Array of submission objects for the batch.
-   * @param callbackUrl Optional callback URL for Judge0 to POST results to when all are processed.
-   * @returns A promise that resolves to an array of token objects, each containing a submission token.
+   * Submits a batch of code submissions to Judge0 with intelligent processing.
+   * Implements sophisticated batch processing with automatic fallback strategies.
+   * 
+   * Algorithm:
+   * 1. Validate input and determine processing mode
+   * 2. If single submission or forced single mode, process individually
+   * 3. Otherwise, process in configurable batch chunks
+   * 4. For each batch chunk:
+   *    - Validate chunk size against limits
+   *    - Submit batch to Judge0
+   *    - Handle rate limiting with inter-batch delays
+   * 5. If batch mode fails, automatically retry in single mode
+   * 6. Return consolidated list of all submission tokens
+   * 
+   * @param submissions - Array of submission objects for the batch
+   * @param callbackUrl - Optional callback URL for Judge0 to POST results when all are processed
+   * @param base64Encoded - Whether source code is base64 encoded (defaults to false)
+   * @param forceSingleMode - Force single submission mode instead of batch
+   * @returns Promise resolving to array of submission tokens
+   * @throws Error if all submission attempts fail
    */
   async createBatchSubmissions(
     submissions: Judge0BatchSubmissionItem[],
@@ -291,9 +361,21 @@ export class Judge0Client {
   }
 
   /**
-   * Fetches the details of multiple submissions using their tokens.
-   * @param tokens A comma-separated string of submission tokens or an array of tokens.
-   * @returns A promise that resolves to an object containing a list of submission details.
+   * Fetches the execution details of multiple submissions using their tokens.
+   * Implements intelligent batching for status checks with rate limiting protection.
+   * 
+   * Algorithm:
+   * 1. Convert token input to array format
+   * 2. Process tokens in configurable batch chunks
+   * 3. For each chunk:
+   *    - Create comma-separated token string for Judge0 API
+   *    - Fetch batch status with retry logic
+   *    - Add inter-batch delays to avoid rate limiting
+   * 4. Consolidate all results into single response
+   * 
+   * @param tokens - Comma-separated string of submission tokens or array of tokens
+   * @returns Promise resolving to object containing array of submission details
+   * @throws Error if any batch status check fails
    */
   async getBatchSubmissionDetails(
     tokens: string | string[]
@@ -353,9 +435,11 @@ export class Judge0Client {
   }
 
   /**
-   * Fetches the details of a single submission using its token.
-   * @param token The submission token.
-   * @returns A promise that resolves to the submission details.
+   * Fetches the execution details of a single submission using its token.
+   * 
+   * @param token - The submission token
+   * @returns Promise resolving to the submission details
+   * @throws Error if the request fails
    */
   async getSubmissionDetails(token: string): Promise<Judge0SubmissionDetail> {
     return this.requestWithRetry<Judge0SubmissionDetail>(

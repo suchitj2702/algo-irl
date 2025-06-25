@@ -91,9 +91,6 @@ export class GeminiService {
         }
         throw new Error(`Failed to get response from Gemini model ${modelName} after maximum retries`);
     }
-    
-    // Removed fetchProblemDataFromUrl - orchestration now in problemDatastoreUtils
-    // Removed extractSlugFromUrl - to be centralized
 }
 
 // Export default instance
