@@ -3,7 +3,6 @@ import { Judge0SubmissionDetail } from '../../../../lib/code-execution/judge0Cli
 import { getCodeSubmission, updateCodeSubmissionStatus } from '../../../../lib/code-execution/codeExecutionUtils';
 import { aggregateBatchResults } from '../../../../lib/code-execution/codeExecution';
 import type { CodeSubmission } from '../../../../lib/code-execution/codeExecutionUtils';
-import { TestCase } from '../../../../data-types/problem';
 
 // SECURITY NOTE: This endpoint is called by Judge0 servers, not by the frontend
 // Therefore, it cannot use the same signature-based authentication.

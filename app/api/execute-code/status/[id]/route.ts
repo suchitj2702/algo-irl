@@ -6,7 +6,6 @@ import { aggregateBatchResults } from '../../../../../lib/code-execution/codeExe
 import { TestCase } from '../../../../../data-types/problem';
 import { enhancedSecurityMiddleware } from '@/lib/security/enhanced-middleware';
 import { getCorsHeaders } from '@/lib/security/cors';
-// import { processJudge0Results } from '../../../../../lib/code-execution/codeExecution'; // Old function
 
 // Handle CORS preflight requests
 export async function OPTIONS(request: NextRequest) {
