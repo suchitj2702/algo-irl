@@ -42,7 +42,7 @@ Transform coding interview problems into real-world scenarios tailored to specif
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/algo-irl.git
+   git clone https://github.com/suchitj2702/algo-irl.git
    cd algo-irl
    ```
 
