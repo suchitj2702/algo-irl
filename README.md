@@ -1,4 +1,4 @@
-# Algo IRL - Algorithm In Real Life
+# AlgoIRL - Algorithm In Real Life
 
 Transform coding interview problems into real-world scenarios tailored to specific companies. Practice algorithms in contexts that mirror actual work environments.
 
