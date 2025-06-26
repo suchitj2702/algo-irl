@@ -2,7 +2,7 @@
 
 Transform coding interview problems into real-world scenarios tailored to specific companies. Practice algorithms in contexts that mirror actual work environments.
 
-## ✨ Key Features
+## Key Features
 
 - **🎯 Company-Specific Problem Transformation** - Converts LeetCode-style problems into real-world scenarios based on company domains
 - **⚡ Real-time Code Execution** - Execute code with multiple test cases using Judge0 API
@@ -13,7 +13,7 @@ Transform coding interview problems into real-world scenarios tailored to specif
 - **🚀 High Performance** - Built on Next.js 15 with React 19 for optimal performance
 - **☁️ Scalable Architecture** - Firebase/Firestore backend with serverless API routes
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - **Next.js 15** - React framework with App Router
@@ -38,7 +38,7 @@ Transform coding interview problems into real-world scenarios tailored to specif
 - **Firebase** - Authentication and database
 - **RapidAPI** - Judge0 API access
 
-## 📦 Installation
+## Installation
 
 1. **Clone the repository**
    ```bash
@@ -96,7 +96,7 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 # Method 3: Place service-account-key.json in project root
 ```
 
-## 📸 Screenshots
+## Screenshots
 
 <details>
 <summary>Click to view screenshots</summary>
@@ -119,7 +119,7 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 
 </details>
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please follow these guidelines:
 
@@ -160,7 +160,7 @@ We welcome contributions! Please follow these guidelines:
 - Comment complex logic
 - Keep functions focused and small
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see below for details:
 
@@ -188,7 +188,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## 💡 Future Enhancements
+## Future Enhancements
 - [ ] Customized company specific practice tracks
 - [ ] Support for more programming languages (Java, C++, Go)
 - [ ] User authentication and progress tracking
@@ -197,7 +197,7 @@ SOFTWARE.
 - [ ] Code optimization suggestions
 - [ ] Collaborative coding sessions
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [Judge0](https://judge0.com/) for the code execution engine
 - [Monaco Editor](https://microsoft.github.io/monaco-editor/) for the code editor
