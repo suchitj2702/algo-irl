@@ -4,14 +4,14 @@ Transform coding interview problems into real-world scenarios tailored to specif
 
 ## Key Features
 
-- **🎯 Company-Specific Problem Transformation** - Converts LeetCode-style problems into real-world scenarios based on company domains
-- **⚡ Real-time Code Execution** - Execute code with multiple test cases using Judge0 API
-- **🤖 AI-Powered Transformations** - Leverages Anthropic Claude, OpenAI GPT, and Google Gemini for intelligent problem adaptation
-- **💻 Multi-Language Support** - Currently supports JavaScript and Python with extensible architecture
-- **📚 Blind 75 Problems** - Access to curated Blind 75 algorithm problems
-- **🔒 Enterprise-Grade Security** - Rate limiting, CORS protection, input sanitization, and request signing
-- **🚀 High Performance** - Built on Next.js 15 with React 19 for optimal performance
-- **☁️ Scalable Architecture** - Firebase/Firestore backend with serverless API routes
+- **Company-Specific Problem Transformation** - Converts LeetCode-style problems into real-world scenarios based on company domains
+- **Real-time Code Execution** - Execute code with multiple test cases using Judge0 API
+- **AI-Powered Transformations** - Leverages Anthropic Claude, OpenAI GPT, and Google Gemini for intelligent problem adaptation
+- **Multi-Language Support** - Currently supports JavaScript and Python with extensible architecture
+- **Blind 75 Problems** - Access to curated Blind 75 algorithm problems
+- **Enterprise-Grade Security** - Rate limiting, CORS protection, input sanitization, and request signing
+- **High Performance** - Built on Next.js 15 with React 19 for optimal performance
+- **Scalable Architecture** - Firebase/Firestore backend with serverless API routes
 
 ## Tech Stack
 
