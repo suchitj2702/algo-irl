@@ -70,7 +70,7 @@ Transform coding interview problems into real-world scenarios tailored to specif
 6. **Open application**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
-## 🔧 Environment Variables
+## Environment Variables
 
 Create a `.env.local` file with the following variables:
 
