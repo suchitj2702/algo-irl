@@ -74,7 +74,7 @@ function createCorsHeaders(origin: string | null) {
   return {
     'Access-Control-Allow-Origin': isAllowedOrigin ? origin : allowedOrigins[0],
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Timestamp, X-Signature, X-Hp-Field, X-Client-Fingerprint, X-Requested-With, Accept, X-Debug-Client-Time, X-Debug-Request-Id, X-Debug-Client-Version, X-Debug-Payload-Keys, X-Debug-Payload-Size, X-Debug-Signature-Method, X-Debug-Browser, X-Debug-User-Agent, X-Debug-Session-Id, X-Debug-Endpoint',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Timestamp, X-Signature, X-Hp-Field, X-Client-Fingerprint, X-Requested-With, Accept, X-Debug-Client-Time, X-Debug-Request-Id, X-Debug-Client-Version, X-Debug-Payload-Keys, X-Debug-Payload-Length, X-Debug-UA, X-Debug-Timezone-Offset, X-Debug-Serialization, X-Debug-Payload-Size, X-Debug-Signature-Method, X-Debug-Browser, X-Debug-User-Agent, X-Debug-Session-Id, X-Debug-Endpoint',
     'Access-Control-Max-Age': '86400',
     'Access-Control-Allow-Credentials': 'true',
   };
