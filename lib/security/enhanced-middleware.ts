@@ -192,13 +192,21 @@ export async function enhancedSecurityMiddleware(
       const timestamp = parseInt(request.headers.get('x-timestamp') || '0');
       const signature = request.headers.get('x-signature') || '';
       
+      // Collect debug headers for troubleshooting
+      const debugHeaders: Record<string, string> = {};
+      request.headers.forEach((value, key) => {
+        if (key.startsWith('x-debug-')) {
+          debugHeaders[key] = value;
+        }
+      });
+      
       // For GET requests, use query parameters as the payload
       // For POST requests, use the request body
       const payloadToVerify = request.method === 'GET' 
         ? Object.fromEntries(new URL(request.url).searchParams.entries())
         : requestBody || {};
       
-      if (!verifyRequestSignature(payloadToVerify, timestamp, signature)) {
+      if (!verifyRequestSignature(payloadToVerify, timestamp, signature, 5 * 60 * 1000, debugHeaders)) {
         securityMonitor.logEvent({
           type: 'invalid_signature',
           fingerprint,

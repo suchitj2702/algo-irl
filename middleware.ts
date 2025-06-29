@@ -7,6 +7,7 @@ const allowedEndpoints = [
   '/api/execute-code',
   '/api/execute-code/status',
   '/api/execute-code/judge0-callback',
+  '/api/debug/signature-failure',
 ];
 
 // Define endpoints that are allowed for internal calls but should be blocked for external access

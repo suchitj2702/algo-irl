@@ -39,7 +39,37 @@ function applyFunctionMappings(code: string, functionMapping: Record<string, str
 }
 
 export async function POST(request: NextRequest) {
-  return enhancedSecurityMiddleware(request, async (req, parsedBody) => {
+  // Temporary debugging middleware - remove after issue is resolved
+  console.log('=== INCOMING SIGNATURE REQUEST ===');
+  console.log('Method:', request.method);
+  console.log('Timestamp Header:', request.headers.get('x-timestamp'));
+  console.log('Signature Header:', request.headers.get('x-signature'));
+  
+  // Collect debug headers
+  const debugHeaders: Record<string, string> = {};
+  request.headers.forEach((value, key) => {
+    if (key.startsWith('x-debug-')) {
+      debugHeaders[key] = value;
+    }
+  });
+  console.log('Debug Headers:', debugHeaders);
+  
+  // Log body keys (need to clone request to read body without consuming it)
+  try {
+    const bodyText = await request.text();
+    const body = bodyText ? JSON.parse(bodyText) : {};
+    console.log('Body Keys:', Object.keys(body || {}).sort());
+    
+    // Create a new request with the body for the middleware
+    const newRequest = new NextRequest(request.url, {
+      method: request.method,
+      headers: request.headers,
+      body: bodyText,
+    });
+    
+    console.log('=================================');
+    
+    return enhancedSecurityMiddleware(newRequest, async (req, parsedBody) => {
     const origin = req.headers.get('origin');
     const corsHeaders = getCorsHeaders(origin);
     
@@ -217,4 +247,20 @@ export async function POST(request: NextRequest) {
     checkHoneypotField: true,
     requireSignature: true // Require signature from frontend
   });
+  } catch (parseError) {
+    console.error('Error parsing request for debugging:', parseError);
+    // Fallback to original request if parsing fails
+    return enhancedSecurityMiddleware(request, async (req) => {
+      const origin = req.headers.get('origin');
+      const corsHeaders = getCorsHeaders(origin);
+      return NextResponse.json(
+        { error: 'Failed to parse request for debugging' },
+        { status: 500, headers: corsHeaders }
+      );
+    }, {
+      rateLimiterType: 'problemGeneration',
+      checkHoneypotField: true,
+      requireSignature: true
+    });
+  }
 } 
