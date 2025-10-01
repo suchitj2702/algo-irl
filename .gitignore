@@ -48,3 +48,7 @@ service-account-key.json
 .env.development.local
 .env.test.local
 .env.production.local
+
+IMPROVEMENT_PLAN.md
+
+temp/*

@@ -24,7 +24,8 @@ export type LlmModelOptions = ClaudeModelOptions | GeminiModelOptions | OpenAiMo
 
 /**
  * Provider-specific options for Anthropic Claude models.
- * These options leverage Claude's native thinking capabilities for enhanced reasoning.
+ * These options leverage Claude's native thinking capabilities for enhanced reasoning
+ * and web search for accessing current information.
  * @see https://docs.anthropic.com/claude/reference/messages_post
  */
 export interface ClaudeOptions {
@@ -43,6 +44,17 @@ export interface ClaudeOptions {
      * Higher values allow for more elaborate reasoning.
      */
     budget_tokens?: number;
+  };
+  /**
+   * Controls the native Claude web search functionality.
+   * When enabled, Claude can search the web for current information.
+   * @example { type: "web_search_tool" }
+   */
+  search?: {
+    /**
+     * The type of search to enable.
+     */
+    type: "web_search_tool" | "enabled";
   };
 }
 
@@ -142,10 +154,9 @@ Your solution approaches should be detailed, including code examples and explana
 /**
  * System prompt for company data generation.
  * This prompt ensures accurate and structured company information generation.
+ * Includes web search capability for accessing current, accurate information.
  */
-export const COMPANY_DATA_SYSTEM_PROMPT = `You are an expert data analyst who specializes in providing accurate and structured information about companies.
-Your task is to generate detailed information about companies in JSON format.
-Ensure all responses are factually accurate, concise, and formatted exactly as requested.`;
+export const COMPANY_DATA_SYSTEM_PROMPT = `You are an expert on technology companies and their engineering practices. You have access to web search to find current, accurate information about companies' technology stacks, products, and engineering culture.`;
 
 /**
  * Generates a comprehensive prompt for LeetCode problem data generation.
@@ -247,7 +258,7 @@ export interface LlmTaskConfig {
    * Each provider has different model capabilities and pricing.
    */
   service: LlmServiceType;
-  
+
   /**
    * The specific model identifier.
    * @example 'claude-3-7-sonnet-20250219' for Anthropic Claude
@@ -255,7 +266,7 @@ export interface LlmTaskConfig {
    * @example 'gpt-4-turbo' for OpenAI
    */
   model: string;
-  
+
   /**
    * Maximum tokens to generate in the response.
    * This controls the length of the output.
@@ -265,7 +276,7 @@ export interface LlmTaskConfig {
    * - OpenAI: varies by model, typically 4096-16k
    */
   max_tokens?: number;
-  
+
   /**
    * Whether to enable model thinking in the response.
    * When true, the model will show its reasoning process
@@ -275,19 +286,26 @@ export interface LlmTaskConfig {
    * @see OpenAiOptions.reasoning
    */
   thinking_enabled?: boolean;
-  
+
+  /**
+   * Whether to enable web search capabilities.
+   * When true, the model can search the web for current information.
+   * Currently only supported for Anthropic Claude models.
+   */
+  search_enabled?: boolean;
+
   /**
    * Anthropic Claude-specific options.
    * Only applied when service is 'anthropic'.
    */
   claude_options?: ClaudeOptions;
-  
+
   /**
    * Google Gemini-specific options.
    * Only applied when service is 'gemini'.
    */
   gemini_options?: GeminiOptions;
-  
+
   /**
    * OpenAI-specific options.
    * Only applied when service is 'openai'.
@@ -313,11 +331,17 @@ export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
       }
     }
   },
-  companyDataGeneration: { 
-    service: 'anthropic', 
-    model: 'claude-3-5-haiku-20241022',
-    max_tokens: 5000,
-    thinking_enabled: false
+  companyDataGeneration: {
+    service: 'anthropic',
+    model: 'claude-sonnet-4-5-20250514',
+    max_tokens: 8192,
+    thinking_enabled: false,
+    search_enabled: true,
+    claude_options: {
+      search: {
+        type: "web_search_tool"
+      }
+    }
   },
   customPromptTransform: { 
     service: 'anthropic', 
@@ -384,14 +408,16 @@ export async function executeLlmTask(
                 ...baseOptions,
                 // Apply provider-specific options from task config
                 ...(config.claude_options && {
-                    thinking: config.claude_options.thinking
+                    thinking: config.claude_options.thinking,
+                    search: config.claude_options.search
                 }),
                 // Apply provider-specific options from function call (overrides config)
                 ...(options?.claude_options && {
-                    thinking: options.claude_options.thinking
+                    thinking: options.claude_options.thinking,
+                    search: options.claude_options.search
                 })
             };
-            
+
             if (claudeOptions.thinking_enabled && !claudeOptions.thinking) {
                 // If thinking is enabled but no specific config provided, create a default
                 claudeOptions.thinking = {
@@ -399,10 +425,17 @@ export async function executeLlmTask(
                     // No default budget_tokens
                 };
             }
-            
+
+            // Handle search enabled flag
+            if (config.search_enabled && !claudeOptions.search) {
+                claudeOptions.search = {
+                    type: "web_search_tool"
+                };
+            }
+
             return await anthropicService.callClaudeModel(
-                config.model, 
-                prompt, 
+                config.model,
+                prompt,
                 claudeOptions
             );
         } else if (config.service === 'gemini') {

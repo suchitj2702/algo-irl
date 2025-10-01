@@ -1,6 +1,7 @@
 import { adminDb } from '../firebase/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 import { ProblemTransformation } from '@/data-types/problem';
+import { RoleFamily } from '@/data-types/role';
 
 /**
  * Transform Cache Utilities for Problem Transformations
@@ -104,41 +105,43 @@ const convertFirestoreToTransformation = (doc: FirebaseFirestore.DocumentSnapsho
 
 /**
  * Generates a consistent document ID for caching problem transformations.
- * This function creates a deterministic cache key based on the problem and company.
- * 
+ * This function creates a deterministic cache key based on the problem, company, and optionally role.
+ *
  * @param problemId - Unique identifier for the problem
  * @param companyId - Unique identifier for the company
+ * @param roleFamily - Optional role family for role-specific caching
  * @returns Consistent document ID for Firestore storage
  */
-function getTransformationDocId(problemId: string, companyId: string): string {
-  return `${problemId}_${companyId}`;
+function getTransformationDocId(problemId: string, companyId: string, roleFamily?: RoleFamily): string {
+  return roleFamily ? `${problemId}_${companyId}_${roleFamily}` : `${problemId}_${companyId}`;
 }
 
 /**
  * Retrieves a cached problem transformation from Firestore.
  * This function implements the cache lookup logic for problem transformations.
- * 
+ *
  * Cache Lookup Process:
- * 1. Generate deterministic document ID from problemId and companyId
+ * 1. Generate deterministic document ID from problemId, companyId, and optional roleFamily
  * 2. Query Firestore collection for existing transformation
  * 3. If found, deserialize and restore function mappings
  * 4. Return null if not found or on error
- * 
+ *
  * @param problemId - Unique identifier for the problem
  * @param companyId - Unique identifier for the company
+ * @param roleFamily - Optional role family for role-specific cache lookup
  * @returns Cached transformation or null if not found
  */
-export async function getTransformation(problemId: string, companyId: string): Promise<ProblemTransformation | null> {
+export async function getTransformation(problemId: string, companyId: string, roleFamily?: RoleFamily): Promise<ProblemTransformation | null> {
   try {
     const db = adminDb();
-    const docId = getTransformationDocId(problemId, companyId);
+    const docId = getTransformationDocId(problemId, companyId, roleFamily);
     const docRef = db.collection('problemTransformations').doc(docId);
     const docSnap = await docRef.get();
-    
+
     if (docSnap.exists) {
       return convertFirestoreToTransformation(docSnap);
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error getting transformation:', error);
@@ -149,41 +152,49 @@ export async function getTransformation(problemId: string, companyId: string): P
 /**
  * Saves a problem transformation to the Firestore cache.
  * This function implements the cache storage logic with smart update handling.
- * 
+ *
  * Cache Storage Strategy:
- * 1. Generate document ID from problem and company identifiers
+ * 1. Generate document ID from problem, company identifiers, and optional role
  * 2. Check if transformation already exists in cache
  * 3. If exists, update with new data while preserving creation timestamp
  * 4. If new, create with both creation and update timestamps
  * 5. Apply Firestore sanitization for function mappings
- * 
+ *
  * @param transformation - Complete transformation data to cache (without timestamps)
+ * @param roleFamily - Optional role family for role-specific caching
  * @throws Error if save operation fails
  */
-export async function saveTransformation(transformation: Omit<ProblemTransformation, 'createdAt' | 'updatedAt'>): Promise<void> {
+export async function saveTransformation(
+  transformation: Omit<ProblemTransformation, 'createdAt' | 'updatedAt'>,
+  roleFamily?: RoleFamily
+): Promise<void> {
   try {
     const db = adminDb();
-    const docId = getTransformationDocId(transformation.problemId, transformation.companyId);
+    const docId = getTransformationDocId(transformation.problemId, transformation.companyId, roleFamily);
     const docRef = db.collection('problemTransformations').doc(docId);
-    
+
     // Check if the document already exists
     const docSnap = await docRef.get();
-    
+
     if (docSnap.exists) {
       // Update existing document while preserving creation timestamp
       const existingData = convertFirestoreToTransformation(docSnap);
-      await docRef.set(convertTransformationToFirestore({
-        ...transformation,
-        updatedAt: Timestamp.now(),
-        createdAt: existingData.createdAt
-      }));
+      await docRef.set(
+        convertTransformationToFirestore({
+          ...transformation,
+          updatedAt: Timestamp.now(),
+          createdAt: existingData.createdAt,
+        })
+      );
     } else {
       // Create new document with fresh timestamps
-      await docRef.set(convertTransformationToFirestore({
-        ...transformation,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
-      }));
+      await docRef.set(
+        convertTransformationToFirestore({
+          ...transformation,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        })
+      );
     }
   } catch (error) {
     console.error('Error saving transformation:', error);

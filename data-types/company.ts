@@ -1,9 +1,10 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { RoleSpecificData } from './role';
 
 export interface Company {
-  id?: string;
+  id: string;
   name: string;
-  description: string;
+  description?: string;
   domain: string;
   products: string[];
   technologies: string[];
@@ -11,7 +12,18 @@ export interface Company {
   logoUrl?: string | null;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
-  
-  // Non-persistent property to indicate if the company name was corrected
-  wasNameCorrected?: boolean;
+
+  // Enhanced context fields for richer problem transformation
+  engineeringChallenges?: Record<string, string[]>;
+  scaleMetrics?: Record<string, string>;
+  techStackLayers?: Record<string, string[]>;
+  problemDomains?: string[];
+  industryBuzzwords?: string[];
+  notableSystems?: string[];
+  dataProcessingPatterns?: string[];
+  optimizationPriorities?: string[];
+  analogyPatterns?: Record<string, Array<{ context: string; analogy: string }>>;
+
+  // Role-specific data for each engineering role
+  roleSpecificData?: Record<string, RoleSpecificData>;
 } 
