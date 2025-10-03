@@ -248,15 +248,14 @@ export async function generateCompanyDataWithAI(companyName: string): Promise<Co
     }
     
     // Construct comprehensive prompt for AI company data generation
-    // Use web search to find current, accurate information about the company
     const customPrompt = `
 I need detailed information about the company "${companyName}" in JSON format, including role-specific technologies and data points.
 
-Use web search to find current, accurate information about ${companyName}'s:
-- Latest technology stack and tools
-- Current products and services
-- Recent engineering blog posts or tech talks
-- Job postings for role-specific technologies
+Based on your knowledge of ${companyName}, provide comprehensive information about:
+- Technology stack and tools
+- Products and services
+- Engineering practices and culture
+- Role-specific technologies and focus areas
 - Scale metrics and engineering challenges
 
 REQUIRED FIELDS (for backward compatibility):
@@ -382,7 +381,14 @@ Do not include any text before or after the JSON.
     
     // Get the AI response using the prompt generation utility
     const aiResponse = await generateCompanyDataWithPrompt(customPrompt);
-    
+
+    // Debug: Log the raw AI response
+    console.log('='.repeat(80));
+    console.log(`RAW AI RESPONSE FOR COMPANY: ${companyName}`);
+    console.log('='.repeat(80));
+    console.log(aiResponse);
+    console.log('='.repeat(80));
+
     // Parse and validate the JSON response from AI
     let companyData;
     try {

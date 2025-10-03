@@ -398,10 +398,14 @@ POST /api/execute-code/judge0-callback?submissionId={submissionId}
 
 ### Company Management
 
-#### 1. Get Company by ID
+⚠️ **INTERNAL ONLY**: All company management endpoints are for internal server-side use only. They are not accessible from external clients and are protected by middleware that blocks external access.
+
+#### 1. Get Company by ID (Internal Only)
 ```http
 GET /api/companies/{id}
 ```
+
+**Access:** Internal server-side only
 
 **Response:**
 ```json
@@ -422,10 +426,12 @@ GET /api/companies/{id}
 }
 ```
 
-#### 2. Get Companies by Domain
+#### 2. Get Companies by Domain (Internal Only)
 ```http
 GET /api/companies/domain?domain={domain}
 ```
+
+**Access:** Internal server-side only
 
 **Parameters:**
 - `domain` (query): Company domain (e.g., "Technology", "Finance")
@@ -444,10 +450,12 @@ GET /api/companies/domain?domain={domain}
 }
 ```
 
-#### 3. Initialize Tech Companies
+#### 3. Initialize Tech Companies (Internal Only)
 ```http
 GET /api/companies/initialize
 ```
+
+**Access:** Internal server-side only
 
 **Description:** Initializes the database with predefined tech companies
 
@@ -459,14 +467,14 @@ GET /api/companies/initialize
 }
 ```
 
-#### 4. Generate Company with AI
+#### 4. Generate Company with AI (Internal Only)
 ```http
 POST /api/companies/initialize
 ```
 
-**Security:** Protected by enhanced security middleware with:
-- Rate limit: 5 requests per hour
-- Honeypot field checking
+**Access:** Internal server-side only
+
+**Description:** Generates comprehensive company data using AI (Claude Sonnet 4.5)
 
 **Request Body:**
 ```json
@@ -480,11 +488,22 @@ POST /api/companies/initialize
 {
   "success": true,
   "message": "Company Acme Corp generated and saved successfully",
-  "company": {...},
-  "wasNameCorrected": false,
-  "originalName": "Acme Corp"
+  "company": {
+    "id": "acmecorp",
+    "name": "Acme Corp",
+    "description": "...",
+    "domain": "Technology",
+    "products": [...],
+    "technologies": [...],
+    "interviewFocus": [...],
+    "engineeringChallenges": {...},
+    "scaleMetrics": {...},
+    "roleSpecificData": {...}
+  }
 }
 ```
+
+**Note:** The new company generation uses Claude Sonnet 4.5 to generate rich, comprehensive company data including role-specific information for backend, ML, frontend, infrastructure, and security roles. Data is stored in the `companies-v2` Firestore collection.
 
 ## Data Models
 

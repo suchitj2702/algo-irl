@@ -5,14 +5,14 @@ import { RoleFamily } from '@/data-types/role';
 
 /**
  * Transform Cache Utilities for Problem Transformations
- * 
+ *
  * This module implements a comprehensive caching strategy for AI-generated problem transformations.
  * The cache uses Firestore to persist transformations and includes special handling for function
  * name mappings that may contain Firestore-incompatible characters.
- * 
+ *
  * Caching Strategy:
- * - Key: Combination of problemId and companyId
- * - Storage: Firestore collection 'problemTransformations'
+ * - Key: Combination of problemId, companyId, and optional roleFamily
+ * - Storage: Firestore collection 'problemTransformations-v2'
  * - Expiration: Manual invalidation (transformations are generally stable)
  * - Sanitization: Special handling for function names with double underscores
  */
@@ -135,7 +135,7 @@ export async function getTransformation(problemId: string, companyId: string, ro
   try {
     const db = adminDb();
     const docId = getTransformationDocId(problemId, companyId, roleFamily);
-    const docRef = db.collection('problemTransformations').doc(docId);
+    const docRef = db.collection('problemTransformations-v2').doc(docId);
     const docSnap = await docRef.get();
 
     if (docSnap.exists) {
@@ -171,7 +171,7 @@ export async function saveTransformation(
   try {
     const db = adminDb();
     const docId = getTransformationDocId(transformation.problemId, transformation.companyId, roleFamily);
-    const docRef = db.collection('problemTransformations').doc(docId);
+    const docRef = db.collection('problemTransformations-v2').doc(docId);
 
     // Check if the document already exists
     const docSnap = await docRef.get();

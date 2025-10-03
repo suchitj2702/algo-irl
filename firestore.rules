@@ -8,20 +8,32 @@ service cloud.firestore {
       allow write: if false; // Only backend can write
     }
     
-    // Companies collection - read-only for clients
+    // Companies collection - read-only for clients (legacy)
     match /companies/{companyId} {
       allow read: if true;
       allow write: if false; // Only backend can write
     }
-    
+
+    // Companies v2 collection - read-only for clients (active)
+    match /companies-v2/{companyId} {
+      allow read: if true;
+      allow write: if false; // Only backend can write
+    }
+
     // Code submissions - no direct client access
     match /codeSubmissions/{submissionId} {
       allow read: if false;
       allow write: if false;
     }
-    
-    // Problem transformations cache - no direct client access
+
+    // Problem transformations cache - no direct client access (legacy)
     match /problemTransformations/{transformId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Problem transformations v2 cache - no direct client access (active)
+    match /problemTransformations-v2/{transformId} {
       allow read: if false;
       allow write: if false;
     }

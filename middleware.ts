@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Define allowed API endpoints for external access
 const allowedEndpoints = [
-  '/api/companies/initialize',
   '/api/problem/prepare',
   '/api/execute-code',
   '/api/execute-code/status',
@@ -18,6 +17,7 @@ const internalOnlyEndpoints = [
   '/api/problem/by-difficulty',
   '/api/problem/blind75',
   '/api/companies/domain',
+  '/api/companies/initialize',
   '/api/problem',
   '/api/companies',
 ];
@@ -50,12 +50,12 @@ function isInternalOnlyEndpoint(pathname: string): boolean {
   if (pathname.startsWith('/api/problem/') && pathname !== '/api/problem/prepare') {
     return true;
   }
-  
-  // Block /api/companies/[id] (but allow /api/companies/initialize)
-  if (pathname.startsWith('/api/companies/') && pathname !== '/api/companies/initialize') {
+
+  // Block all /api/companies/* routes (all are internal-only)
+  if (pathname.startsWith('/api/companies/')) {
     return true;
   }
-  
+
   return false;
 }
 

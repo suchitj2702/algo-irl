@@ -9,10 +9,6 @@
       "memory": 512,
       "maxDuration": 10
     },
-    "app/api/companies/initialize/route.ts": {
-      "memory": 512,
-      "maxDuration": 20
-    },
     "app/api/problem/prepare/route.ts": {
       "memory": 512,
       "maxDuration": 60
@@ -20,7 +16,7 @@
   },
   "headers": [
     {
-      "source": "/api/(companies/initialize|problem/prepare|execute-code|execute-code/status/.*)",
+      "source": "/api/(problem/prepare|execute-code|execute-code/status/.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
@@ -39,10 +35,6 @@
     "NODE_ENV": "production"
   },
   "rewrites": [
-    {
-      "source": "/api/companies/initialize",
-      "destination": "/api/companies/initialize"
-    },
     {
       "source": "/api/problem/prepare",
       "destination": "/api/problem/prepare"

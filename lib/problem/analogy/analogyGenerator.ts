@@ -116,14 +116,14 @@ export class AnalogyGenerator {
 
           let matches = false;
           for (const algo of problemInfo.coreAlgorithms) {
-            if (algo.toLowerCase() in challengeLower || challengeLower.includes('optimization')) {
+            if (challengeLower.includes(algo.toLowerCase()) || challengeLower.includes('optimization')) {
               matches = true;
               break;
             }
           }
 
           for (const ds of problemInfo.dataStructures) {
-            if (ds.toLowerCase() in challengeLower || challengeLower.includes('data')) {
+            if (challengeLower.includes(ds.toLowerCase()) || challengeLower.includes('data')) {
               matches = true;
               break;
             }

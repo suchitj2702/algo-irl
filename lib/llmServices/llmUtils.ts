@@ -24,8 +24,7 @@ export type LlmModelOptions = ClaudeModelOptions | GeminiModelOptions | OpenAiMo
 
 /**
  * Provider-specific options for Anthropic Claude models.
- * These options leverage Claude's native thinking capabilities for enhanced reasoning
- * and web search for accessing current information.
+ * These options leverage Claude's native thinking capabilities for enhanced reasoning.
  * @see https://docs.anthropic.com/claude/reference/messages_post
  */
 export interface ClaudeOptions {
@@ -44,17 +43,6 @@ export interface ClaudeOptions {
      * Higher values allow for more elaborate reasoning.
      */
     budget_tokens?: number;
-  };
-  /**
-   * Controls the native Claude web search functionality.
-   * When enabled, Claude can search the web for current information.
-   * @example { type: "web_search_tool" }
-   */
-  search?: {
-    /**
-     * The type of search to enable.
-     */
-    type: "web_search_tool" | "enabled";
   };
 }
 
@@ -154,9 +142,8 @@ Your solution approaches should be detailed, including code examples and explana
 /**
  * System prompt for company data generation.
  * This prompt ensures accurate and structured company information generation.
- * Includes web search capability for accessing current, accurate information.
  */
-export const COMPANY_DATA_SYSTEM_PROMPT = `You are an expert on technology companies and their engineering practices. You have access to web search to find current, accurate information about companies' technology stacks, products, and engineering culture.`;
+export const COMPANY_DATA_SYSTEM_PROMPT = `You are an expert on technology companies and their engineering practices. Generate comprehensive, accurate information about companies' technology stacks, products, and engineering culture based on your knowledge.`;
 
 /**
  * Generates a comprehensive prompt for LeetCode problem data generation.
@@ -288,13 +275,6 @@ export interface LlmTaskConfig {
   thinking_enabled?: boolean;
 
   /**
-   * Whether to enable web search capabilities.
-   * When true, the model can search the web for current information.
-   * Currently only supported for Anthropic Claude models.
-   */
-  search_enabled?: boolean;
-
-  /**
    * Anthropic Claude-specific options.
    * Only applied when service is 'anthropic'.
    */
@@ -333,27 +313,15 @@ export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
   },
   companyDataGeneration: {
     service: 'anthropic',
-    model: 'claude-sonnet-4-5-20250514',
-    max_tokens: 8192,
-    thinking_enabled: false,
-    search_enabled: true,
-    claude_options: {
-      search: {
-        type: "web_search_tool"
-      }
-    }
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 16384,
+    thinking_enabled: false
   },
-  customPromptTransform: { 
-    service: 'anthropic', 
-    model: 'claude-3-7-sonnet-20250219',
-    max_tokens: 15000,
-    thinking_enabled: true,
-    claude_options: {
-      thinking: {
-        type: "enabled",
-        budget_tokens: 10000
-      }
-    }
+  customPromptTransform: {
+    service: 'openai',
+    model: 'ft:gpt-4.1-nano-2025-04-14:personal:algoirl-problem-transformer-v2:CJPX2fwN',
+    max_tokens: 5000,
+    thinking_enabled: false
   }
 };
 
@@ -408,13 +376,11 @@ export async function executeLlmTask(
                 ...baseOptions,
                 // Apply provider-specific options from task config
                 ...(config.claude_options && {
-                    thinking: config.claude_options.thinking,
-                    search: config.claude_options.search
+                    thinking: config.claude_options.thinking
                 }),
                 // Apply provider-specific options from function call (overrides config)
                 ...(options?.claude_options && {
-                    thinking: options.claude_options.thinking,
-                    search: options.claude_options.search
+                    thinking: options.claude_options.thinking
                 })
             };
 
@@ -423,13 +389,6 @@ export async function executeLlmTask(
                 claudeOptions.thinking = {
                     type: "enabled"
                     // No default budget_tokens
-                };
-            }
-
-            // Handle search enabled flag
-            if (config.search_enabled && !claudeOptions.search) {
-                claudeOptions.search = {
-                    type: "web_search_tool"
                 };
             }
 

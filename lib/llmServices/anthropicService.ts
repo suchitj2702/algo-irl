@@ -10,9 +10,6 @@ export interface ClaudeModelOptions {
     type: "enabled";
     budget_tokens?: number;
   };
-  search?: {
-    type: "web_search_tool" | "enabled";
-  };
 }
 
 export class AnthropicService {
@@ -58,12 +55,6 @@ export class AnthropicService {
             if (options.thinking_enabled || options.thinking) {
                 // @ts-expect-error - Type definition might not include thinking yet
                 requestBody.thinking = options.thinking || { type: "enabled" };
-            }
-
-            // Use Claude's web search parameter
-            if (options.search) {
-                // @ts-expect-error - Type definition might not include search yet
-                requestBody.search = options.search;
             }
 
             const response: Message = await this.client.messages.create(requestBody);
