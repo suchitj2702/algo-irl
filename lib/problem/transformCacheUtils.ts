@@ -105,11 +105,15 @@ const convertFirestoreToTransformation = (doc: FirebaseFirestore.DocumentSnapsho
 
 /**
  * Generates a consistent document ID for caching problem transformations.
- * This function creates a deterministic cache key based on the problem, company, and optionally role.
+ * This function creates a deterministic cache key based on the problem, company, and role.
+ *
+ * Note: Role is technically optional in the function signature for backward compatibility
+ * with older cached transformations, but in practice role should always be provided
+ * as it's now a required part of the transformation process.
  *
  * @param problemId - Unique identifier for the problem
  * @param companyId - Unique identifier for the company
- * @param roleFamily - Optional role family for role-specific caching
+ * @param roleFamily - Role family for role-specific caching (should always be provided)
  * @returns Consistent document ID for Firestore storage
  */
 function getTransformationDocId(problemId: string, companyId: string, roleFamily?: RoleFamily): string {

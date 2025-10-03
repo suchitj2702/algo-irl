@@ -3,12 +3,13 @@ import { Timestamp } from "firebase-admin/firestore";
 import { Problem, TestCase, ProblemDifficulty } from "@/data-types/problem";
 import { TestCaseResult } from '../../data-types/execution';
 import { Judge0Client, Judge0SubmissionDetail } from '../code-execution/judge0Client';
-import { 
-    aggregateBatchResults, 
+import {
+    aggregateBatchResults,
     orchestrateJudge0Submission,
     OrchestratedSubmissionInput
 } from '../code-execution/codeExecution';
 import judge0DefaultConfig from '../code-execution/judge0Config';
+import { getCachedProblem, cacheProblem } from './requestCache';
 
 // LLM Service Imports
 import {
@@ -279,26 +280,6 @@ async function pollForResults(client: Judge0Client, tokens: string, expectedCoun
     return submissionDetails;
 }
 
-// Function to import multiple problems from URLs
-export const importProblemsFromUrls = async (urls: string[]): Promise<{ successCount: number; errors: unknown[] }> => {
-    let successCount = 0;
-    const errors: unknown[] = [];
-
-    // Process URLs sequentially to avoid overloading the API
-    for (const url of urls) {
-        const result = await fetchAndImportProblemByUrl(url);
-        if (result.success) {
-            successCount++;
-        } else {
-            errors.push({ url, slug: result.slug, error: result.error });
-        }
-        // Add a delay to avoid rate limiting issues
-        await new Promise(resolve => setTimeout(resolve, 1500));
-    }
-
-    return { successCount, errors };
-};
-
 // --- Basic Fetch Functions --- 
 
 export const getAllProblems = async (): Promise<Problem[]> => {
@@ -366,12 +347,22 @@ export const getFilteredProblems = async (
 
 export const getProblemById = async (problemId: string): Promise<Problem | null> => {
      try {
+        // Check request-level cache first (latency optimization)
+        const cachedProblem = getCachedProblem(problemId);
+        if (cachedProblem) {
+            return cachedProblem;
+        }
+
+        // Cache miss - fetch from Firestore
         const db = adminDb();
         const docRef = db.collection("problems").doc(problemId);
         const docSnap = await docRef.get();
 
         if (docSnap.exists) {
-            return convertFirestoreToProblem(docSnap);
+            const problem = convertFirestoreToProblem(docSnap);
+            // Cache the result for subsequent requests
+            cacheProblem(problemId, problem);
+            return problem;
         } else {
             console.log("No such problem document!");
             return null;

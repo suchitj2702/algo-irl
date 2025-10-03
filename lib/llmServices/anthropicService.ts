@@ -13,37 +13,53 @@ export interface ClaudeModelOptions {
 }
 
 export class AnthropicService {
-  private client: Anthropic;
+  private client: Anthropic | null = null;
   private static readonly MAX_RETRIES = 3;
   private static readonly RETRY_DELAY = 1000; // ms
-  
+
   constructor(apiKey?: string) {
-    this.client = new Anthropic({
-      apiKey: apiKey || process.env.ANTHROPIC_API_KEY
-    });
-    
-    if (!this.client.apiKey) {
-      throw new Error('Anthropic API key is required. Set ANTHROPIC_API_KEY environment variable or pass it to the constructor.');
+    const key = apiKey || process.env.ANTHROPIC_API_KEY;
+
+    if (!key) {
+      // Don't throw immediately - allow lazy initialization
+      console.warn('Warning: Anthropic API key not found. Set ANTHROPIC_API_KEY or provide key to constructor.');
+      return;
     }
+
+    this.client = new Anthropic({ apiKey: key });
+  }
+
+  private ensureClient(): Anthropic {
+    if (!this.client) {
+      // Try one more time in case env was set after construction
+      const key = process.env.ANTHROPIC_API_KEY;
+      if (key) {
+        this.client = new Anthropic({ apiKey: key });
+      } else {
+        throw new Error('Anthropic API key is required. Set ANTHROPIC_API_KEY environment variable or pass it to the constructor.');
+      }
+    }
+    return this.client;
   }
 
   // This is the primary public method for this service
   public async callClaudeModel(
-    model: string, 
-    promptContent: string, 
+    model: string,
+    promptContent: string,
     optionsOrSystemPrompt?: string | ClaudeModelOptions
   ): Promise<string> {
+    const client = this.ensureClient(); // Ensure client is initialized
     let retries = 0;
-    
+
     // Handle both legacy string systemPrompt and new options object
-    const options: ClaudeModelOptions = typeof optionsOrSystemPrompt === 'string' 
+    const options: ClaudeModelOptions = typeof optionsOrSystemPrompt === 'string'
       ? { systemPrompt: optionsOrSystemPrompt }
       : optionsOrSystemPrompt || {};
-    
+
     while (retries <= AnthropicService.MAX_RETRIES) {
         try {
             const messages: { role: 'user', content: string }[] = [{ role: 'user', content: promptContent }];
-            
+
             const requestBody: MessageCreateParamsNonStreaming = {
                 model: model,
                 max_tokens: options.max_tokens || (model.includes('haiku') ? 2048 : 4096),
@@ -57,7 +73,7 @@ export class AnthropicService {
                 requestBody.thinking = options.thinking || { type: "enabled" };
             }
 
-            const response: Message = await this.client.messages.create(requestBody);
+            const response: Message = await client.messages.create(requestBody);
 
             let responseText = '';
             if (response.content && response.content.length > 0) {

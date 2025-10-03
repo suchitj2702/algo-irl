@@ -13,7 +13,6 @@ const allowedEndpoints = [
 const internalOnlyEndpoints = [
   '/api/problem/filter',
   '/api/problem/transform',
-  '/api/problem/import-batch',
   '/api/problem/by-difficulty',
   '/api/problem/blind75',
   '/api/companies/domain',

@@ -52,3 +52,6 @@ service-account-key.json
 IMPROVEMENT_PLAN.md
 
 temp/*
+
+scripts/batch-problem-generation/input/*
+scripts/batch-problem-generation/output/*

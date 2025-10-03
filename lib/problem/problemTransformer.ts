@@ -12,7 +12,9 @@
  * - Caching: transformCacheUtils
  */
 
-import { RoleFamily } from '@/data-types/role';
+import { RoleFamily, getRandomRole } from '@/data-types/role';
+import { Problem, TestCase } from '@/data-types/problem';
+import type { Company } from '@/data-types/company';
 import { getCompanyById, getAllCompanies } from '../company/companyUtils';
 import { getProblemById } from './problemDatastoreUtils';
 import { transformWithPrompt } from '../llmServices/llmUtils';
@@ -24,6 +26,7 @@ import { AnalogyGenerator } from './analogy/analogyGenerator';
 import { RolePromptGenerator } from './prompt/rolePromptGenerator';
 import { ScenarioParser } from './parser/scenarioParser';
 import { TransformationContext, StructuredScenario } from './types/transformationTypes';
+import { applyFunctionMappings, applyMappingsToTestCases } from './functionMappingUtils';
 
 /**
  * Main Problem Transformer class - coordinates all transformation modules
@@ -47,23 +50,37 @@ class ProblemTransformerOrchestrator {
   }
 
   /**
-   * Create transformation context for a problem and company with optional role.
+   * Create transformation context for a problem and company with specified role.
    * This orchestrates the extraction and context creation process.
    *
    * @param problemId - Unique identifier for the problem
    * @param companyId - Unique identifier for the company
-   * @param roleFamily - Optional role for role-specific context
+   * @param roleFamily - Role for role-specific context (required for optimal transformations)
+   * @param prefetchedProblem - Optional pre-fetched problem data to avoid redundant DB reads
+   * @param prefetchedCompany - Optional pre-fetched company data to avoid redundant DB reads
    * @returns Complete transformation context or null if data not found
    */
   async createTransformationContext(
     problemId: string,
     companyId: string,
-    roleFamily?: RoleFamily
+    roleFamily: RoleFamily,
+    prefetchedProblem?: Problem | null,
+    prefetchedCompany?: Company | null
   ): Promise<TransformationContext | null> {
     try {
-      // Fetch problem and company data
-      const problem = await getProblemById(problemId);
-      const company = await getCompanyById(companyId);
+      // Use prefetched data if available, otherwise fetch (latency optimization)
+      let problem = prefetchedProblem;
+      let company = prefetchedCompany;
+
+      if (!problem || !company) {
+        // Fetch missing data in parallel
+        const [fetchedProblem, fetchedCompany] = await Promise.all([
+          problem ? Promise.resolve(problem) : getProblemById(problemId),
+          company ? Promise.resolve(company) : getCompanyById(companyId)
+        ]);
+        problem = fetchedProblem;
+        company = fetchedCompany;
+      }
 
       if (!problem || !company) {
         console.error(`Problem or company not found: ${problemId}, ${companyId}`);
@@ -143,27 +160,37 @@ class ProblemTransformerOrchestrator {
    * Main transformation function - orchestrates the entire pipeline.
    * This is the primary entry point for transforming problems.
    *
+   * Role Handling:
+   * - If role is provided, uses it for transformation
+   * - If role is NOT provided, auto-selects a random role for diversity
+   * - Auto-selection ensures every transformation gets role-enhanced prompts
+   *
    * Workflow:
-   * 1. Check cache for existing transformation
-   * 2. Create transformation context with all extracted data
-   * 3. Generate optimized prompt (with role enhancement if specified)
-   * 4. Call LLM service to transform the problem
-   * 5. Parse LLM response into structured sections
-   * 6. Save to cache for future use
-   * 7. Return complete result
+   * 1. Auto-select role if not provided
+   * 2. Check cache for existing transformation
+   * 3. Create transformation context with all extracted data
+   * 4. Generate role-enhanced prompt
+   * 5. Call LLM service to transform the problem
+   * 6. Parse LLM response into structured sections
+   * 7. Save to cache for future use
+   * 8. Return complete result with role metadata
    *
    * @param problemId - Unique identifier for the problem to transform
    * @param companyId - Unique identifier for the target company
-   * @param roleFamily - Optional role for role-specific transformation
+   * @param roleFamily - Optional role for role-specific transformation (auto-selected if not provided)
    * @param useCache - Whether to use cached transformations (default: true)
-   * @returns Complete transformation result with structured scenario and context
+   * @param prefetchedProblem - Optional pre-fetched problem data to avoid redundant DB reads
+   * @param prefetchedCompany - Optional pre-fetched company data to avoid redundant DB reads
+   * @returns Complete transformation result with structured scenario, context, and role info
    * @throws Error if transformation fails or required data is missing
    */
   async transformProblem(
     problemId: string,
     companyId: string,
     roleFamily?: RoleFamily,
-    useCache: boolean = true
+    useCache: boolean = true,
+    prefetchedProblem?: Problem | null,
+    prefetchedCompany?: Company | null
   ): Promise<{
     structuredScenario: StructuredScenario;
     contextInfo: {
@@ -172,15 +199,28 @@ class ProblemTransformerOrchestrator {
       relevanceScore: number;
       suggestedAnalogyPoints: string[];
     };
+    roleFamily: RoleFamily;
+    wasRoleAutoSelected: boolean;
   }> {
     try {
-      // Step 1: Check cache if enabled
+      // Step 1: Determine role - use provided or auto-select for diversity
+      let selectedRole: RoleFamily;
+      let wasRoleAutoSelected = false;
+
+      if (roleFamily) {
+        selectedRole = roleFamily;
+      } else {
+        selectedRole = getRandomRole();
+        wasRoleAutoSelected = true;
+        console.log(`Auto-selected role for transformation: ${selectedRole} (problem: ${problemId}, company: ${companyId})`);
+      }
+      // Step 2: Check cache if enabled (using selected role)
       if (useCache) {
-        const cachedTransformation = await getTransformation(problemId, companyId, roleFamily);
+        const cachedTransformation = await getTransformation(problemId, companyId, selectedRole);
 
         if (cachedTransformation) {
           console.log(
-            `Using cached transformation for problem ${problemId}, company ${companyId}${roleFamily ? `, role ${roleFamily}` : ''}`
+            `Using cached transformation for problem ${problemId}, company ${companyId}, role ${selectedRole}`
           );
 
           // Parse the cached scenario into structured sections
@@ -189,21 +229,29 @@ class ProblemTransformerOrchestrator {
           return {
             structuredScenario,
             contextInfo: cachedTransformation.contextInfo,
+            roleFamily: selectedRole,
+            wasRoleAutoSelected,
           };
         }
       }
 
-      // Step 2: No cache - create transformation context
-      const context = await this.createTransformationContext(problemId, companyId, roleFamily);
+      // Step 3: No cache - create transformation context with pre-fetched data if available
+      const context = await this.createTransformationContext(
+        problemId,
+        companyId,
+        selectedRole,
+        prefetchedProblem,
+        prefetchedCompany
+      );
 
       if (!context) {
         throw new Error('Failed to create transformation context');
       }
 
-      // Step 3: Generate optimized prompt (with role enhancement if specified)
-      const optimizedPrompt = this.promptGenerator.generateOptimizedPromptWithRole(context, roleFamily);
+      // Step 4: Generate role-enhanced prompt (role is always provided here)
+      const optimizedPrompt = this.promptGenerator.generateOptimizedPromptWithRole(context, selectedRole);
 
-      // Step 4: Call LLM service
+      // Step 5: Call LLM service
       const transformationSystemPrompt = `You are an expert technical interviewer who specializes in creating algorithm and data structure problems for software engineering interviews.
 Your task is to transform coding problems into realistic company-specific interview scenarios while preserving their algorithmic essence.
 Your scenarios should feel like actual questions a candidate would receive in a technical interview, with appropriate domain-specific framing that aligns with the company's business and technology.`;
@@ -214,7 +262,7 @@ Your scenarios should feel like actual questions a candidate would receive in a 
       console.log('='.repeat(80));
       console.log(`Problem ID: ${problemId}`);
       console.log(`Company ID: ${companyId}`);
-      console.log(`Role: ${roleFamily || 'None (standard transformation)'}`);
+      console.log(`Role: ${selectedRole}${wasRoleAutoSelected ? ' (auto-selected)' : ' (user-provided)'}`);
       console.log('='.repeat(80));
       console.log('SYSTEM PROMPT:');
       console.log('-'.repeat(80));
@@ -226,8 +274,8 @@ Your scenarios should feel like actual questions a candidate would receive in a 
       console.log('-'.repeat(80));
       console.log('='.repeat(80) + '\n');
 
-      // Create cache key for this transformation
-      const cacheKey = `transform-prompt-${problemId}-${companyId}${roleFamily ? `-${roleFamily}` : ''}`
+      // Create cache key for this transformation (using selected role)
+      const cacheKey = `transform-prompt-${problemId}-${companyId}-${selectedRole}`
         .toLowerCase()
         .replace(/\s+/g, '-');
 
@@ -239,10 +287,10 @@ Your scenarios should feel like actual questions a candidate would receive in a 
         useCache
       );
 
-      // Step 5: Parse the scenario text into structured sections
+      // Step 6: Parse the scenario text into structured sections
       const structuredScenario = this.scenarioParser.parseScenarioIntoSections(scenarioText);
 
-      // Prepare result
+      // Prepare result with role metadata
       const result = {
         structuredScenario,
         contextInfo: {
@@ -251,25 +299,29 @@ Your scenarios should feel like actual questions a candidate would receive in a 
           relevanceScore: context.relevanceScore,
           suggestedAnalogyPoints: context.suggestedAnalogyPoints,
         },
+        roleFamily: selectedRole,
+        wasRoleAutoSelected,
       };
 
-      // Step 6: Save to cache for future use
-      try {
-        await saveTransformation(
-          {
-            problemId,
-            companyId,
-            scenario: scenarioText,
-            functionMapping: structuredScenario.functionMapping,
-            contextInfo: result.contextInfo,
-          },
-          roleFamily
-        );
-        console.log(`Saved transformation for problem ${problemId}, company ${companyId}${roleFamily ? `, role ${roleFamily}` : ''}`);
-      } catch (error) {
-        // Log error but don't fail the transformation
-        console.error('Error saving transformation to cache:', error);
-      }
+      // Step 7: Save to cache asynchronously (non-blocking for user response)
+      // Fire-and-forget: cache write happens in background without blocking user
+      saveTransformation(
+        {
+          problemId,
+          companyId,
+          scenario: scenarioText,
+          functionMapping: structuredScenario.functionMapping,
+          contextInfo: result.contextInfo,
+        },
+        selectedRole
+      )
+        .then(() => {
+          console.log(`Saved transformation for problem ${problemId}, company ${companyId}, role ${selectedRole}${wasRoleAutoSelected ? ' (auto-selected)' : ''}`);
+        })
+        .catch((error) => {
+          // Log error but don't fail the transformation
+          console.error('Error saving transformation to cache:', error);
+        });
 
       return result;
     } catch (error) {
@@ -286,36 +338,163 @@ const transformer = new ProblemTransformerOrchestrator();
  * Transform a problem into a company-specific scenario.
  * This is the main entry point for the transformation API.
  *
+ * Role Handling (CENTRALIZED):
+ * - If role is provided: Uses specified role for transformation
+ * - If role is NOT provided: Auto-selects a random role for diversity
+ * - All transformations get role-enhanced prompts
+ *
+ * The role influences:
+ * - Problem framing and context
+ * - Technology stack and terminology used
+ * - Real-world scenarios and examples
+ * - Algorithmic emphasis and focus areas
+ *
  * @param problemId - Unique identifier for the problem to transform
  * @param companyId - Unique identifier for the target company
- * @param roleFamily - Optional role for role-specific transformation
+ * @param roleFamily - Optional role for role-specific transformation (auto-selected if not provided)
  * @param useCache - Whether to use cached transformations (default: true)
- * @returns Complete transformation result
+ * @param prefetchedProblem - Optional pre-fetched problem data to avoid redundant DB reads
+ * @param prefetchedCompany - Optional pre-fetched company data to avoid redundant DB reads
+ * @returns Complete transformation result with role-enhanced content and role metadata
  */
 export async function transformProblem(
   problemId: string,
   companyId: string,
   roleFamily?: RoleFamily,
-  useCache: boolean = true
+  useCache: boolean = true,
+  prefetchedProblem?: Problem | null,
+  prefetchedCompany?: Company | null
 ) {
-  return transformer.transformProblem(problemId, companyId, roleFamily, useCache);
+  return transformer.transformProblem(problemId, companyId, roleFamily, useCache, prefetchedProblem, prefetchedCompany);
+}
+
+/**
+ * Transform and prepare a complete problem with all mappings applied.
+ * This is a higher-level function that combines transformation with problem fetching
+ * and function mapping application. Use this when you need a fully prepared problem
+ * ready for presentation to the user.
+ *
+ * Role Handling:
+ * - If role is provided: Uses specified role
+ * - If role is NOT provided: Delegates to transformProblem which auto-selects
+ * - All transformations get role-enhanced prompts
+ *
+ * Workflow:
+ * 1. Fetch original problem data from database
+ * 2. Get or generate role-enhanced transformation (auto-selected if not provided)
+ * 3. Extract language-specific code details
+ * 4. Apply function/class name mappings to all code and test cases
+ * 5. Return fully prepared problem with transformed content and role metadata
+ *
+ * @param problemId - Unique identifier for the problem to transform
+ * @param companyId - Unique identifier for the target company
+ * @param roleFamily - Optional role for role-specific transformation (auto-selected if not provided)
+ * @param useCache - Whether to use cached transformations (default: true)
+ * @returns Fully prepared problem with applied mappings, role-enhanced content, and metadata
+ * @throws Error if problem not found, transformation fails, or language details missing
+ *
+ * @example
+ * ```typescript
+ * // With explicit role
+ * const prepared = await transformAndPrepareProblem('two-sum', 'google', RoleFamily.BACKEND_SYSTEMS);
+ * // With auto-selected role
+ * const prepared = await transformAndPrepareProblem('two-sum', 'google');
+ * console.log(prepared.roleFamily); // Shows which role was used
+ * console.log(prepared.wasRoleAutoSelected); // true if auto-selected
+ * ```
+ */
+export async function transformAndPrepareProblem(
+  problemId: string,
+  companyId: string,
+  roleFamily?: RoleFamily,
+  useCache: boolean = true
+): Promise<{
+  transformedProblem: {
+    structuredScenario: StructuredScenario;
+    contextInfo: {
+      detectedAlgorithms: string[];
+      detectedDataStructures: string[];
+      relevanceScore: number;
+      suggestedAnalogyPoints: string[];
+    };
+  };
+  problemData: Problem;
+  appliedMappings: {
+    defaultUserCode: string;
+    boilerplateCode: string;
+    testCases: TestCase[];
+    functionName: string;
+    solutionStructureHint: string;
+  };
+  roleFamily: RoleFamily;
+  wasRoleAutoSelected: boolean;
+}> {
+  // Step 1: Fetch problem and company data in parallel (latency optimization)
+  const [problem, company] = await Promise.all([
+    getProblemById(problemId),
+    getCompanyById(companyId)
+  ]);
+
+  if (!problem) {
+    throw new Error(`Problem not found: ${problemId}`);
+  }
+  if (!company) {
+    throw new Error(`Company not found: ${companyId}`);
+  }
+
+  // Step 2: Get or generate transformation, passing pre-fetched data to avoid redundant DB reads
+  const transformResult = await transformProblem(problemId, companyId, roleFamily, useCache, problem, company);
+
+  // Step 3: Extract Python-specific code details
+  // TODO: Make this language-agnostic by accepting language parameter
+  const pythonDetails = problem.languageSpecificDetails?.python;
+  if (!pythonDetails) {
+    throw new Error(`Python implementation details not available for problem: ${problemId}`);
+  }
+
+  // Step 4: Apply function/class name mappings to all code elements
+  const mappings = transformResult.structuredScenario.functionMapping;
+
+  return {
+    transformedProblem: {
+      structuredScenario: transformResult.structuredScenario,
+      contextInfo: transformResult.contextInfo,
+    },
+    problemData: problem,
+    appliedMappings: {
+      defaultUserCode: applyFunctionMappings(pythonDetails.defaultUserCode, mappings),
+      boilerplateCode: applyFunctionMappings(pythonDetails.boilerplateCodeWithPlaceholder, mappings),
+      testCases: applyMappingsToTestCases(problem.testCases, mappings),
+      functionName: applyFunctionMappings(pythonDetails.solutionFunctionNameOrClassName, mappings),
+      solutionStructureHint: applyFunctionMappings(pythonDetails.solutionStructureHint, mappings),
+    },
+    roleFamily: transformResult.roleFamily,
+    wasRoleAutoSelected: transformResult.wasRoleAutoSelected,
+  };
 }
 
 /**
  * Create transformation context for a problem and company.
  * Useful for previewing context without performing full transformation.
  *
+ * Note: This is a lower-level function. For full transformations with auto-role
+ * selection, use transformProblem() instead.
+ *
  * @param problemId - Unique identifier for the problem
  * @param companyId - Unique identifier for the company
- * @param roleFamily - Optional role for role-specific context
+ * @param roleFamily - Role for role-specific context (required at this level)
+ * @param prefetchedProblem - Optional pre-fetched problem data to avoid redundant DB reads
+ * @param prefetchedCompany - Optional pre-fetched company data to avoid redundant DB reads
  * @returns Transformation context or null if data not found
  */
 export async function createTransformationContext(
   problemId: string,
   companyId: string,
-  roleFamily?: RoleFamily
+  roleFamily: RoleFamily,
+  prefetchedProblem?: Problem | null,
+  prefetchedCompany?: Company | null
 ) {
-  return transformer.createTransformationContext(problemId, companyId, roleFamily);
+  return transformer.createTransformationContext(problemId, companyId, roleFamily, prefetchedProblem, prefetchedCompany);
 }
 
 /**
@@ -347,6 +526,7 @@ export type { RoleFamily } from '@/data-types/role';
 // Default export for backward compatibility
 const problemTransformerUtils = {
   transformProblem,
+  transformAndPrepareProblem,
   createTransformationContext,
   findMostRelevantCompany,
   parseScenarioIntoSections,

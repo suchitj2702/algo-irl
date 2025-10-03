@@ -76,3 +76,15 @@ export interface RoleProblemAlignment {
   /** Overall alignment strength */
   alignmentStrength: 'low' | 'medium' | 'high';
 }
+
+/**
+ * Select a random role from available RoleFamily values.
+ * This ensures diverse problem transformations when no specific role is requested.
+ *
+ * @returns A randomly selected RoleFamily value
+ */
+export function getRandomRole(): RoleFamily {
+  const roles = Object.values(RoleFamily);
+  const randomIndex = Math.floor(Math.random() * roles.length);
+  return roles[randomIndex];
+}

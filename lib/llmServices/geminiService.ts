@@ -14,23 +14,39 @@ export interface GeminiModelOptions {
 }
 
 export class GeminiService {
-    private client: GoogleGenerativeAI;
+    private client: GoogleGenerativeAI | null = null;
     private modelCache: { [modelName: string]: GenerativeModel } = {};
 
     constructor(apiKey?: string) {
         const effectiveApiKey = apiKey || process.env.GEMINI_API_KEY;
         if (!effectiveApiKey) {
-            throw new Error('Gemini API key is required. Set GEMINI_API_KEY environment variable or pass it to the constructor.');
+            // Don't throw immediately - allow lazy initialization
+            console.warn('Warning: Gemini API key not found. Set GEMINI_API_KEY or provide key to constructor.');
+            return;
         }
         this.client = new GoogleGenerativeAI(effectiveApiKey);
     }
 
+    private ensureClient(): GoogleGenerativeAI {
+        if (!this.client) {
+            // Try one more time in case env was set after construction
+            const key = process.env.GEMINI_API_KEY;
+            if (key) {
+                this.client = new GoogleGenerativeAI(key);
+            } else {
+                throw new Error('Gemini API key is required. Set GEMINI_API_KEY environment variable or pass it to the constructor.');
+            }
+        }
+        return this.client;
+    }
+
     private getModel(modelName: string, systemInstruction?: string): GenerativeModel {
+        const client = this.ensureClient();
         const cacheKey = systemInstruction ? `${modelName}-${systemInstruction}` : modelName;
         if (!this.modelCache[cacheKey]) {
-            this.modelCache[cacheKey] = this.client.getGenerativeModel({ 
-                model: modelName, 
-                ...(systemInstruction && { systemInstruction }) 
+            this.modelCache[cacheKey] = client.getGenerativeModel({
+                model: modelName,
+                ...(systemInstruction && { systemInstruction })
             });
         }
         return this.modelCache[cacheKey];

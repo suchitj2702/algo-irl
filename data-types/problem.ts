@@ -41,6 +41,7 @@ export interface LanguageSpecificProblemDetails {
 export interface ProblemTransformRequest {
   problemId: string;
   companyId: string;
+  roleFamily?: string; // RoleFamily enum value (optional in request, will be auto-selected if not provided)
   useCache?: boolean;
 }
 
@@ -52,7 +53,9 @@ export interface TransformationResult {
     detectedDataStructures: string[];
     relevanceScore: number;
     suggestedAnalogyPoints: string[];
-  }
+  };
+  roleFamily: string; // RoleFamily enum value (always present - either provided or auto-selected)
+  wasRoleAutoSelected?: boolean; // Indicates if role was automatically selected
 }
 
 export interface ProblemTransformation {
@@ -78,4 +81,49 @@ export interface Scenario {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   cacheExpiry?: Timestamp;
+}
+
+/**
+ * Response type for the /api/problem/prepare endpoint.
+ * This represents a fully prepared problem ready for presentation to the user.
+ *
+ * Role is always included in the response - either provided by the user or auto-selected
+ * for diversity in problem transformations.
+ */
+export interface PreparedProblemResponse {
+  problem: {
+    id: string;
+    title: string;
+    difficulty: ProblemDifficulty;
+    background: string;
+    problemStatement: string;
+    constraints: string[];
+    examples: Array<{
+      input: string;
+      output: string;
+      explanation?: string;
+    }>;
+    requirements: string[];
+    testCases: TestCase[];
+    leetcodeUrl?: string;
+    categories: string[];
+    timeComplexity?: string | null;
+    spaceComplexity?: string | null;
+  };
+  codeDetails: {
+    functionName: string;
+    solutionStructureHint: string;
+    defaultUserCode: string;
+    boilerplateCode: string;
+  };
+  roleMetadata: {
+    roleFamily: string; // RoleFamily enum value (always present)
+    wasRoleAutoSelected: boolean; // True if role was auto-selected, false if user-provided
+    contextInfo: {
+      detectedAlgorithms: string[];
+      detectedDataStructures: string[];
+      relevanceScore: number;
+      suggestedAnalogyPoints: string[];
+    };
+  };
 } 

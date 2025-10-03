@@ -1,0 +1,16 @@
+# Ignore input files (contains problem list)
+input/problems.txt
+
+# Ignore output files
+output/batch-prompts/*.jsonl
+output/batch-jobs/*.json
+output/batch-results/*.jsonl
+
+# Keep the directories but ignore their contents
+!output/batch-prompts/.gitkeep
+!output/batch-jobs/.gitkeep
+!output/batch-results/.gitkeep
+
+# Ignore any error logs
+*.log
+errors.json

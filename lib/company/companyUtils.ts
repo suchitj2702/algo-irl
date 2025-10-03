@@ -2,6 +2,7 @@ import { adminDb } from '../firebase/firebaseAdmin';
 import { Timestamp } from 'firebase-admin/firestore';
 import { Company } from "@/data-types/company";
 import { generateCompanyDataWithPrompt } from "@/lib/llmServices/llmUtils";
+import { getCachedCompany, cacheCompany } from '../problem/requestCache';
 
 /**
  * Company Management Utilities
@@ -128,12 +129,22 @@ export async function initializeTechCompanies(): Promise<void> {
  */
 export async function getCompanyById(companyId: string): Promise<Company | null> {
   try {
+    // Check request-level cache first (latency optimization)
+    const cachedCompany = getCachedCompany(companyId);
+    if (cachedCompany) {
+      return cachedCompany;
+    }
+
+    // Cache miss - fetch from Firestore
     const db = adminDb();
     const docRef = db.collection('companies-v2').doc(companyId);
     const docSnap = await docRef.get();
-    
+
     if (docSnap.exists) {
-      return convertFirestoreToCompany(docSnap);
+      const company = convertFirestoreToCompany(docSnap);
+      // Cache the result for subsequent requests
+      cacheCompany(companyId, company);
+      return company;
     } else {
       console.log(`Company with ID ${companyId} not found`);
       return null;

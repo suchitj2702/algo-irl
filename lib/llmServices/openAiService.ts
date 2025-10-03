@@ -25,21 +25,37 @@ export interface OpenAiModelOptions {
 }
 
 export class OpenAiService {
-    private client: OpenAI;
+    private client: OpenAI | null = null;
 
     constructor(apiKey?: string) {
         const effectiveApiKey = apiKey || process.env.OPENAI_API_KEY;
         if (!effectiveApiKey) {
-            throw new Error('OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass it to the constructor.');
+            // Don't throw immediately - allow lazy initialization
+            console.warn('Warning: OpenAI API key not found. Set OPENAI_API_KEY or provide key to constructor.');
+            return;
         }
         this.client = new OpenAI({ apiKey: effectiveApiKey });
     }
 
+    private ensureClient(): OpenAI {
+        if (!this.client) {
+            // Try one more time in case env was set after construction
+            const key = process.env.OPENAI_API_KEY;
+            if (key) {
+                this.client = new OpenAI({ apiKey: key });
+            } else {
+                throw new Error('OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass it to the constructor.');
+            }
+        }
+        return this.client;
+    }
+
     public async callOpenAiModel(
-        model: string, 
-        promptContent: string, 
+        model: string,
+        promptContent: string,
         optionsOrSystemPrompt?: string | OpenAiModelOptions
     ): Promise<string> {
+        const client = this.ensureClient();
         let retries = 0;
 
         // Handle both legacy string systemPrompt and new options object
@@ -71,7 +87,7 @@ export class OpenAiService {
                     requestParams.reasoning = options.reasoning || { effort: "medium" };
                 }
 
-                const completion = await this.client.chat.completions.create(requestParams);
+                const completion = await client.chat.completions.create(requestParams);
 
                 const responseText = completion.choices[0]?.message?.content;
 

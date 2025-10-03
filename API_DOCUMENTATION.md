@@ -146,29 +146,19 @@ GET /api/problem/filter?isBlind75={boolean}&difficulty={difficulty}
 }
 ```
 
-#### 6. Import Problems (Batch)
-```http
-POST /api/problem/import-batch
-```
+#### 6. Import Problems (Batch) - DEPRECATED
 
-**Request Body:**
-```json
-{
-  "urls": [
-    "https://leetcode.com/problems/two-sum/",
-    "https://leetcode.com/problems/valid-parentheses/"
-  ]
-}
-```
+> **⚠️ This endpoint has been deprecated.**
+> Use the new batch processing system instead:
+> `scripts/batch-problem-generation/` - See [README](scripts/batch-problem-generation/README.md) for usage.
 
-**Response:**
-```json
-{
-  "success": true,
-  "successCount": 2,
-  "errors": []
-}
-```
+The new system offers:
+- 50% cost savings via Claude Batch API
+- Better scalability (handle thousands of problems)
+- Improved monitoring and error handling
+- Resumable batch jobs
+
+---
 
 #### 7. Transform Problem
 ```http
