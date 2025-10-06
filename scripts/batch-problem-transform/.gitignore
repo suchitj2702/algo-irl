@@ -1,0 +1,38 @@
+# Output directories - generated files should not be committed
+output/
+output/**/*
+
+# Input files may contain sensitive or large datasets
+input/*.txt
+
+# Keep directory structure with .gitkeep files
+!output/.gitkeep
+!input/.gitkeep
+
+# Node modules (if any local dependencies)
+node_modules/
+
+# Environment files (should be in root .gitignore, but keeping for safety)
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

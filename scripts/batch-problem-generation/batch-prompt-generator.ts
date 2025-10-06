@@ -24,6 +24,7 @@ import {
   extractSlugFromUrl,
   getProblemDataGenerationPrompt,
   PROBLEM_GENERATION_SYSTEM_PROMPT,
+  slugToProblemName,
   INPUT_DIR,
   BATCH_PROMPTS_DIR,
 } from './utils';
@@ -31,28 +32,51 @@ import {
 // Import Firestore to check existing problems
 import { adminDb } from '../../lib/firebase/firebaseAdmin';
 
+// Import LLM task configuration
+import { llmTaskConfigurations } from '../../lib/llmServices/llmUtils';
+
 // Constants
 const CLAUDE_BATCH_LIMIT = 10000; // Maximum requests per batch file
 const INPUT_FILE = path.join(INPUT_DIR, 'problems.txt');
 
-// Model configuration (from llmTaskConfigurations.problemGeneration)
-const CLAUDE_MODEL = 'claude-3-7-sonnet-20250219';
-const MAX_TOKENS = 16384;
-const THINKING_BUDGET_TOKENS = 8192;
+// Model configuration from llmTaskConfigurations.problemGeneration
+const problemGenConfig = llmTaskConfigurations.problemGeneration;
+const CLAUDE_MODEL = problemGenConfig.model;
+const MAX_TOKENS = problemGenConfig.max_tokens || 16384;
+const THINKING_BUDGET_TOKENS = problemGenConfig.claude_options?.thinking?.budget_tokens || 8192;
+
+/**
+ * Generate a shortened custom_id that fits within Anthropic's 64 character limit.
+ * Uses base index + hash for uniqueness when slug is too long.
+ */
+function generateCustomId(slug: string, index: number): string {
+  // Anthropic Batch API custom_id limit is 64 characters
+  const MAX_CUSTOM_ID_LENGTH = 64;
+
+  if (slug.length <= MAX_CUSTOM_ID_LENGTH) {
+    return slug;
+  }
+
+  // For long slugs, use: "idx_<index>_<first40chars>_<hash>"
+  // This ensures uniqueness and readability
+  const hash = require('crypto').createHash('md5').update(slug).digest('hex').substring(0, 8);
+  const prefix = `idx_${index}_`;
+  const maxSlugChars = MAX_CUSTOM_ID_LENGTH - prefix.length - 1 - hash.length; // -1 for underscore
+  const truncatedSlug = slug.substring(0, maxSlugChars);
+
+  return `${prefix}${truncatedSlug}_${hash}`;
+}
 
 /**
  * Generate Claude Batch API request for a problem
  */
-function generateBatchRequest(url: string, slug: string): ClaudeBatchRequest {
-  const problemName = slug
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-
+function generateBatchRequest(url: string, slug: string, index: number): ClaudeBatchRequest {
+  const problemName = slugToProblemName(slug);
   const prompt = getProblemDataGenerationPrompt(problemName, slug);
+  const customId = generateCustomId(slug, index);
 
   return {
-    custom_id: slug,
+    custom_id: customId,
     params: {
       model: CLAUDE_MODEL,
       max_tokens: MAX_TOKENS,
@@ -206,10 +230,19 @@ async function main() {
 
   log(`Generating prompts for ${newProblems.length} new problems`, 'info');
 
-  // Generate batch requests
-  const allRequests: ClaudeBatchRequest[] = newProblems.map(({ url, slug }) =>
-    generateBatchRequest(url, slug)
+  // Generate batch requests with index for custom_id generation
+  const allRequests: ClaudeBatchRequest[] = newProblems.map(({ url, slug }, index) =>
+    generateBatchRequest(url, slug, index)
   );
+
+  // Create mapping file: custom_id -> slug (for long slugs that were shortened)
+  const idMapping: Record<string, string> = {};
+  allRequests.forEach((req, index) => {
+    const slug = newProblems[index].slug;
+    if (req.custom_id !== slug) {
+      idMapping[req.custom_id] = slug;
+    }
+  });
 
   // Split into batch files (max CLAUDE_BATCH_LIMIT per file)
   const batches: ClaudeBatchRequest[][] = [];
@@ -218,6 +251,23 @@ async function main() {
   }
 
   log(`Splitting into ${batches.length} batch file(s)`, 'info');
+
+  // Save ID mapping file if there are any shortened IDs
+  if (Object.keys(idMapping).length > 0) {
+    const mappingPath = path.join(BATCH_PROMPTS_DIR, 'id-mapping.json');
+
+    // Load existing mapping if it exists
+    let existingMapping: Record<string, string> = {};
+    if (fs.existsSync(mappingPath)) {
+      existingMapping = JSON.parse(fs.readFileSync(mappingPath, 'utf-8'));
+    }
+
+    // Merge with new mapping
+    const combinedMapping = { ...existingMapping, ...idMapping };
+    fs.writeFileSync(mappingPath, JSON.stringify(combinedMapping, null, 2), 'utf-8');
+
+    log(`Updated ID mapping file with ${Object.keys(idMapping).length} shortened IDs`, 'info');
+  }
 
   // Save batch files
   let batchIndex = getNextBatchIndex();

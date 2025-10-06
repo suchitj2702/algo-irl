@@ -13,12 +13,100 @@ import { getCachedProblem, cacheProblem } from './requestCache';
 
 // LLM Service Imports
 import {
-    getProblemDataGenerationPrompt,
     parseAndProcessProblemData,
-    PROBLEM_GENERATION_SYSTEM_PROMPT,
     ProcessedProblemData,
     executeLlmTask
 } from "@/lib/llmServices/llmUtils";
+
+// Re-export parseAndProcessProblemData for convenience
+export { parseAndProcessProblemData } from "@/lib/llmServices/llmUtils";
+
+/**
+ * System prompt for algorithm problem generation.
+ * This prompt instructs the AI to generate comprehensive problem data
+ * including test cases, solution approaches, and language-specific details.
+ */
+export const PROBLEM_GENERATION_SYSTEM_PROMPT = `You are a specialized data generator for algorithm problems.
+You know the details of common LeetCode problems.
+When given a problem name/slug, generate realistic, detailed problem data.
+IMPORTANT: You MUST include comprehensive solution approaches for every problem, providing multiple approaches when applicable.
+Your solution approaches should be detailed, including code examples and explanations of how the solutions work. ` +
+`Every field requested in the prompt MUST be included in your response. Make the problem description detailed ` +
+`and the test cases realistic.`;
+
+/**
+ * Generates a comprehensive prompt for LeetCode problem data generation.
+ * This function creates detailed instructions for AI to generate complete problem data
+ * including test cases, constraints, solution approaches, and language-specific code.
+ *
+ * @param problemName - The display name of the LeetCode problem
+ * @param problemSlug - The URL slug identifier for the problem
+ * @returns Comprehensive prompt string for AI problem generation
+ */
+export function getProblemDataGenerationPrompt(problemName: string, problemSlug: string): string {
+    // If language/version specific details are needed later, pass context object
+    const pythonVersionString = '3.8'; // Use a generic placeholder if needed in string
+    return `Generate structured data for the LeetCode problem "${problemName}" (slug: "${problemSlug}").
+
+Based on your knowledge of this common algorithmic problem, provide the following in a valid JSON format only:
+{
+  "title": "(string) The full title of the problem.",
+  "difficulty": "(string) Easy, Medium, or Hard.",
+  "categories": ["(string) Array", "(string) Hash Table"],
+  "description": "(string) A detailed problem description. This MUST clearly state the expected function signature or class structure ` +
+    `(e.g., for Python using \`typing.List\`): \`from typing import List; def twoSum(nums: List[int], target: int) -> List[int]:\`). ` +
+    `Include any helper class definitions (like TreeNode) standard for the problem. If providing code examples within the description, ` +
+    `ensure they are formatted as valid JSON strings (e.g., newlines as \\\\n, quotes as \\\\\\", etc.).",
+  "constraints": ["(string) 2 <= nums.length <= 10^4", "(string) -10^9 <= nums[i] <= 10^9"],
+  "testCases": [
+    {
+      "stdin": "(string) A JSON string representing the input. Example: {\\\\\\\"nums\\\\\\\": [2, 7, 11, 15], \\\\\\\"target\\\\\\\": 9}",
+      "expectedStdout": "(string) A JSON string representing the array of expected output. Example: [0, 1]. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.",
+      "isSample": true
+    }
+  ],
+  "solutionApproach": "(string) Detailed explanation of efficient solution approaches. Must not be null or empty. No need to include code.",
+  "timeComplexity": "(string) Big O time complexity of optimal solution (e.g., O(n)). Must not be null or empty.",
+  "spaceComplexity": "(string) Big O space complexity of optimal solution (e.g., O(1) or O(n)). Must not be null or empty.",
+  "languageSpecificDetails": {
+    "python": {
+      "solutionFunctionNameOrClassName": "(string) e.g., twoSum or Solution",
+      "solutionStructureHint": "(string) Python (${pythonVersionString}): Example for Python 3.8 compatibility - \`from typing import List; ` +
+        `def twoSum(nums: List[int], target: int) -> List[int]:\` or \`from typing import List; class Solution:\\\\n    ` +
+        `def twoSum(self, nums: List[int], target: int) -> List[int]:\`",
+      "defaultUserCode": "(string) The MINIMAL skeleton code for the user, compatible with ${pythonVersionString}. ` +
+        `For type hints, use the 'typing' module. E.g., \`from typing import List; def twoSum(nums: List[int], target: int) -> List[int]:\\\\n    pass\` ` +
+        `or \`from typing import List; class Solution:\\\\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\\\\n        pass\`. ` +
+        `NO helper classes or solution logic here.",
+      "boilerplateCodeWithPlaceholder": "(string) COMPLETE runnable Python script for Judge0, compatible with ${pythonVersionString}. ` +
+        `It MUST include imports like \`from typing import List, Dict, Optional\` if type hints such as \`List[int]\` are used. ` +
+        `Also include other standard imports (json, sys), helper classes (e.g., TreeNode if relevant for the problem), ` +
+        `the placeholder \`%%USER_CODE_PYTHON%%\`, robust stdin/stdout JSON handling, and error handling. Example for Two Sum using \`typing.List\`: ` +
+        `import json; import sys; from typing import List; %%USER_CODE_PYTHON%% if __name__ == '__main__': try: input_str = sys.stdin.read(); ` +
+        `data = json.loads(input_str); nums_arg = data['nums']; target_arg = data['target']; ` +
+        `# Ensure function (e.g. twoSum) is defined by user code; result = twoSum(nums_arg, target_arg); print(json.dumps(result)); ` +
+        `except Exception as e: print(f'Execution Error: {str(e)}', file=sys.stderr); sys.exit(1)\\"",
+      "optimizedSolutionCode": "(string) The COMPLETE and correct solution code for the function/class specified in solutionFunctionNameOrClassName, ` +
+        `compatible with ${pythonVersionString}. This code should be ready to be inserted into the boilerplate placeholder and pass all test cases."
+    }
+  }
+}
+
+IMPORTANT INSTRUCTIONS FOR AI:
+1.  The entire response MUST be a single, valid JSON object. Do not include any text, explanations, or markdown formatting like \`\`\`json ` +
+    `before or after the JSON object.
+2.  Every field specified in the structure above MUST be included.
+3.  For the 'testCases' field: Generate 10 diverse test cases. It MUST be a valid JSON array of objects. Each object must be ` +
+    `a complete JSON object, and array elements correctly comma-separated. NO TRAILING COMMAS. 'stdin' and 'expectedStdout' fields must be ` +
+    `valid JSON STRINGS, meaning special characters (like quotes, newlines) within these strings must be properly escaped ` +
+    `(e.g., use \\\\\\\\\\\" for a quote inside the string). Example of a test case object: {\\\"stdin\\\": \\\"{\\\\\\\\\\\"root\\\\\\\\\\\\\": [1,2,3,null,null,4,5]}\\\", ` +
+    `\\\"expectedStdout\\\": \\\"[[1],[2,3],[4,5]]\\\", \\\"isSample\\\": true}.
+4. CRITICAL: The 'testCases' you generate MUST be correct. Verify that the 'expectedStdout' for each test case is the actual output ` +
+    `produced when the corresponding 'stdin' is processed by the 'optimizedSolutionCode' you provide for the primary language (Python). ` +
+    `Incorrect test cases are unacceptable.
+5. For each test case generated, perform a dry run of the 'optimizedSolutionCode' with the 'stdin' to ensure it is correct. IF IT IS NOT CORRECT, REMOVE IT;`  +
+`6. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.`;
+}
 
 // Define a custom error for verification failures
 class VerificationError extends Error {
@@ -29,14 +117,29 @@ class VerificationError extends Error {
 }
 
 /**
- * Extracts the problem's title slug from a LeetCode URL.
- * Example: "https://leetcode.com/problems/two-sum/" -> "two-sum"
- * Returns null if the URL is invalid or doesn't match the pattern.
+ * Extracts the problem's title slug from a LeetCode URL or validates a slug.
+ * Supports both formats:
+ * - Full URL: "https://leetcode.com/problems/two-sum/" -> "two-sum"
+ * - Slug only: "two-sum" -> "two-sum"
+ * Returns null if the input is invalid.
  */
-export const extractSlugFromUrl = (url: string): string | null => {
+export function extractSlugFromUrl(input: string): string | null {
+    const trimmedInput = input.trim().replace(/\/$/, ''); // Remove trailing slash
+
+    // First, check if input is already a slug (no protocol, no slashes)
+    // Slug format: lowercase letters, numbers, and hyphens only
+    if (!trimmedInput.includes('://') && !trimmedInput.includes('/')) {
+        if (/^[a-z0-9-]+$/.test(trimmedInput)) {
+            return trimmedInput;
+        }
+        // Invalid slug format
+        return null;
+    }
+
+    // Try to parse as URL
     try {
-        const parsedUrl = new URL(url);
-        if (parsedUrl.hostname !== "leetcode.com") {
+        const parsedUrl = new URL(input);
+        if (parsedUrl.hostname !== 'leetcode.com') {
             return null;
         }
         const pathParts = parsedUrl.pathname.split('/').filter(part => part !== '');
@@ -44,24 +147,38 @@ export const extractSlugFromUrl = (url: string): string | null => {
             return pathParts[1];
         }
         return null;
-    } catch (error) {
-        console.error(`Error parsing URL ${url}:`, error);
+    } catch {
+        // URL parsing failed and it's not a valid slug
         return null;
     }
-};
+}
 
-// Helper function for converting Problem objects to Firestore data (Admin SDK)
-const convertProblemToFirestore = (
+/**
+ * Converts a problem slug to a human-readable problem name.
+ * Example: "two-sum" -> "Two Sum"
+ */
+export function slugToProblemName(slug: string): string {
+    return slug
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+/**
+ * Helper function for converting Problem objects to Firestore data (Admin SDK).
+ * Exported for use in batch scripts and API routes.
+ */
+export function convertProblemToFirestore(
     modelObject: Partial<Problem>
-): Record<string, unknown> => {
+): Record<string, unknown> {
     const data = { ...modelObject } as Partial<Problem>;
     delete data.id;
-    
+
     data.updatedAt = Timestamp.now();
     if (!data.createdAt) {
         data.createdAt = Timestamp.now();
     }
-    
+
     if (data.createdAt instanceof Date) {
         data.createdAt = Timestamp.fromDate(data.createdAt);
     }
@@ -69,7 +186,7 @@ const convertProblemToFirestore = (
         data.updatedAt = Timestamp.fromDate(data.updatedAt);
     }
     return data as Record<string, unknown>;
-};
+}
 
 // Helper function for converting Firestore data to Problem objects (Admin SDK)
 const convertFirestoreToProblem = (doc: FirebaseFirestore.DocumentSnapshot): Problem => {
@@ -254,16 +371,20 @@ export const fetchAndImportProblemByUrl = async (url: string): Promise<{ success
 };
 
 // Helper function for polling (extracted from previous logic)
-async function pollForResults(client: Judge0Client, tokens: string, expectedCount: number): Promise<Judge0SubmissionDetail[]> {
+/**
+ * Helper function to poll Judge0 for batch submission results.
+ * Exported for use in batch scripts and API routes.
+ */
+export async function pollForResults(client: Judge0Client, tokens: string, expectedCount: number): Promise<Judge0SubmissionDetail[]> {
     let submissionDetails: Judge0SubmissionDetail[] = [];
     let attempts = 0;
-    const maxPollingAttempts = 15; 
-    const pollingIntervalMs = 2000; 
+    const maxPollingAttempts = 15;
+    const pollingIntervalMs = 2000;
 
     while (attempts < maxPollingAttempts) {
         await new Promise(resolve => setTimeout(resolve, pollingIntervalMs));
         const batchDetailsResponse = await client.getBatchSubmissionDetails(tokens);
-        
+
         if (batchDetailsResponse && batchDetailsResponse.submissions) {
             const allProcessed = batchDetailsResponse.submissions.every(s => s.status.id > 2);
             if (allProcessed && batchDetailsResponse.submissions.length === expectedCount) {

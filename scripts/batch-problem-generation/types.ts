@@ -44,6 +44,7 @@ export interface BatchMetadata {
   };
   results?: {
     total_processed: number;
+    skipped_existing: number;
     successfully_verified: number;
     verification_failed: number;
     uploaded_to_firestore: number;
@@ -67,13 +68,16 @@ export interface ProblemProcessingResult {
  */
 export interface BatchProcessingSummary {
   total_problems: number;
+  skipped_existing: number;
   successful_parsing: number;
   failed_parsing: number;
   successful_verification: number;
   failed_verification: number;
   uploaded_to_firestore: number;
+  failed_upload: number;
   errors: Array<{
     slug: string;
     error: string;
+    phase: 'parsing' | 'verification' | 'upload';
   }>;
 }

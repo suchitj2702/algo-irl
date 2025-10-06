@@ -127,97 +127,10 @@ interface CustomPromptCacheEntry {
 const customPromptCache: { [key: string]: CustomPromptCacheEntry } = {};
 
 /**
- * System prompt for algorithm problem generation.
- * This prompt instructs the AI to generate comprehensive problem data
- * including test cases, solution approaches, and language-specific details.
- */
-export const PROBLEM_GENERATION_SYSTEM_PROMPT = `You are a specialized data generator for algorithm problems.
-You know the details of common LeetCode problems.
-When given a problem name/slug, generate realistic, detailed problem data.
-IMPORTANT: You MUST include comprehensive solution approaches for every problem, providing multiple approaches when applicable.
-Your solution approaches should be detailed, including code examples and explanations of how the solutions work. ` +
-`Every field requested in the prompt MUST be included in your response. Make the problem description detailed ` +
-`and the test cases realistic.`;
-
-/**
  * System prompt for company data generation.
  * This prompt ensures accurate and structured company information generation.
  */
 export const COMPANY_DATA_SYSTEM_PROMPT = `You are an expert on technology companies and their engineering practices. Generate comprehensive, accurate information about companies' technology stacks, products, and engineering culture based on your knowledge.`;
-
-/**
- * Generates a comprehensive prompt for LeetCode problem data generation.
- * This function creates detailed instructions for AI to generate complete problem data
- * including test cases, constraints, solution approaches, and language-specific code.
- * 
- * @param problemName - The display name of the LeetCode problem
- * @param problemSlug - The URL slug identifier for the problem
- * @returns Comprehensive prompt string for AI problem generation
- */
-export function getProblemDataGenerationPrompt(problemName: string, problemSlug: string): string {
-    // If language/version specific details are needed later, pass context object
-    const pythonVersionString = '3.8'; // Use a generic placeholder if needed in string
-    return `Generate structured data for the LeetCode problem "${problemName}" (slug: "${problemSlug}").
-
-Based on your knowledge of this common algorithmic problem, provide the following in a valid JSON format only:
-{
-  "title": "(string) The full title of the problem.",
-  "difficulty": "(string) Easy, Medium, or Hard.",
-  "categories": ["(string) Array", "(string) Hash Table"],
-  "description": "(string) A detailed problem description. This MUST clearly state the expected function signature or class structure ` +
-    `(e.g., for Python using \`typing.List\`): \`from typing import List; def twoSum(nums: List[int], target: int) -> List[int]:\`). ` +
-    `Include any helper class definitions (like TreeNode) standard for the problem. If providing code examples within the description, ` +
-    `ensure they are formatted as valid JSON strings (e.g., newlines as \\\\n, quotes as \\\\\\", etc.).",
-  "constraints": ["(string) 2 <= nums.length <= 10^4", "(string) -10^9 <= nums[i] <= 10^9"],
-  "testCases": [
-    {
-      "stdin": "(string) A JSON string representing the input. Example: {\\\\\\\"nums\\\\\\\": [2, 7, 11, 15], \\\\\\\"target\\\\\\\": 9}",
-      "expectedStdout": "(string) A JSON string representing the array of expected output. Example: [0, 1]. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.",
-      "isSample": true
-    }
-  ],
-  "solutionApproach": "(string) Detailed explanation of efficient solution approaches. Must not be null or empty. No need to include code.",
-  "timeComplexity": "(string) Big O time complexity of optimal solution (e.g., O(n)). Must not be null or empty.",
-  "spaceComplexity": "(string) Big O space complexity of optimal solution (e.g., O(1) or O(n)). Must not be null or empty.",
-  "languageSpecificDetails": {
-    "python": {
-      "solutionFunctionNameOrClassName": "(string) e.g., twoSum or Solution",
-      "solutionStructureHint": "(string) Python (${pythonVersionString}): Example for Python 3.8 compatibility - \`from typing import List; ` +
-        `def twoSum(nums: List[int], target: int) -> List[int]:\` or \`from typing import List; class Solution:\\\\n    ` +
-        `def twoSum(self, nums: List[int], target: int) -> List[int]:\`",
-      "defaultUserCode": "(string) The MINIMAL skeleton code for the user, compatible with ${pythonVersionString}. ` +
-        `For type hints, use the 'typing' module. E.g., \`from typing import List; def twoSum(nums: List[int], target: int) -> List[int]:\\\\n    pass\` ` +
-        `or \`from typing import List; class Solution:\\\\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\\\\n        pass\`. ` +
-        `NO helper classes or solution logic here.",
-      "boilerplateCodeWithPlaceholder": "(string) COMPLETE runnable Python script for Judge0, compatible with ${pythonVersionString}. ` +
-        `It MUST include imports like \`from typing import List, Dict, Optional\` if type hints such as \`List[int]\` are used. ` +
-        `Also include other standard imports (json, sys), helper classes (e.g., TreeNode if relevant for the problem), ` +
-        `the placeholder \`%%USER_CODE_PYTHON%%\`, robust stdin/stdout JSON handling, and error handling. Example for Two Sum using \`typing.List\`: ` +
-        `import json; import sys; from typing import List; %%USER_CODE_PYTHON%% if __name__ == '__main__': try: input_str = sys.stdin.read(); ` +
-        `data = json.loads(input_str); nums_arg = data['nums']; target_arg = data['target']; ` +
-        `# Ensure function (e.g. twoSum) is defined by user code; result = twoSum(nums_arg, target_arg); print(json.dumps(result)); ` +
-        `except Exception as e: print(f'Execution Error: {str(e)}', file=sys.stderr); sys.exit(1)\\"",
-      "optimizedSolutionCode": "(string) The COMPLETE and correct solution code for the function/class specified in solutionFunctionNameOrClassName, ` +
-        `compatible with ${pythonVersionString}. This code should be ready to be inserted into the boilerplate placeholder and pass all test cases."
-    }
-  }
-}
-
-IMPORTANT INSTRUCTIONS FOR AI:
-1.  The entire response MUST be a single, valid JSON object. Do not include any text, explanations, or markdown formatting like \`\`\`json ` +
-    `before or after the JSON object.
-2.  Every field specified in the structure above MUST be included.
-3.  For the 'testCases' field: Generate 15 diverse test cases. It MUST be a valid JSON array of objects. Each object must be ` +
-    `a complete JSON object, and array elements correctly comma-separated. NO TRAILING COMMAS. 'stdin' and 'expectedStdout' fields must be ` +
-    `valid JSON STRINGS, meaning special characters (like quotes, newlines) within these strings must be properly escaped ` +
-    `(e.g., use \\\\\\\\\\\" for a quote inside the string). Example of a test case object: {\\\"stdin\\\": \\\"{\\\\\\\\\\\"root\\\\\\\\\\\\\": [1,2,3,null,null,4,5]}\\\", ` +
-    `\\\"expectedStdout\\\": \\\"[[1],[2,3],[4,5]]\\\", \\\"isSample\\\": true}.
-4. CRITICAL: The 'testCases' you generate MUST be correct. Verify that the 'expectedStdout' for each test case is the actual output ` +
-    `produced when the corresponding 'stdin' is processed by the 'optimizedSolutionCode' you provide for the primary language (Python). ` +
-    `Incorrect test cases are unacceptable.
-5. For each test case generated, perform a dry run of the 'optimizedSolutionCode' with the 'stdin' to ensure it is correct. IF IT IS NOT CORRECT, REMOVE IT;`  +
-`6. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.`;
-}
 
 /**
  * Generates a generic fallback solution approach when AI generation fails.
@@ -301,7 +214,7 @@ export interface LlmTaskConfig {
 export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
   problemGeneration: { 
     service: 'anthropic', 
-    model: 'claude-3-7-sonnet-20250219',
+    model: 'claude-sonnet-4-5-20250929',
     max_tokens: 16384,
     thinking_enabled: true,
     claude_options: {

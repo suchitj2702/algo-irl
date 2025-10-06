@@ -61,67 +61,30 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Import helper functions from problemDatastoreUtils
+import {
+  convertProblemToFirestore,
+  pollForResults,
+  slugToProblemName,
+  getProblemById,
+} from '../../lib/problem/problemDatastoreUtils';
+
 /**
- * Helper function to convert Problem to Firestore format
+ * Load custom_id to slug mapping for shortened IDs
  */
-function convertProblemToFirestore(
-  modelObject: Partial<Problem>
-): Record<string, unknown> {
-  const data = { ...modelObject } as Partial<Problem>;
-  delete data.id;
-
-  data.updatedAt = Timestamp.now();
-  if (!data.createdAt) {
-    data.createdAt = Timestamp.now();
+function loadIdMapping(): Record<string, string> {
+  const mappingPath = path.join(BATCH_PROMPTS_DIR, 'id-mapping.json');
+  if (fs.existsSync(mappingPath)) {
+    return JSON.parse(fs.readFileSync(mappingPath, 'utf-8'));
   }
-
-  if (data.createdAt instanceof Date) {
-    data.createdAt = Timestamp.fromDate(data.createdAt);
-  }
-  if (data.updatedAt instanceof Date) {
-    data.updatedAt = Timestamp.fromDate(data.updatedAt);
-  }
-  return data as Record<string, unknown>;
+  return {};
 }
 
 /**
- * Helper function to poll Judge0 results
+ * Resolve custom_id back to original slug
  */
-async function pollForResults(
-  client: Judge0Client,
-  tokens: string,
-  expectedCount: number
-): Promise<any[]> {
-  let submissionDetails: any[] = [];
-  let attempts = 0;
-  const maxPollingAttempts = 15;
-  const pollingIntervalMs = 2000;
-
-  while (attempts < maxPollingAttempts) {
-    await new Promise(resolve => setTimeout(resolve, pollingIntervalMs));
-    const batchDetailsResponse = await client.getBatchSubmissionDetails(tokens);
-
-    if (batchDetailsResponse && batchDetailsResponse.submissions) {
-      const allProcessed = batchDetailsResponse.submissions.every(
-        s => s.status.id > 2
-      );
-      if (
-        allProcessed &&
-        batchDetailsResponse.submissions.length === expectedCount
-      ) {
-        submissionDetails = batchDetailsResponse.submissions;
-        break;
-      }
-    }
-    attempts++;
-  }
-
-  if (submissionDetails.length !== expectedCount) {
-    throw new Error(
-      `Polling timeout or results incomplete. Expected ${expectedCount}, got ${submissionDetails.length}.`
-    );
-  }
-  return submissionDetails;
+function resolveSlug(customId: string, idMapping: Record<string, string>): string {
+  return idMapping[customId] || customId;
 }
 
 /**
@@ -337,25 +300,62 @@ async function processCompletedJobs(): Promise<void> {
       // Process each result
       const summary: BatchProcessingSummary = {
         total_problems: 0,
+        skipped_existing: 0,
         successful_parsing: 0,
         failed_parsing: 0,
         successful_verification: 0,
         failed_verification: 0,
         uploaded_to_firestore: 0,
+        failed_upload: 0,
         errors: [],
       };
 
+      // Configure Judge0 client with aggressive rate limit handling for batch processing
       const judge0Client = new Judge0Client({
         apiUrl: judge0DefaultConfig.apiUrl,
         apiKey: judge0DefaultConfig.apiKey,
+        throttlingConfig: {
+          requestMaxRetries: 5,              // Increase retries from 3 to 5
+          requestInitialDelayMs: 5000,       // Start with 5 seconds instead of 100ms
+          statusCheckMaxRetries: 5,          // Increase status check retries
+          statusCheckInitialDelayMs: 3000,   // 3 seconds for status checks
+          interBatchDelayMs: 2000,           // 2 seconds between batches
+          interStatusBatchDelayMs: 2000,     // 2 seconds between status batch checks
+        },
       });
+
+      // Load ID mapping to resolve shortened custom_ids back to slugs
+      const idMapping = loadIdMapping();
+
+      // Add delay between problem processing to avoid rate limiting
+      // With Judge0 free tier, we need significant delays to avoid 429 errors
+      const PROBLEM_PROCESSING_DELAY_MS = 5000; // 5 second delay between problems
+      let problemIndex = 0;
 
       for (const resultLine of resultLines) {
         const result = JSON.parse(resultLine);
         summary.total_problems++;
 
         const customId = result.custom_id;
-        const slug = customId;
+        const slug = resolveSlug(customId, idMapping); // Resolve custom_id to original slug
+
+        // Phase 0: Check if problem already exists in Firestore
+        const existingProblem = await getProblemById(slug);
+        if (existingProblem) {
+          summary.skipped_existing++;
+          log(`  ⊘ Skipping ${slug} (already exists in Firestore)`, 'info');
+          continue;
+        }
+
+        // Add delay between problems (except for the first one)
+        if (problemIndex > 0) {
+          log(`  Waiting ${PROBLEM_PROCESSING_DELAY_MS}ms before processing next problem...`, 'info');
+          await new Promise(resolve => setTimeout(resolve, PROBLEM_PROCESSING_DELAY_MS));
+        }
+        problemIndex++;
+
+        // Phase 1: Parse problem data
+        let problemData: ProcessedProblemData | null = null;
 
         try {
           // Extract response content
@@ -374,33 +374,46 @@ async function processCompletedJobs(): Promise<void> {
           }
 
           // Parse problem data
-          const problemName = slug
-            .split('-')
-            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
+          const problemName = slugToProblemName(slug);
 
-          const problemData: ProcessedProblemData = parseAndProcessProblemData(
+          problemData = parseAndProcessProblemData(
             responseContent,
             problemName
           );
 
           if (problemData.error) {
-            throw new Error(`Parsing error: ${problemData.error}`);
+            throw new Error(problemData.error);
           }
 
           summary.successful_parsing++;
 
-          // Verify test cases with Judge0
-          const primaryLanguage = 'python';
-          const langDetails = problemData.languageSpecificDetails?.[primaryLanguage];
+          // Limit to first 20 test cases for verification and upload
+          problemData.testCases = problemData.testCases.slice(0, 20);
+        } catch (error) {
+          summary.failed_parsing++;
+          summary.errors.push({
+            slug,
+            error: (error as Error).message,
+            phase: 'parsing',
+          });
+          log(`    ✗ Parsing failed for ${slug}: ${(error as Error).message}`, 'error');
+          continue; // Skip to next problem
+        }
 
-          if (
-            langDetails &&
-            langDetails.optimizedSolutionCode &&
-            langDetails.boilerplateCodeWithPlaceholder &&
-            problemData.testCases &&
-            problemData.testCases.length > 0
-          ) {
+        // Phase 2: Verify test cases with Judge0
+        let verificationPassed = false;
+
+        const primaryLanguage = 'python';
+        const langDetails = problemData.languageSpecificDetails?.[primaryLanguage];
+
+        if (
+          langDetails &&
+          langDetails.optimizedSolutionCode &&
+          langDetails.boilerplateCodeWithPlaceholder &&
+          problemData.testCases &&
+          problemData.testCases.length > 0
+        ) {
+          try {
             log(`  Verifying test cases for: ${slug}`, 'info');
 
             const allTestCases: TestCase[] = problemData.testCases.map(tc => ({
@@ -417,12 +430,39 @@ async function processCompletedJobs(): Promise<void> {
               boilerplateCode: langDetails.boilerplateCodeWithPlaceholder,
             };
 
-            const orchestrationOutput = await orchestrateJudge0Submission(
-              judge0Client,
-              submissionInput
-            );
+            // Retry logic for Judge0 rate limiting at orchestration level
+            // This provides an additional layer on top of Judge0Client's built-in retries
+            const MAX_JUDGE0_RETRIES = 3;
+            const INITIAL_BACKOFF_MS = 10000; // Start with 10 seconds
+            let judge0Attempt = 0;
+            let orchestrationOutput;
+
+            while (judge0Attempt <= MAX_JUDGE0_RETRIES) {
+              try {
+                orchestrationOutput = await orchestrateJudge0Submission(
+                  judge0Client,
+                  submissionInput
+                );
+                break; // Success, exit retry loop
+              } catch (error: any) {
+                const isRateLimitError = error?.message?.includes('429') ||
+                                        error?.message?.includes('Too Many Requests') ||
+                                        error?.message?.includes('Rate limit');
+
+                if (isRateLimitError && judge0Attempt < MAX_JUDGE0_RETRIES) {
+                  // Exponential backoff: 10s, 20s, 40s
+                  const backoffMs = INITIAL_BACKOFF_MS * Math.pow(2, judge0Attempt);
+                  judge0Attempt++;
+                  log(`    ⚠ Rate limited by Judge0 (after ${judge0Attempt - 1} retries). Waiting ${backoffMs / 1000}s before retry ${judge0Attempt}/${MAX_JUDGE0_RETRIES}`, 'warn');
+                  await new Promise(resolve => setTimeout(resolve, backoffMs));
+                } else {
+                  throw error; // Not a rate limit error or max retries exceeded
+                }
+              }
+            }
 
             if (
+              !orchestrationOutput ||
               !orchestrationOutput.judge0Tokens ||
               orchestrationOutput.judge0Tokens.length === 0
             ) {
@@ -445,18 +485,28 @@ async function processCompletedJobs(): Promise<void> {
             );
 
             if (!aggregatedResults.passed) {
-              throw new Error(
-                `Verification failed: ${aggregatedResults.error || 'Test cases failed'}`
-              );
+              throw new Error(aggregatedResults.error || 'Test cases failed');
             }
 
             summary.successful_verification++;
+            verificationPassed = true;
             log(`    ✓ Verification passed`, 'info');
-          } else {
-            log(`    ⚠ Skipping verification (missing Python details)`, 'warn');
+          } catch (error) {
+            summary.failed_verification++;
+            summary.errors.push({
+              slug,
+              error: (error as Error).message,
+              phase: 'verification',
+            });
+            log(`    ✗ Verification failed for ${slug}: ${(error as Error).message}`, 'error');
+            continue; // Skip upload if verification failed
           }
+        } else {
+          log(`    ⚠ Skipping verification (missing Python details)`, 'warn');
+        }
 
-          // Upload to Firestore
+        // Phase 3: Upload to Firestore
+        try {
           const problem: Omit<Problem, 'id' | 'createdAt' | 'updatedAt'> = {
             title: problemData.title,
             difficulty: problemData.difficulty,
@@ -492,18 +542,20 @@ async function processCompletedJobs(): Promise<void> {
           summary.uploaded_to_firestore++;
           log(`    ✓ Uploaded to Firestore: ${slug}`, 'info');
         } catch (error) {
-          summary.failed_parsing++;
+          summary.failed_upload++;
           summary.errors.push({
             slug,
             error: (error as Error).message,
+            phase: 'upload',
           });
-          log(`    ✗ Error processing ${slug}: ${(error as Error).message}`, 'error');
+          log(`    ✗ Upload failed for ${slug}: ${(error as Error).message}`, 'error');
         }
       }
 
       // Update metadata with results
       metadata.results = {
         total_processed: summary.total_problems,
+        skipped_existing: summary.skipped_existing,
         successfully_verified: summary.successful_verification,
         verification_failed: summary.failed_verification,
         uploaded_to_firestore: summary.uploaded_to_firestore,
@@ -514,18 +566,16 @@ async function processCompletedJobs(): Promise<void> {
       // Print summary
       console.log('\n  Summary:');
       console.log(`    Total problems: ${summary.total_problems}`);
-      console.log(`    Successfully parsed: ${summary.successful_parsing}`);
-      console.log(`    Parsing failures: ${summary.failed_parsing}`);
-      console.log(`    Successfully verified: ${summary.successful_verification}`);
-      console.log(`    Verification failures: ${summary.failed_verification}`);
-      console.log(`    Uploaded to Firestore: ${summary.uploaded_to_firestore}`);
-
-      if (summary.errors.length > 0) {
-        console.log('\n  Errors:');
-        summary.errors.forEach(err => {
-          console.log(`    - ${err.slug}: ${err.error}`);
-        });
-      }
+      console.log(`    ⊘ Skipped (already exist): ${summary.skipped_existing}`);
+      console.log(`    \n    Parsing:`);
+      console.log(`      ✓ Successful: ${summary.successful_parsing}`);
+      console.log(`      ✗ Failed: ${summary.failed_parsing}`);
+      console.log(`    \n    Verification:`);
+      console.log(`      ✓ Successful: ${summary.successful_verification}`);
+      console.log(`      ✗ Failed: ${summary.failed_verification}`);
+      console.log(`    \n    Firestore Upload:`);
+      console.log(`      ✓ Uploaded: ${summary.uploaded_to_firestore}`);
+      console.log(`      ✗ Failed: ${summary.failed_upload}`);
     } catch (error) {
       log(`  Error processing batch: ${(error as Error).message}`, 'error');
       metadata.error = (error as Error).message;
