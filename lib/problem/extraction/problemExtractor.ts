@@ -21,7 +21,8 @@ export class ProblemExtractor {
     extractionType: 'keywords' | 'algorithms' | 'data_structures'
   ): string[] {
     // Prepare text for analysis - combine all relevant fields
-    let combinedText = `${problem.title} ${problem.description} ${problem.categories.join(' ')}`;
+    const categories = problem.categories || [];
+    let combinedText = `${problem.title} ${problem.description} ${categories.join(' ')}`;
 
     // Add solution approach if available (helps with better detection)
     if (problem.solutionApproach) {
@@ -45,7 +46,7 @@ export class ProblemExtractor {
       }
 
       // Add categories directly
-      results.push(...problem.categories);
+      results.push(...categories);
 
       // Check complexity patterns
       for (const { pattern, type } of TechnicalConceptRegistry.COMPLEXITY_PATTERNS) {

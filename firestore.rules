@@ -43,7 +43,19 @@ service cloud.firestore {
       allow read: if false;
       allow write: if false;
     }
-    
+
+    // Problem role scores - read-only for clients
+    match /problemRoleScores/{problemId} {
+      allow read: if true;
+      allow write: if false; // Only backend can write
+    }
+
+    // Study plan cache - no direct client access
+    match /studyPlanCache/{cacheKey} {
+      allow read: if false;
+      allow write: if false;
+    }
+
     // Block all other collections by default
     match /{document=**} {
       allow read: if false;

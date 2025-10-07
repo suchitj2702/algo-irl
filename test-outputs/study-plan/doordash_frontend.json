@@ -1,0 +1,268 @@
+{
+  "studyPlan": {
+    "totalProblems": 5,
+    "estimatedHours": 3.65,
+    "dailySchedule": [
+      {
+        "day": 1,
+        "date": "2025-10-07T15:32:08.664Z",
+        "problems": [
+          {
+            "problemId": "maximum-candies-you-can-get-from-boxes",
+            "title": "Maximum Candies You Can Get from Boxes",
+            "difficulty": "Hard",
+            "hotnessScore": 34,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 11,
+              "companyContext": 5
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Queue",
+                "Array",
+                "HashSet",
+                "Boolean Arrays"
+              ],
+              "algorithmPatterns": [
+                "Breadth-First Search",
+                "State Tracking",
+                "Graph Traversal",
+                "Dependency Resolution"
+              ],
+              "domainConcepts": [
+                "Access Control",
+                "Dependency Management",
+                "Resource Unlocking",
+                "Permission Systems",
+                "State Management"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 55,
+            "dayAssigned": 1
+          },
+          {
+            "problemId": "first-completely-painted-row-or-column",
+            "title": "First Completely Painted Row Or Column",
+            "difficulty": "Medium",
+            "hotnessScore": 33,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 9,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 35,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "Array",
+                "Matrix",
+                "Counter Arrays"
+              ],
+              "algorithmPatterns": [
+                "Hash Table Lookup",
+                "State Tracking",
+                "Early Termination",
+                "Coordinate Mapping"
+              ],
+              "domainConcepts": [
+                "Progress Tracking",
+                "Completion Detection",
+                "Event Processing",
+                "State Aggregation"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 40,
+            "dayAssigned": 1
+          },
+          {
+            "problemId": "partition-array-into-disjoint-intervals",
+            "title": "Partition Array Into Disjoint Intervals",
+            "difficulty": "Medium",
+            "hotnessScore": 27,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 6,
+              "companyContext": 2
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 25,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Auxiliary Arrays"
+              ],
+              "algorithmPatterns": [
+                "Two-Pass Array Processing",
+                "Prefix-Suffix Computation",
+                "Range Query Optimization",
+                "Precomputation"
+              ],
+              "domainConcepts": [
+                "Data Partitioning",
+                "Range Analysis",
+                "Threshold Detection",
+                "Data Segmentation"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 41,
+            "dayAssigned": 1
+          }
+        ],
+        "estimatedHours": 2.2666666666666666,
+        "topics": [
+          "Queue",
+          "Array",
+          "HashSet",
+          "Boolean Arrays",
+          "Breadth-First Search",
+          "State Tracking",
+          "Graph Traversal",
+          "Dependency Resolution",
+          "HashMap",
+          "Matrix",
+          "Counter Arrays",
+          "Hash Table Lookup",
+          "Early Termination",
+          "Coordinate Mapping",
+          "Auxiliary Arrays",
+          "Two-Pass Array Processing",
+          "Prefix-Suffix Computation",
+          "Range Query Optimization",
+          "Precomputation"
+        ]
+      },
+      {
+        "day": 2,
+        "date": "2025-10-08T15:32:08.664Z",
+        "problems": [
+          {
+            "problemId": "best-time-to-buy-and-sell-stock-iv",
+            "title": "Best Time to Buy and Sell Stock IV",
+            "difficulty": "Hard",
+            "hotnessScore": 25,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 4,
+              "companyContext": 3
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 15,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "State Arrays"
+              ],
+              "algorithmPatterns": [
+                "Dynamic Programming",
+                "State Machine",
+                "Optimization with Constraints",
+                "Space-Time Tradeoff"
+              ],
+              "domainConcepts": [
+                "Sequential Decision Making",
+                "Resource Allocation",
+                "Constraint Optimization",
+                "Feature Engineering"
+              ],
+              "complexityClass": "Polynomial"
+            },
+            "estimatedTimeMinutes": 49,
+            "dayAssigned": 2
+          },
+          {
+            "problemId": "minimum-sum-of-mountain-triplets-ii",
+            "title": "Minimum Sum Of Mountain Triplets II",
+            "difficulty": "Medium",
+            "hotnessScore": 29,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 6,
+              "companyContext": 5
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 25,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Auxiliary Arrays"
+              ],
+              "algorithmPatterns": [
+                "Dynamic Programming",
+                "Preprocessing",
+                "Two-Pass Algorithm",
+                "Running Minimum/Maximum",
+                "Local Optimization"
+              ],
+              "domainConcepts": [
+                "Feature Engineering",
+                "Data Preprocessing",
+                "Window Analysis",
+                "Peak Detection",
+                "Signal Processing"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 34,
+            "dayAssigned": 2
+          }
+        ],
+        "estimatedHours": 1.3833333333333333,
+        "topics": [
+          "Array",
+          "State Arrays",
+          "Dynamic Programming",
+          "State Machine",
+          "Optimization with Constraints",
+          "Space-Time Tradeoff",
+          "Auxiliary Arrays",
+          "Preprocessing",
+          "Two-Pass Algorithm",
+          "Running Minimum/Maximum",
+          "Local Optimization"
+        ]
+      }
+    ],
+    "metadata": {
+      "companyName": "DoorDash",
+      "role": "frontend",
+      "generatedAt": "2025-10-07T15:32:08.664Z",
+      "quality": {
+        "actualCompanyProblems": 0,
+        "extrapolatedProblems": 5,
+        "topicCoverage": 28
+      }
+    }
+  }
+}

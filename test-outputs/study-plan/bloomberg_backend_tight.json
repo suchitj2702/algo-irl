@@ -1,0 +1,2914 @@
+{
+  "studyPlan": {
+    "totalProblems": 53,
+    "estimatedHours": 35.516666666666666,
+    "dailySchedule": [
+      {
+        "day": 1,
+        "date": "2025-10-07T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "insert-delete-getrandom-o1",
+            "title": "Insert Delete GetRandom O(1)",
+            "difficulty": "Medium",
+            "hotnessScore": 82,
+            "hotnessBreakdown": {
+              "frequency": 29,
+              "recency": 25,
+              "roleRelevance": 22,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 82.3,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 88,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "Dynamic Array",
+                "Hash Table"
+              ],
+              "algorithmPatterns": [
+                "Array-HashMap Combination",
+                "Index Mapping",
+                "Swap-and-Pop Pattern",
+                "Amortized Analysis"
+              ],
+              "domainConcepts": [
+                "Caching",
+                "In-Memory Data Storage",
+                "Fast Random Access",
+                "Set Operations",
+                "Load Balancing",
+                "Request Routing"
+              ],
+              "complexityClass": "Constant"
+            },
+            "estimatedTimeMinutes": 28,
+            "dayAssigned": 1
+          },
+          {
+            "problemId": "merge-intervals",
+            "title": "Merge Intervals",
+            "difficulty": "Medium",
+            "hotnessScore": 82,
+            "hotnessBreakdown": {
+              "frequency": 30,
+              "recency": 25,
+              "roleRelevance": 21,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 85.7,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 85,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Interval"
+              ],
+              "algorithmPatterns": [
+                "Sorting",
+                "Greedy Algorithm",
+                "Interval Merging",
+                "In-place Processing"
+              ],
+              "domainConcepts": [
+                "Time Range Consolidation",
+                "Resource Scheduling",
+                "Calendar Management",
+                "Log Aggregation",
+                "Coverage Analysis"
+              ],
+              "complexityClass": "Linearithmic"
+            },
+            "estimatedTimeMinutes": 37,
+            "dayAssigned": 1
+          },
+          {
+            "problemId": "longest-substring-without-repeating-characters",
+            "title": "Longest Substring Without Repeating Characters",
+            "difficulty": "Medium",
+            "hotnessScore": 81,
+            "hotnessBreakdown": {
+              "frequency": 29,
+              "recency": 25,
+              "roleRelevance": 21,
+              "companyContext": 5
+            },
+            "frequencyData": {
+              "overall": 83.9,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 85,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "String",
+                "Sliding Window"
+              ],
+              "algorithmPatterns": [
+                "Sliding Window",
+                "Two Pointers",
+                "Hash Table Lookup",
+                "Dynamic Window Sizing"
+              ],
+              "domainConcepts": [
+                "Data Deduplication",
+                "Stream Processing",
+                "Character Validation",
+                "Input Sanitization",
+                "Pattern Matching"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 29,
+            "dayAssigned": 1
+          },
+          {
+            "problemId": "invalid-transactions",
+            "title": "Invalid Transactions",
+            "difficulty": "Medium",
+            "hotnessScore": 78,
+            "hotnessBreakdown": {
+              "frequency": 25,
+              "recency": 25,
+              "roleRelevance": 22,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 72.1,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 88,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "Array",
+                "HashSet",
+                "String Parsing"
+              ],
+              "algorithmPatterns": [
+                "Pairwise Comparison",
+                "Hash Table Grouping",
+                "Filtering",
+                "String Parsing"
+              ],
+              "domainConcepts": [
+                "Fraud Detection",
+                "Transaction Validation",
+                "Rule-Based Filtering",
+                "Temporal Correlation",
+                "Geo-Location Anomaly Detection"
+              ],
+              "complexityClass": "Quadratic"
+            },
+            "estimatedTimeMinutes": 31,
+            "dayAssigned": 1
+          },
+          {
+            "problemId": "flatten-a-multilevel-doubly-linked-list",
+            "title": "Flatten a Multilevel Doubly Linked List",
+            "difficulty": "Medium",
+            "hotnessScore": 78,
+            "hotnessBreakdown": {
+              "frequency": 29,
+              "recency": 25,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 84.1,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 70,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Doubly Linked List",
+                "Tree (implicit)",
+                "Stack (for DFS)"
+              ],
+              "algorithmPatterns": [
+                "Depth-First Search",
+                "Tree Traversal",
+                "In-place Modification",
+                "Pointer Manipulation"
+              ],
+              "domainConcepts": [
+                "Hierarchical Data Flattening",
+                "Tree Serialization",
+                "Data Structure Transformation",
+                "Memory Layout Optimization"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 32,
+            "dayAssigned": 1
+          }
+        ],
+        "estimatedHours": 2.6166666666666667,
+        "topics": [
+          "HashMap",
+          "Dynamic Array",
+          "Hash Table",
+          "Array-HashMap Combination",
+          "Index Mapping",
+          "Swap-and-Pop Pattern",
+          "Amortized Analysis",
+          "Array",
+          "Interval",
+          "Sorting",
+          "Greedy Algorithm",
+          "Interval Merging",
+          "In-place Processing",
+          "String",
+          "Sliding Window",
+          "Two Pointers",
+          "Hash Table Lookup",
+          "Dynamic Window Sizing",
+          "HashSet",
+          "String Parsing",
+          "Pairwise Comparison",
+          "Hash Table Grouping",
+          "Filtering",
+          "Doubly Linked List",
+          "Tree (implicit)",
+          "Stack (for DFS)",
+          "Depth-First Search",
+          "Tree Traversal",
+          "In-place Modification",
+          "Pointer Manipulation"
+        ]
+      },
+      {
+        "day": 2,
+        "date": "2025-10-08T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "lru-cache",
+            "title": "LRU Cache",
+            "difficulty": "Medium",
+            "hotnessScore": 72,
+            "hotnessBreakdown": {
+              "frequency": 25,
+              "recency": 18,
+              "roleRelevance": 24,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 70.6,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 95,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Hash Table",
+                "Doubly Linked List",
+                "HashMap"
+              ],
+              "algorithmPatterns": [
+                "Cache Eviction Policy",
+                "O(1) Access Pattern",
+                "Pointer Manipulation",
+                "Linked List Reordering"
+              ],
+              "domainConcepts": [
+                "Caching",
+                "Memory Management",
+                "Eviction Policies",
+                "Performance Optimization",
+                "Resource Management"
+              ],
+              "complexityClass": "Constant"
+            },
+            "estimatedTimeMinutes": 27,
+            "dayAssigned": 2
+          },
+          {
+            "problemId": "generate-tag-for-video-caption",
+            "title": "Generate Tag For Video Caption",
+            "difficulty": "Medium",
+            "hotnessScore": 71,
+            "hotnessBreakdown": {
+              "frequency": 22,
+              "recency": 25,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 61.5,
+              "recency": [
+                "thirtyDays"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Hash Table",
+                "Array",
+                "Priority Queue"
+              ],
+              "algorithmPatterns": [
+                "Frequency Counting",
+                "Custom Sorting",
+                "Top-K Selection",
+                "Text Processing"
+              ],
+              "domainConcepts": [
+                "Tag Generation",
+                "Content Metadata Extraction",
+                "Search Ranking",
+                "Text Normalization",
+                "Feature Extraction"
+              ],
+              "complexityClass": "Linearithmic"
+            },
+            "estimatedTimeMinutes": 31,
+            "dayAssigned": 2
+          },
+          {
+            "problemId": "trapping-rain-water",
+            "title": "Trapping Rain Water",
+            "difficulty": "Hard",
+            "hotnessScore": 70,
+            "hotnessBreakdown": {
+              "frequency": 28,
+              "recency": 25,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 79.1,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Stack",
+                "Monotonic Stack"
+              ],
+              "algorithmPatterns": [
+                "Two Pointers",
+                "Dynamic Programming",
+                "Monotonic Stack",
+                "Space-Time Tradeoff",
+                "Greedy Algorithm"
+              ],
+              "domainConcepts": [
+                "Peak Detection",
+                "Local Maxima Analysis",
+                "Accumulation Logic",
+                "Stream Processing",
+                "Time Series Analysis",
+                "Resource Capacity Planning"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 49,
+            "dayAssigned": 2
+          },
+          {
+            "problemId": "number-of-islands",
+            "title": "Number of Islands",
+            "difficulty": "Medium",
+            "hotnessScore": 69,
+            "hotnessBreakdown": {
+              "frequency": 33,
+              "recency": 18,
+              "roleRelevance": 14,
+              "companyContext": 5
+            },
+            "frequencyData": {
+              "overall": 94.8,
+              "recency": [
+                "threeMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 55,
+            "enrichedTopics": {
+              "dataStructures": [
+                "2D Matrix",
+                "Grid",
+                "Queue",
+                "Stack",
+                "Disjoint Set Union"
+              ],
+              "algorithmPatterns": [
+                "Depth-First Search",
+                "Breadth-First Search",
+                "Graph Traversal",
+                "Connected Components",
+                "Union-Find",
+                "Flood Fill"
+              ],
+              "domainConcepts": [
+                "Connected Component Analysis",
+                "Spatial Clustering",
+                "Graph Connectivity",
+                "Region Detection",
+                "Image Segmentation",
+                "Network Topology"
+              ],
+              "complexityClass": "Quadratic"
+            },
+            "estimatedTimeMinutes": 39,
+            "dayAssigned": 2
+          },
+          {
+            "problemId": "longest-palindromic-substring",
+            "title": "Longest Palindromic Substring",
+            "difficulty": "Medium",
+            "hotnessScore": 69,
+            "hotnessBreakdown": {
+              "frequency": 27,
+              "recency": 25,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 77.2,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "String",
+                "2D Array (DP table)",
+                "Boolean Array"
+              ],
+              "algorithmPatterns": [
+                "Dynamic Programming",
+                "Two Pointers",
+                "Expand Around Center",
+                "Memoization",
+                "Bottom-up DP"
+              ],
+              "domainConcepts": [
+                "Pattern Matching",
+                "Text Processing",
+                "String Analysis",
+                "Substring Search"
+              ],
+              "complexityClass": "Quadratic"
+            },
+            "estimatedTimeMinutes": 34,
+            "dayAssigned": 2
+          }
+        ],
+        "estimatedHours": 3,
+        "topics": [
+          "Hash Table",
+          "Doubly Linked List",
+          "HashMap",
+          "Cache Eviction Policy",
+          "O(1) Access Pattern",
+          "Pointer Manipulation",
+          "Linked List Reordering",
+          "Array",
+          "Priority Queue",
+          "Frequency Counting",
+          "Custom Sorting",
+          "Top-K Selection",
+          "Text Processing",
+          "Stack",
+          "Monotonic Stack",
+          "Two Pointers",
+          "Dynamic Programming",
+          "Space-Time Tradeoff",
+          "Greedy Algorithm",
+          "2D Matrix",
+          "Grid",
+          "Queue",
+          "Disjoint Set Union",
+          "Depth-First Search",
+          "Breadth-First Search",
+          "Graph Traversal",
+          "Connected Components",
+          "Union-Find",
+          "Flood Fill",
+          "String",
+          "2D Array (DP table)",
+          "Boolean Array",
+          "Expand Around Center",
+          "Memoization",
+          "Bottom-up DP"
+        ]
+      },
+      {
+        "day": 3,
+        "date": "2025-10-09T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "design-underground-system",
+            "title": "Design Underground System",
+            "difficulty": "Medium",
+            "hotnessScore": 69,
+            "hotnessBreakdown": {
+              "frequency": 21,
+              "recency": 18,
+              "roleRelevance": 24,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 61.3,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 95,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "Tuple",
+                "Composite Key"
+              ],
+              "algorithmPatterns": [
+                "Stateful System Design",
+                "Running Average Calculation",
+                "Multi-Map Pattern",
+                "Event Aggregation"
+              ],
+              "domainConcepts": [
+                "Session Tracking",
+                "Real-time Analytics",
+                "Metrics Aggregation",
+                "State Management",
+                "API Design"
+              ],
+              "complexityClass": "Constant"
+            },
+            "estimatedTimeMinutes": 40,
+            "dayAssigned": 3
+          },
+          {
+            "problemId": "word-search",
+            "title": "Word Search",
+            "difficulty": "Medium",
+            "hotnessScore": 68,
+            "hotnessBreakdown": {
+              "frequency": 26,
+              "recency": 25,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 74.2,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "2D Array/Matrix",
+                "String",
+                "Implicit Stack (Recursion)"
+              ],
+              "algorithmPatterns": [
+                "Depth-First Search",
+                "Backtracking",
+                "Path Finding",
+                "State Space Exploration",
+                "Visited Tracking"
+              ],
+              "domainConcepts": [
+                "Pattern Matching",
+                "Graph Traversal",
+                "Constraint Satisfaction",
+                "Search Space Pruning"
+              ],
+              "complexityClass": "Exponential"
+            },
+            "estimatedTimeMinutes": 36,
+            "dayAssigned": 3
+          },
+          {
+            "problemId": "design-a-leaderboard",
+            "title": "Design A Leaderboard",
+            "difficulty": "Medium",
+            "hotnessScore": 68,
+            "hotnessBreakdown": {
+              "frequency": 23,
+              "recency": 18,
+              "roleRelevance": 21,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 65.5,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 85,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "Heap",
+                "Priority Queue",
+                "Array"
+              ],
+              "algorithmPatterns": [
+                "Hash Table Design",
+                "Top-K Selection",
+                "Sorting",
+                "Heap Optimization",
+                "In-Memory State Management"
+              ],
+              "domainConcepts": [
+                "Leaderboard System",
+                "Real-time Ranking",
+                "Score Aggregation",
+                "Cache Design",
+                "Gaming Statistics",
+                "API Design"
+              ],
+              "complexityClass": "Linearithmic"
+            },
+            "estimatedTimeMinutes": 37,
+            "dayAssigned": 3
+          },
+          {
+            "problemId": "search-a-2d-matrix",
+            "title": "Search a 2D Matrix",
+            "difficulty": "Medium",
+            "hotnessScore": 67,
+            "hotnessBreakdown": {
+              "frequency": 18,
+              "recency": 25,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 52.6,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 70,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Matrix",
+                "2D Array",
+                "Virtual 1D Array"
+              ],
+              "algorithmPatterns": [
+                "Binary Search",
+                "Index Mapping",
+                "Coordinate Transformation"
+              ],
+              "domainConcepts": [
+                "Data Indexing",
+                "Sorted Data Lookup",
+                "Search Optimization",
+                "Database Index Traversal"
+              ],
+              "complexityClass": "Logarithmic"
+            },
+            "estimatedTimeMinutes": 41,
+            "dayAssigned": 3
+          }
+        ],
+        "estimatedHours": 2.566666666666667,
+        "topics": [
+          "HashMap",
+          "Tuple",
+          "Composite Key",
+          "Stateful System Design",
+          "Running Average Calculation",
+          "Multi-Map Pattern",
+          "Event Aggregation",
+          "2D Array/Matrix",
+          "String",
+          "Implicit Stack (Recursion)",
+          "Depth-First Search",
+          "Backtracking",
+          "Path Finding",
+          "State Space Exploration",
+          "Visited Tracking",
+          "Heap",
+          "Priority Queue",
+          "Array",
+          "Hash Table Design",
+          "Top-K Selection",
+          "Sorting",
+          "Heap Optimization",
+          "In-Memory State Management",
+          "Matrix",
+          "2D Array",
+          "Virtual 1D Array",
+          "Binary Search",
+          "Index Mapping",
+          "Coordinate Transformation"
+        ]
+      },
+      {
+        "day": 4,
+        "date": "2025-10-10T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "decode-string",
+            "title": "Decode String",
+            "difficulty": "Medium",
+            "hotnessScore": 67,
+            "hotnessBreakdown": {
+              "frequency": 25,
+              "recency": 25,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 70.6,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Stack",
+                "String"
+              ],
+              "algorithmPatterns": [
+                "Stack-Based Parsing",
+                "Recursion",
+                "State Machine",
+                "Nested Structure Traversal"
+              ],
+              "domainConcepts": [
+                "String Parsing",
+                "Pattern Expansion",
+                "Nested Data Decoding",
+                "Grammar Processing"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 42,
+            "dayAssigned": 4
+          },
+          {
+            "problemId": "subsets",
+            "title": "Subsets",
+            "difficulty": "Medium",
+            "hotnessScore": 67,
+            "hotnessBreakdown": {
+              "frequency": 24,
+              "recency": 25,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 70,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "List",
+                "Recursion Stack"
+              ],
+              "algorithmPatterns": [
+                "Backtracking",
+                "Depth-First Search",
+                "Bit Manipulation",
+                "Combinatorial Generation",
+                "State Space Search"
+              ],
+              "domainConcepts": [
+                "Power Set Generation",
+                "Combinatorial Enumeration",
+                "Feature Selection",
+                "Configuration Space Exploration",
+                "Option Space Modeling"
+              ],
+              "complexityClass": "Exponential"
+            },
+            "estimatedTimeMinutes": 37,
+            "dayAssigned": 4
+          },
+          {
+            "problemId": "search-in-rotated-sorted-array",
+            "title": "Search in Rotated Sorted Array",
+            "difficulty": "Medium",
+            "hotnessScore": 67,
+            "hotnessBreakdown": {
+              "frequency": 25,
+              "recency": 18,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 70.7,
+              "recency": [
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Sorted Array"
+              ],
+              "algorithmPatterns": [
+                "Binary Search",
+                "Modified Binary Search",
+                "Divide and Conquer",
+                "Search Space Reduction"
+              ],
+              "domainConcepts": [
+                "Efficient Search",
+                "Sorted Data Retrieval",
+                "Index-based Lookup",
+                "Log-time Operations"
+              ],
+              "complexityClass": "Logarithmic"
+            },
+            "estimatedTimeMinutes": 35,
+            "dayAssigned": 4
+          },
+          {
+            "problemId": "generate-parentheses",
+            "title": "Generate Parentheses",
+            "difficulty": "Medium",
+            "hotnessScore": 66,
+            "hotnessBreakdown": {
+              "frequency": 23,
+              "recency": 25,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 66.9,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "String",
+                "Stack (implicit)",
+                "Tree (recursion)"
+              ],
+              "algorithmPatterns": [
+                "Backtracking",
+                "Recursion",
+                "Depth-First Search",
+                "State Space Exploration",
+                "Pruning"
+              ],
+              "domainConcepts": [
+                "Combinatorial Generation",
+                "Constraint Satisfaction",
+                "Valid String Formation",
+                "Syntax Validation"
+              ],
+              "complexityClass": "Exponential"
+            },
+            "estimatedTimeMinutes": 41,
+            "dayAssigned": 4
+          }
+        ],
+        "estimatedHours": 2.5833333333333335,
+        "topics": [
+          "Stack",
+          "String",
+          "Stack-Based Parsing",
+          "Recursion",
+          "State Machine",
+          "Nested Structure Traversal",
+          "Array",
+          "List",
+          "Recursion Stack",
+          "Backtracking",
+          "Depth-First Search",
+          "Bit Manipulation",
+          "Combinatorial Generation",
+          "State Space Search",
+          "Sorted Array",
+          "Binary Search",
+          "Modified Binary Search",
+          "Divide and Conquer",
+          "Search Space Reduction",
+          "Stack (implicit)",
+          "Tree (recursion)",
+          "State Space Exploration",
+          "Pruning"
+        ]
+      },
+      {
+        "day": 5,
+        "date": "2025-10-11T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "longest-consecutive-sequence",
+            "title": "Longest Consecutive Sequence",
+            "difficulty": "Medium",
+            "hotnessScore": 66,
+            "hotnessBreakdown": {
+              "frequency": 24,
+              "recency": 18,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 69,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashSet",
+                "Array",
+                "Union Find"
+              ],
+              "algorithmPatterns": [
+                "Hash Table Lookup",
+                "Sequence Detection",
+                "Amortized Analysis",
+                "Greedy Algorithm"
+              ],
+              "domainConcepts": [
+                "Data Deduplication",
+                "Range Detection",
+                "Log Analysis",
+                "Event Correlation",
+                "Time Series Gap Detection"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 42,
+            "dayAssigned": 5
+          },
+          {
+            "problemId": "add-two-numbers",
+            "title": "Add Two Numbers",
+            "difficulty": "Medium",
+            "hotnessScore": 65,
+            "hotnessBreakdown": {
+              "frequency": 30,
+              "recency": 18,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 85.7,
+              "recency": [
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Linked List",
+                "Singly Linked List"
+              ],
+              "algorithmPatterns": [
+                "Two Pointer Traversal",
+                "Carry Propagation",
+                "Iterative List Processing",
+                "Node-by-Node Processing"
+              ],
+              "domainConcepts": [
+                "Arbitrary Precision Arithmetic",
+                "Digit-wise Operations",
+                "Sequential Data Processing"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 33,
+            "dayAssigned": 5
+          },
+          {
+            "problemId": "meeting-rooms-ii",
+            "title": "Meeting Rooms II",
+            "difficulty": "Medium",
+            "hotnessScore": 64,
+            "hotnessBreakdown": {
+              "frequency": 21,
+              "recency": 18,
+              "roleRelevance": 21,
+              "companyContext": 5
+            },
+            "frequencyData": {
+              "overall": 58.9,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 85,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Min Heap",
+                "Priority Queue",
+                "Array",
+                "Sorted Array"
+              ],
+              "algorithmPatterns": [
+                "Greedy Algorithm",
+                "Interval Scheduling",
+                "Sweep Line",
+                "Two Pointers",
+                "Event Processing",
+                "Chronological Ordering"
+              ],
+              "domainConcepts": [
+                "Resource Allocation",
+                "Scheduling",
+                "Concurrency Management",
+                "Resource Pooling",
+                "Capacity Planning",
+                "Overlap Detection"
+              ],
+              "complexityClass": "Linearithmic"
+            },
+            "estimatedTimeMinutes": 39,
+            "dayAssigned": 5
+          },
+          {
+            "problemId": "min-stack",
+            "title": "Min Stack",
+            "difficulty": "Medium",
+            "hotnessScore": 64,
+            "hotnessBreakdown": {
+              "frequency": 21,
+              "recency": 18,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 61.3,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Stack",
+                "Auxiliary Stack",
+                "Tuple/Pair"
+              ],
+              "algorithmPatterns": [
+                "Auxiliary Data Structure",
+                "Space-Time Tradeoff",
+                "State Tracking",
+                "Invariant Maintenance"
+              ],
+              "domainConcepts": [
+                "Constant-Time Query Optimization",
+                "Data Structure Design",
+                "Memory-Efficient Tracking",
+                "API Design"
+              ],
+              "complexityClass": "Constant"
+            },
+            "estimatedTimeMinutes": 34,
+            "dayAssigned": 5
+          },
+          {
+            "problemId": "subarray-sum-equals-k",
+            "title": "Subarray Sum Equals K",
+            "difficulty": "Medium",
+            "hotnessScore": 64,
+            "hotnessBreakdown": {
+              "frequency": 24,
+              "recency": 18,
+              "roleRelevance": 18,
+              "companyContext": 5
+            },
+            "frequencyData": {
+              "overall": 67.3,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "Array",
+                "Prefix Sum Array"
+              ],
+              "algorithmPatterns": [
+                "Prefix Sum",
+                "Hash Table Lookup",
+                "Running Sum",
+                "Two Sum Variant"
+              ],
+              "domainConcepts": [
+                "Data Aggregation",
+                "Range Query Optimization",
+                "Cumulative Statistics",
+                "Sliding Window Analysis",
+                "Time Series Analysis"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 32,
+            "dayAssigned": 5
+          }
+        ],
+        "estimatedHours": 3,
+        "topics": [
+          "HashSet",
+          "Array",
+          "Union Find",
+          "Hash Table Lookup",
+          "Sequence Detection",
+          "Amortized Analysis",
+          "Greedy Algorithm",
+          "Linked List",
+          "Singly Linked List",
+          "Two Pointer Traversal",
+          "Carry Propagation",
+          "Iterative List Processing",
+          "Node-by-Node Processing",
+          "Min Heap",
+          "Priority Queue",
+          "Sorted Array",
+          "Interval Scheduling",
+          "Sweep Line",
+          "Two Pointers",
+          "Event Processing",
+          "Chronological Ordering",
+          "Stack",
+          "Auxiliary Stack",
+          "Tuple/Pair",
+          "Auxiliary Data Structure",
+          "Space-Time Tradeoff",
+          "State Tracking",
+          "Invariant Maintenance",
+          "HashMap",
+          "Prefix Sum Array",
+          "Prefix Sum",
+          "Running Sum",
+          "Two Sum Variant"
+        ]
+      },
+      {
+        "day": 6,
+        "date": "2025-10-12T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "group-anagrams",
+            "title": "Group Anagrams",
+            "difficulty": "Medium",
+            "hotnessScore": 64,
+            "hotnessBreakdown": {
+              "frequency": 23,
+              "recency": 18,
+              "roleRelevance": 19,
+              "companyContext": 5
+            },
+            "frequencyData": {
+              "overall": 66.9,
+              "recency": [
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Hash Table",
+                "Array",
+                "String"
+              ],
+              "algorithmPatterns": [
+                "Hashing",
+                "Grouping/Bucketing",
+                "String Normalization",
+                "Frequency Counting"
+              ],
+              "domainConcepts": [
+                "Data Deduplication",
+                "Text Normalization",
+                "Canonical Representation",
+                "Grouping/Clustering"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 40,
+            "dayAssigned": 6
+          },
+          {
+            "problemId": "all-paths-from-source-to-target",
+            "title": "All Paths From Source To Target",
+            "difficulty": "Medium",
+            "hotnessScore": 62,
+            "hotnessBreakdown": {
+              "frequency": 21,
+              "recency": 18,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 58.9,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Directed Acyclic Graph (DAG)",
+                "Adjacency List",
+                "Stack (implicit via recursion)",
+                "List"
+              ],
+              "algorithmPatterns": [
+                "Depth-First Search (DFS)",
+                "Backtracking",
+                "Graph Traversal",
+                "Path Enumeration",
+                "Recursive Exploration"
+              ],
+              "domainConcepts": [
+                "Dependency Resolution",
+                "Task Scheduling",
+                "Workflow Orchestration",
+                "Service Dependency Mapping",
+                "Network Routing",
+                "State Space Exploration"
+              ],
+              "complexityClass": "Exponential"
+            },
+            "estimatedTimeMinutes": 34,
+            "dayAssigned": 6
+          },
+          {
+            "problemId": "top-k-frequent-elements",
+            "title": "Top K Frequent Elements",
+            "difficulty": "Medium",
+            "hotnessScore": 61,
+            "hotnessBreakdown": {
+              "frequency": 16,
+              "recency": 18,
+              "roleRelevance": 21,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 45.6,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 85,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "Heap",
+                "Array",
+                "Bucket Array"
+              ],
+              "algorithmPatterns": [
+                "Frequency Counting",
+                "Top-K Selection",
+                "Heap-based Selection",
+                "Bucket Sort",
+                "Hash Table Aggregation"
+              ],
+              "domainConcepts": [
+                "Hot Key Detection",
+                "Trending Analysis",
+                "Cache Eviction Policy",
+                "Load Balancing",
+                "Query Optimization",
+                "Analytics Aggregation",
+                "Rate Limiting"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 32,
+            "dayAssigned": 6
+          },
+          {
+            "problemId": "validate-binary-search-tree",
+            "title": "Validate Binary Search Tree",
+            "difficulty": "Medium",
+            "hotnessScore": 61,
+            "hotnessBreakdown": {
+              "frequency": 24,
+              "recency": 13,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 67.3,
+              "recency": [
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Binary Search Tree",
+                "Binary Tree",
+                "Tree"
+              ],
+              "algorithmPatterns": [
+                "Depth-First Search",
+                "In-order Traversal",
+                "Recursive Validation",
+                "Range Checking"
+              ],
+              "domainConcepts": [
+                "Data Validation",
+                "Invariant Checking",
+                "Ordered Index Verification",
+                "Database Index Integrity"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 35,
+            "dayAssigned": 6
+          },
+          {
+            "problemId": "minimum-remove-to-make-valid-parentheses",
+            "title": "Minimum Remove to Make Valid Parentheses",
+            "difficulty": "Medium",
+            "hotnessScore": 61,
+            "hotnessBreakdown": {
+              "frequency": 20,
+              "recency": 18,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 56.2,
+              "recency": [
+                "threeMonths",
+                "sixMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Stack",
+                "String",
+                "Array"
+              ],
+              "algorithmPatterns": [
+                "Stack-based Parsing",
+                "Two-Pass Algorithm",
+                "Character Filtering",
+                "Index Tracking"
+              ],
+              "domainConcepts": [
+                "Input Validation",
+                "Syntax Parsing",
+                "Text Processing",
+                "String Sanitization",
+                "Expression Validation"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 33,
+            "dayAssigned": 6
+          }
+        ],
+        "estimatedHours": 2.9,
+        "topics": [
+          "Hash Table",
+          "Array",
+          "String",
+          "Hashing",
+          "Grouping/Bucketing",
+          "String Normalization",
+          "Frequency Counting",
+          "Directed Acyclic Graph (DAG)",
+          "Adjacency List",
+          "Stack (implicit via recursion)",
+          "List",
+          "Depth-First Search (DFS)",
+          "Backtracking",
+          "Graph Traversal",
+          "Path Enumeration",
+          "Recursive Exploration",
+          "HashMap",
+          "Heap",
+          "Bucket Array",
+          "Top-K Selection",
+          "Heap-based Selection",
+          "Bucket Sort",
+          "Hash Table Aggregation",
+          "Binary Search Tree",
+          "Binary Tree",
+          "Tree",
+          "Depth-First Search",
+          "In-order Traversal",
+          "Recursive Validation",
+          "Range Checking",
+          "Stack",
+          "Stack-based Parsing",
+          "Two-Pass Algorithm",
+          "Character Filtering",
+          "Index Tracking"
+        ]
+      },
+      {
+        "day": 7,
+        "date": "2025-10-13T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "rotate-image",
+            "title": "Rotate Image",
+            "difficulty": "Medium",
+            "hotnessScore": 61,
+            "hotnessBreakdown": {
+              "frequency": 23,
+              "recency": 25,
+              "roleRelevance": 9,
+              "companyContext": 4
+            },
+            "frequencyData": {
+              "overall": 65.6,
+              "recency": [
+                "thirtyDays",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 35,
+            "enrichedTopics": {
+              "dataStructures": [
+                "2D Array",
+                "Matrix"
+              ],
+              "algorithmPatterns": [
+                "In-place Transformation",
+                "Matrix Manipulation",
+                "Transpose and Reverse",
+                "Layer-by-Layer Processing"
+              ],
+              "domainConcepts": [
+                "Image Transformation",
+                "Geometric Operations",
+                "Memory-Efficient Processing",
+                "Spatial Data Manipulation"
+              ],
+              "complexityClass": "Quadratic"
+            },
+            "estimatedTimeMinutes": 38,
+            "dayAssigned": 7
+          },
+          {
+            "problemId": "reverse-integer",
+            "title": "Reverse Integer",
+            "difficulty": "Medium",
+            "hotnessScore": 60,
+            "hotnessBreakdown": {
+              "frequency": 25,
+              "recency": 18,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 72.7,
+              "recency": [
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Integer",
+                "Numeric Types"
+              ],
+              "algorithmPatterns": [
+                "Mathematical Manipulation",
+                "Digit Extraction",
+                "Overflow Detection",
+                "Bounded Arithmetic"
+              ],
+              "domainConcepts": [
+                "Integer Overflow Prevention",
+                "Numeric Boundaries",
+                "Data Type Constraints",
+                "Input Validation"
+              ],
+              "complexityClass": "Logarithmic"
+            },
+            "estimatedTimeMinutes": 33,
+            "dayAssigned": 7
+          },
+          {
+            "problemId": "4sum",
+            "title": "4Sum",
+            "difficulty": "Medium",
+            "hotnessScore": 60,
+            "hotnessBreakdown": {
+              "frequency": 20,
+              "recency": 25,
+              "roleRelevance": 11,
+              "companyContext": 4
+            },
+            "frequencyData": {
+              "overall": 57.2,
+              "recency": [
+                "thirtyDays",
+                "threeMonths",
+                "sixMonths",
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Sorted Array"
+              ],
+              "algorithmPatterns": [
+                "Two Pointers",
+                "Sorting",
+                "Nested Iteration",
+                "Duplicate Elimination",
+                "N-Sum Pattern"
+              ],
+              "domainConcepts": [
+                "Combinatorial Search",
+                "Data Deduplication",
+                "Constraint Satisfaction",
+                "Search Space Pruning"
+              ],
+              "complexityClass": "Polynomial"
+            },
+            "estimatedTimeMinutes": 33,
+            "dayAssigned": 7
+          },
+          {
+            "problemId": "find-in-mountain-array",
+            "title": "Find in Mountain Array",
+            "difficulty": "Hard",
+            "hotnessScore": 59,
+            "hotnessBreakdown": {
+              "frequency": 17,
+              "recency": 18,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 47.6,
+              "recency": [
+                "threeMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Abstract Data Type"
+              ],
+              "algorithmPatterns": [
+                "Binary Search",
+                "Peak Finding",
+                "Constrained API Access",
+                "Search Space Partitioning"
+              ],
+              "domainConcepts": [
+                "Query Optimization",
+                "API Call Minimization",
+                "Resource-Constrained Operations",
+                "Index Lookup"
+              ],
+              "complexityClass": "Logarithmic"
+            },
+            "estimatedTimeMinutes": 68,
+            "dayAssigned": 7
+          }
+        ],
+        "estimatedHours": 2.8666666666666667,
+        "topics": [
+          "2D Array",
+          "Matrix",
+          "In-place Transformation",
+          "Matrix Manipulation",
+          "Transpose and Reverse",
+          "Layer-by-Layer Processing",
+          "Integer",
+          "Numeric Types",
+          "Mathematical Manipulation",
+          "Digit Extraction",
+          "Overflow Detection",
+          "Bounded Arithmetic",
+          "Array",
+          "Sorted Array",
+          "Two Pointers",
+          "Sorting",
+          "Nested Iteration",
+          "Duplicate Elimination",
+          "N-Sum Pattern",
+          "Abstract Data Type",
+          "Binary Search",
+          "Peak Finding",
+          "Constrained API Access",
+          "Search Space Partitioning"
+        ]
+      },
+      {
+        "day": 8,
+        "date": "2025-10-14T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "word-break-ii",
+            "title": "Word Break II",
+            "difficulty": "Hard",
+            "hotnessScore": 58,
+            "hotnessBreakdown": {
+              "frequency": 17,
+              "recency": 18,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 47.6,
+              "recency": [
+                "threeMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Hash Set",
+                "Memoization Map",
+                "String",
+                "Trie",
+                "Array"
+              ],
+              "algorithmPatterns": [
+                "Backtracking",
+                "Dynamic Programming",
+                "Memoization",
+                "Recursive Decomposition",
+                "String Segmentation"
+              ],
+              "domainConcepts": [
+                "Text Parsing",
+                "Natural Language Tokenization",
+                "Query Parsing",
+                "URL Routing",
+                "Command Parsing",
+                "Log Analysis"
+              ],
+              "complexityClass": "Exponential"
+            },
+            "estimatedTimeMinutes": 68,
+            "dayAssigned": 8
+          },
+          {
+            "problemId": "course-schedule-ii",
+            "title": "Course Schedule II",
+            "difficulty": "Medium",
+            "hotnessScore": 56,
+            "hotnessBreakdown": {
+              "frequency": 13,
+              "recency": 18,
+              "roleRelevance": 20,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 38,
+              "recency": [
+                "threeMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 78,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Adjacency List",
+                "Queue",
+                "Hash Map",
+                "Directed Graph",
+                "In-degree Array"
+              ],
+              "algorithmPatterns": [
+                "Topological Sort",
+                "Breadth-First Search",
+                "Depth-First Search",
+                "Cycle Detection",
+                "Dependency Resolution"
+              ],
+              "domainConcepts": [
+                "Dependency Management",
+                "Build Systems",
+                "Task Scheduling",
+                "Pipeline Ordering",
+                "Deadlock Detection",
+                "Package Resolution"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 28,
+            "dayAssigned": 8
+          },
+          {
+            "problemId": "evaluate-division",
+            "title": "Evaluate Division",
+            "difficulty": "Medium",
+            "hotnessScore": 55,
+            "hotnessBreakdown": {
+              "frequency": 13,
+              "recency": 18,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 38,
+              "recency": [
+                "threeMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Graph",
+                "HashMap/Dictionary",
+                "Adjacency List",
+                "Queue (BFS)",
+                "Stack (DFS)"
+              ],
+              "algorithmPatterns": [
+                "Graph Traversal",
+                "Depth-First Search",
+                "Breadth-First Search",
+                "Union Find",
+                "Path Finding",
+                "Transitive Closure"
+              ],
+              "domainConcepts": [
+                "Dependency Resolution",
+                "Unit Conversion",
+                "Relational Data Queries",
+                "Transitive Relationships",
+                "Graph Connectivity",
+                "Symbolic Computation"
+              ],
+              "complexityClass": "Polynomial"
+            },
+            "estimatedTimeMinutes": 35,
+            "dayAssigned": 8
+          },
+          {
+            "problemId": "coin-change",
+            "title": "Coin Change",
+            "difficulty": "Medium",
+            "hotnessScore": 55,
+            "hotnessBreakdown": {
+              "frequency": 13,
+              "recency": 18,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 38,
+              "recency": [
+                "threeMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Dynamic Programming Table"
+              ],
+              "algorithmPatterns": [
+                "Dynamic Programming",
+                "Bottom-Up DP",
+                "Top-Down DP with Memoization",
+                "Optimization Problem"
+              ],
+              "domainConcepts": [
+                "Resource Optimization",
+                "Minimum Cost Path",
+                "Constraint Satisfaction",
+                "Greedy vs Optimal Solutions"
+              ],
+              "complexityClass": "Polynomial"
+            },
+            "estimatedTimeMinutes": 30,
+            "dayAssigned": 8
+          }
+        ],
+        "estimatedHours": 2.683333333333333,
+        "topics": [
+          "Hash Set",
+          "Memoization Map",
+          "String",
+          "Trie",
+          "Array",
+          "Backtracking",
+          "Dynamic Programming",
+          "Memoization",
+          "Recursive Decomposition",
+          "String Segmentation",
+          "Adjacency List",
+          "Queue",
+          "Hash Map",
+          "Directed Graph",
+          "In-degree Array",
+          "Topological Sort",
+          "Breadth-First Search",
+          "Depth-First Search",
+          "Cycle Detection",
+          "Dependency Resolution",
+          "Graph",
+          "HashMap/Dictionary",
+          "Queue (BFS)",
+          "Stack (DFS)",
+          "Graph Traversal",
+          "Union Find",
+          "Path Finding",
+          "Transitive Closure",
+          "Dynamic Programming Table",
+          "Bottom-Up DP",
+          "Top-Down DP with Memoization",
+          "Optimization Problem"
+        ]
+      },
+      {
+        "day": 9,
+        "date": "2025-10-15T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "first-missing-positive",
+            "title": "First Missing Positive",
+            "difficulty": "Hard",
+            "hotnessScore": 53,
+            "hotnessBreakdown": {
+              "frequency": 16,
+              "recency": 13,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 46.4,
+              "recency": [
+                "moreThanSixMonths",
+                "all"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Hash Table",
+                "In-place Data Structure"
+              ],
+              "algorithmPatterns": [
+                "Index as Hash Key",
+                "Cyclic Sort",
+                "In-place Marking",
+                "Array Manipulation",
+                "Constant Space Optimization"
+              ],
+              "domainConcepts": [
+                "Resource Allocation",
+                "Gap Detection",
+                "ID Assignment",
+                "Memory Efficiency",
+                "Sequential Resource Management"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 58,
+            "dayAssigned": 9
+          },
+          {
+            "problemId": "sum-of-two-integers",
+            "title": "Sum of Two Integers",
+            "difficulty": "Medium",
+            "hotnessScore": 51,
+            "hotnessBreakdown": {
+              "frequency": 19,
+              "recency": 18,
+              "roleRelevance": 9,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 54.5,
+              "recency": [
+                "threeMonths"
+              ],
+              "isActuallyAsked": true
+            },
+            "roleRelevance": 35,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Integers",
+                "Bit Masks"
+              ],
+              "algorithmPatterns": [
+                "Bit Manipulation",
+                "Iterative Carry Propagation",
+                "XOR for Sum",
+                "AND for Carry"
+              ],
+              "domainConcepts": [
+                "Low-Level Arithmetic",
+                "Binary Addition",
+                "Hardware ALU Simulation",
+                "Fixed-Width Integer Operations",
+                "Two's Complement Handling"
+              ],
+              "complexityClass": "Constant"
+            },
+            "estimatedTimeMinutes": 31,
+            "dayAssigned": 9
+          },
+          {
+            "problemId": "web-crawler-multithreaded",
+            "title": "Web Crawler Multithreaded",
+            "difficulty": "Medium",
+            "hotnessScore": 48,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 24,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 95,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Thread-Safe Set",
+                "Queue",
+                "HashSet",
+                "Concurrent Collections"
+              ],
+              "algorithmPatterns": [
+                "BFS/DFS Graph Traversal",
+                "Multithreading",
+                "Producer-Consumer",
+                "Thread Pool Management",
+                "Synchronization Primitives"
+              ],
+              "domainConcepts": [
+                "Web Crawling",
+                "Concurrency Control",
+                "Race Condition Prevention",
+                "URL Deduplication",
+                "Hostname Filtering",
+                "Parallel Processing",
+                "Resource Pooling"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 31,
+            "dayAssigned": 9
+          },
+          {
+            "problemId": "encode-and-decode-tinyurl",
+            "title": "Encode and Decode TinyURL",
+            "difficulty": "Medium",
+            "hotnessScore": 48,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 24,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 95,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Hash Table",
+                "String",
+                "Bidirectional Map"
+              ],
+              "algorithmPatterns": [
+                "Encoding/Decoding",
+                "ID Generation",
+                "Collision Handling",
+                "Hash Function Design",
+                "Bijective Mapping"
+              ],
+              "domainConcepts": [
+                "URL Shortening",
+                "Key-Value Storage",
+                "Unique ID Generation",
+                "Service API Design",
+                "Stateful Service Design"
+              ],
+              "complexityClass": "Constant"
+            },
+            "estimatedTimeMinutes": 38,
+            "dayAssigned": 9
+          }
+        ],
+        "estimatedHours": 2.6333333333333333,
+        "topics": [
+          "Array",
+          "Hash Table",
+          "In-place Data Structure",
+          "Index as Hash Key",
+          "Cyclic Sort",
+          "In-place Marking",
+          "Array Manipulation",
+          "Constant Space Optimization",
+          "Integers",
+          "Bit Masks",
+          "Bit Manipulation",
+          "Iterative Carry Propagation",
+          "XOR for Sum",
+          "AND for Carry",
+          "Thread-Safe Set",
+          "Queue",
+          "HashSet",
+          "Concurrent Collections",
+          "BFS/DFS Graph Traversal",
+          "Multithreading",
+          "Producer-Consumer",
+          "Thread Pool Management",
+          "Synchronization Primitives",
+          "String",
+          "Bidirectional Map",
+          "Encoding/Decoding",
+          "ID Generation",
+          "Collision Handling",
+          "Hash Function Design",
+          "Bijective Mapping"
+        ]
+      },
+      {
+        "day": 10,
+        "date": "2025-10-16T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "find-servers-that-handled-most-number-of-requests",
+            "title": "Find Servers That Handled Most Number of Requests",
+            "difficulty": "Hard",
+            "hotnessScore": 47,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 23,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 92,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Min Heap (Priority Queue)",
+                "Set (Ordered Set)",
+                "Array",
+                "Hash Map"
+              ],
+              "algorithmPatterns": [
+                "Event Simulation",
+                "Greedy Assignment",
+                "Circular Buffer Traversal",
+                "Time-based Scheduling",
+                "Heap-based Priority Management"
+              ],
+              "domainConcepts": [
+                "Load Balancing",
+                "Request Scheduling",
+                "Server Capacity Management",
+                "Request Dropping/Throttling",
+                "Round-Robin Assignment",
+                "Resource Allocation"
+              ],
+              "complexityClass": "Linearithmic"
+            },
+            "estimatedTimeMinutes": 71,
+            "dayAssigned": 10
+          },
+          {
+            "problemId": "promise-pool",
+            "title": "Promise Pool",
+            "difficulty": "Medium",
+            "hotnessScore": 47,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 24,
+              "companyContext": 5
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 95,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Queue",
+                "Semaphore",
+                "Array",
+                "Task Pool"
+              ],
+              "algorithmPatterns": [
+                "Concurrency Control",
+                "Producer-Consumer",
+                "Rate Limiting",
+                "Resource Pooling",
+                "Async Coordination"
+              ],
+              "domainConcepts": [
+                "Connection Pooling",
+                "Rate Limiting",
+                "Backpressure",
+                "Thread Pool Management",
+                "Resource Throttling",
+                "Worker Pool",
+                "Bounded Concurrency"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 37,
+            "dayAssigned": 10
+          },
+          {
+            "problemId": "snapshot-array",
+            "title": "Snapshot Array",
+            "difficulty": "Medium",
+            "hotnessScore": 47,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 23,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 92,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Array",
+                "Hash Table",
+                "Sorted List",
+                "Version History List"
+              ],
+              "algorithmPatterns": [
+                "Binary Search",
+                "Time-based Indexing",
+                "Copy-on-Write",
+                "Version Control",
+                "Incremental State Tracking"
+              ],
+              "domainConcepts": [
+                "Point-in-Time Recovery",
+                "Versioning",
+                "Snapshot Management",
+                "Time-Travel Queries",
+                "Immutable State",
+                "Space Optimization",
+                "Temporal Data Storage"
+              ],
+              "complexityClass": "Logarithmic"
+            },
+            "estimatedTimeMinutes": 33,
+            "dayAssigned": 10
+          },
+          {
+            "problemId": "number-of-orders-in-the-backlog",
+            "title": "Number of Orders in the Backlog",
+            "difficulty": "Medium",
+            "hotnessScore": 45,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 21,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 85,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Priority Queue (Heap)",
+                "Max-Heap",
+                "Min-Heap"
+              ],
+              "algorithmPatterns": [
+                "Greedy Matching",
+                "Order Processing Simulation",
+                "Priority-based Selection",
+                "Two-heap Pattern"
+              ],
+              "domainConcepts": [
+                "Order Matching Engine",
+                "Market Making",
+                "Order Book Management",
+                "Trading Systems",
+                "Request Queue Management",
+                "Priority-based Task Scheduling"
+              ],
+              "complexityClass": "Linearithmic"
+            },
+            "estimatedTimeMinutes": 38,
+            "dayAssigned": 10
+          }
+        ],
+        "estimatedHours": 2.9833333333333334,
+        "topics": [
+          "Min Heap (Priority Queue)",
+          "Set (Ordered Set)",
+          "Array",
+          "Hash Map",
+          "Event Simulation",
+          "Greedy Assignment",
+          "Circular Buffer Traversal",
+          "Time-based Scheduling",
+          "Heap-based Priority Management",
+          "Queue",
+          "Semaphore",
+          "Task Pool",
+          "Concurrency Control",
+          "Producer-Consumer",
+          "Rate Limiting",
+          "Resource Pooling",
+          "Async Coordination",
+          "Hash Table",
+          "Sorted List",
+          "Version History List",
+          "Binary Search",
+          "Time-based Indexing",
+          "Copy-on-Write",
+          "Version Control",
+          "Incremental State Tracking",
+          "Priority Queue (Heap)",
+          "Max-Heap",
+          "Min-Heap",
+          "Greedy Matching",
+          "Order Processing Simulation",
+          "Priority-based Selection",
+          "Two-heap Pattern"
+        ]
+      },
+      {
+        "day": 11,
+        "date": "2025-10-17T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "design-circular-queue",
+            "title": "Design Circular Queue",
+            "difficulty": "Medium",
+            "hotnessScore": 46,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 22,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 88,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Circular Queue",
+                "Ring Buffer",
+                "Array",
+                "Queue"
+              ],
+              "algorithmPatterns": [
+                "Modular Arithmetic",
+                "Fixed-Size Buffer Management",
+                "FIFO",
+                "Pointer/Index Manipulation"
+              ],
+              "domainConcepts": [
+                "Message Queuing",
+                "Producer-Consumer Patterns",
+                "Buffering",
+                "Rate Limiting",
+                "Request Throttling",
+                "Stream Processing",
+                "Resource Pooling"
+              ],
+              "complexityClass": "Constant"
+            },
+            "estimatedTimeMinutes": 43,
+            "dayAssigned": 11
+          },
+          {
+            "problemId": "design-skiplist",
+            "title": "Design Skiplist",
+            "difficulty": "Hard",
+            "hotnessScore": 45,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 21,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 85,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Skiplist",
+                "Linked List",
+                "Multi-level Index"
+              ],
+              "algorithmPatterns": [
+                "Probabilistic Data Structure",
+                "Layered Indexing",
+                "Binary Search Adaptation",
+                "Level-based Traversal"
+              ],
+              "domainConcepts": [
+                "In-Memory Indexing",
+                "Fast Retrieval",
+                "Database Indexing",
+                "Cache Implementation",
+                "Ordered Data Management"
+              ],
+              "complexityClass": "Logarithmic"
+            },
+            "estimatedTimeMinutes": 60,
+            "dayAssigned": 11
+          },
+          {
+            "problemId": "minimum-obstacle-removal-to-reach-corner",
+            "title": "Minimum Obstacle Removal to Reach Corner",
+            "difficulty": "Hard",
+            "hotnessScore": 43,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Matrix/2D Array",
+                "Deque",
+                "Priority Queue (Min-Heap)",
+                "Distance Array",
+                "Visited Set"
+              ],
+              "algorithmPatterns": [
+                "0-1 BFS",
+                "Dijkstra's Algorithm",
+                "Shortest Path",
+                "Graph Traversal",
+                "Weighted Graph Search",
+                "Greedy Optimization"
+              ],
+              "domainConcepts": [
+                "Path Finding",
+                "Cost Minimization",
+                "Resource-Constrained Routing",
+                "Network Optimization",
+                "Obstacle Avoidance",
+                "Route Planning"
+              ],
+              "complexityClass": "Linear"
+            },
+            "estimatedTimeMinutes": 64,
+            "dayAssigned": 11
+          }
+        ],
+        "estimatedHours": 2.783333333333333,
+        "topics": [
+          "Circular Queue",
+          "Ring Buffer",
+          "Array",
+          "Queue",
+          "Modular Arithmetic",
+          "Fixed-Size Buffer Management",
+          "FIFO",
+          "Pointer/Index Manipulation",
+          "Skiplist",
+          "Linked List",
+          "Multi-level Index",
+          "Probabilistic Data Structure",
+          "Layered Indexing",
+          "Binary Search Adaptation",
+          "Level-based Traversal",
+          "Matrix/2D Array",
+          "Deque",
+          "Priority Queue (Min-Heap)",
+          "Distance Array",
+          "Visited Set",
+          "0-1 BFS",
+          "Dijkstra's Algorithm",
+          "Shortest Path",
+          "Graph Traversal",
+          "Weighted Graph Search",
+          "Greedy Optimization"
+        ]
+      },
+      {
+        "day": 12,
+        "date": "2025-10-18T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "connecting-cities-with-minimum-cost",
+            "title": "Connecting Cities With Minimum Cost",
+            "difficulty": "Medium",
+            "hotnessScore": 43,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Union-Find",
+                "Disjoint Set",
+                "Priority Queue",
+                "Graph",
+                "Edge List"
+              ],
+              "algorithmPatterns": [
+                "Minimum Spanning Tree",
+                "Kruskal's Algorithm",
+                "Greedy Algorithm",
+                "Path Compression",
+                "Union by Rank",
+                "Cycle Detection"
+              ],
+              "domainConcepts": [
+                "Network Topology",
+                "Resource Optimization",
+                "Cost Minimization",
+                "Network Design",
+                "Infrastructure Planning",
+                "Service Mesh",
+                "Data Center Connectivity"
+              ],
+              "complexityClass": "Linearithmic"
+            },
+            "estimatedTimeMinutes": 33,
+            "dayAssigned": 12
+          },
+          {
+            "problemId": "handling-sum-queries-after-update",
+            "title": "Handling Sum Queries After Update",
+            "difficulty": "Hard",
+            "hotnessScore": 43,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 19,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 75,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Segment Tree",
+                "Binary Indexed Tree",
+                "Array",
+                "Lazy Propagation"
+              ],
+              "algorithmPatterns": [
+                "Range Query",
+                "Range Update",
+                "Lazy Propagation",
+                "Tree-based Indexing",
+                "Batch Processing"
+              ],
+              "domainConcepts": [
+                "Efficient Range Operations",
+                "Query Optimization",
+                "Incremental Updates",
+                "State Tracking",
+                "Time-Series Aggregation"
+              ],
+              "complexityClass": "Logarithmic per operation"
+            },
+            "estimatedTimeMinutes": 62,
+            "dayAssigned": 12
+          },
+          {
+            "problemId": "brace-expansion-ii",
+            "title": "Brace Expansion II",
+            "difficulty": "Hard",
+            "hotnessScore": 42,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Stack",
+                "Set",
+                "String",
+                "Recursion Tree"
+              ],
+              "algorithmPatterns": [
+                "Recursive Parsing",
+                "Expression Evaluation",
+                "Cartesian Product",
+                "Set Union",
+                "Bracket Matching",
+                "Backtracking"
+              ],
+              "domainConcepts": [
+                "Grammar Parsing",
+                "Language Processing",
+                "Configuration Expansion",
+                "Template Expansion",
+                "Pattern Matching",
+                "Lexical Analysis"
+              ],
+              "complexityClass": "Exponential"
+            },
+            "estimatedTimeMinutes": 68,
+            "dayAssigned": 12
+          }
+        ],
+        "estimatedHours": 2.716666666666667,
+        "topics": [
+          "Union-Find",
+          "Disjoint Set",
+          "Priority Queue",
+          "Graph",
+          "Edge List",
+          "Minimum Spanning Tree",
+          "Kruskal's Algorithm",
+          "Greedy Algorithm",
+          "Path Compression",
+          "Union by Rank",
+          "Cycle Detection",
+          "Segment Tree",
+          "Binary Indexed Tree",
+          "Array",
+          "Lazy Propagation",
+          "Range Query",
+          "Range Update",
+          "Tree-based Indexing",
+          "Batch Processing",
+          "Stack",
+          "Set",
+          "String",
+          "Recursion Tree",
+          "Recursive Parsing",
+          "Expression Evaluation",
+          "Cartesian Product",
+          "Set Union",
+          "Bracket Matching",
+          "Backtracking"
+        ]
+      },
+      {
+        "day": 13,
+        "date": "2025-10-19T15:31:24.175Z",
+        "problems": [
+          {
+            "problemId": "detect-squares",
+            "title": "Detect Squares",
+            "difficulty": "Medium",
+            "hotnessScore": 42,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 18,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 72,
+            "enrichedTopics": {
+              "dataStructures": [
+                "HashMap",
+                "Counter",
+                "Point Storage",
+                "Frequency Map"
+              ],
+              "algorithmPatterns": [
+                "Geometric Computation",
+                "Hash Table Lookup",
+                "Counting with Frequency Maps",
+                "Diagonal Enumeration",
+                "Stream Processing"
+              ],
+              "domainConcepts": [
+                "Point-in-Time Queries",
+                "Streaming Data Ingestion",
+                "Spatial Indexing",
+                "Data Structure Design",
+                "Frequency Tracking"
+              ],
+              "complexityClass": "Linear per Query"
+            },
+            "estimatedTimeMinutes": 32,
+            "dayAssigned": 13
+          },
+          {
+            "problemId": "find-the-safest-path-in-a-grid",
+            "title": "Find The Safest Path In A Grid",
+            "difficulty": "Medium",
+            "hotnessScore": 35,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 11,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 45,
+            "enrichedTopics": {
+              "dataStructures": [
+                "2D Matrix",
+                "Priority Queue (Max-Heap)",
+                "Queue",
+                "Distance Matrix",
+                "Graph (Implicit)"
+              ],
+              "algorithmPatterns": [
+                "Multi-source BFS",
+                "Modified Dijkstra's Algorithm",
+                "Graph Traversal",
+                "Pathfinding",
+                "Manhattan Distance",
+                "Binary Search (Optional)",
+                "Union Find (Alternative)"
+              ],
+              "domainConcepts": [
+                "Risk Assessment",
+                "Safe Path Navigation",
+                "Resource Avoidance",
+                "Threat Distance Optimization",
+                "Network Routing Safety",
+                "Zone-based Security",
+                "Safest Route Selection"
+              ],
+              "complexityClass": "Quadratic Logarithmic"
+            },
+            "estimatedTimeMinutes": 30,
+            "dayAssigned": 13
+          },
+          {
+            "problemId": "minimum-operations-to-remove-adjacent-ones-in-matrix",
+            "title": "Minimum Operations To Remove Adjacent Ones In Matrix",
+            "difficulty": "Hard",
+            "hotnessScore": 33,
+            "hotnessBreakdown": {
+              "frequency": 11,
+              "recency": 8,
+              "roleRelevance": 9,
+              "companyContext": 6
+            },
+            "frequencyData": {
+              "overall": 30,
+              "recency": [],
+              "isActuallyAsked": false
+            },
+            "roleRelevance": 35,
+            "enrichedTopics": {
+              "dataStructures": [
+                "Graph",
+                "Bipartite Graph",
+                "Matrix",
+                "Adjacency List",
+                "Hash Map"
+              ],
+              "algorithmPatterns": [
+                "Bipartite Matching",
+                "Maximum Matching",
+                "Minimum Vertex Cover",
+                "König's Theorem",
+                "Graph Modeling",
+                "Hungarian Algorithm",
+                "Hopcroft-Karp",
+                "DFS/BFS Traversal"
+              ],
+              "domainConcepts": [
+                "Resource Allocation",
+                "Task Assignment",
+                "Constraint Satisfaction",
+                "Network Flow",
+                "Job Scheduling",
+                "Conflict Resolution",
+                "Optimization"
+              ],
+              "complexityClass": "Polynomial"
+            },
+            "estimatedTimeMinutes": 69,
+            "dayAssigned": 13
+          }
+        ],
+        "estimatedHours": 2.183333333333333,
+        "topics": [
+          "HashMap",
+          "Counter",
+          "Point Storage",
+          "Frequency Map",
+          "Geometric Computation",
+          "Hash Table Lookup",
+          "Counting with Frequency Maps",
+          "Diagonal Enumeration",
+          "Stream Processing",
+          "2D Matrix",
+          "Priority Queue (Max-Heap)",
+          "Queue",
+          "Distance Matrix",
+          "Graph (Implicit)",
+          "Multi-source BFS",
+          "Modified Dijkstra's Algorithm",
+          "Graph Traversal",
+          "Pathfinding",
+          "Manhattan Distance",
+          "Binary Search (Optional)",
+          "Union Find (Alternative)",
+          "Graph",
+          "Bipartite Graph",
+          "Matrix",
+          "Adjacency List",
+          "Hash Map",
+          "Bipartite Matching",
+          "Maximum Matching",
+          "Minimum Vertex Cover",
+          "König's Theorem",
+          "Graph Modeling",
+          "Hungarian Algorithm",
+          "Hopcroft-Karp",
+          "DFS/BFS Traversal"
+        ]
+      }
+    ],
+    "metadata": {
+      "companyName": "Bloomberg",
+      "role": "backend",
+      "generatedAt": "2025-10-07T15:31:24.176Z",
+      "quality": {
+        "actualCompanyProblems": 38,
+        "extrapolatedProblems": 15,
+        "topicCoverage": 292
+      }
+    }
+  }
+}

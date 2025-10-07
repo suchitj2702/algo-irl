@@ -35,6 +35,7 @@ yarn-error.log*
 
 # vercel
 .vercel
+vercel.json
 
 # typescript
 *.tsbuildinfo
@@ -57,3 +58,5 @@ scripts/batch-problem-generation/input/*
 scripts/batch-problem-generation/output/*
 scripts/batch-problem-transform/input/*
 scripts/batch-problem-transform/output/*
+
+test-outputs

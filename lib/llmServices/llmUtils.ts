@@ -235,6 +235,12 @@ export const llmTaskConfigurations: { [taskName: string]: LlmTaskConfig } = {
     model: 'ft:gpt-4.1-nano-2025-04-14:personal:algoirl-problem-transformer-v2:CJPX2fwN',
     max_tokens: 5000,
     thinking_enabled: false
+  },
+  problemRoleScoring: {
+    service: 'anthropic',
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 1000,
+    thinking_enabled: false
   }
 };
 

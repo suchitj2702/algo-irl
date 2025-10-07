@@ -96,7 +96,7 @@ IMPORTANT INSTRUCTIONS FOR AI:
 1.  The entire response MUST be a single, valid JSON object. Do not include any text, explanations, or markdown formatting like \`\`\`json ` +
     `before or after the JSON object.
 2.  Every field specified in the structure above MUST be included.
-3.  For the 'testCases' field: Generate 10 diverse test cases. It MUST be a valid JSON array of objects. Each object must be ` +
+3.  For the 'testCases' field: Generate 5 diverse test cases. It MUST be a valid JSON array of objects. Each object must be ` +
     `a complete JSON object, and array elements correctly comma-separated. NO TRAILING COMMAS. 'stdin' and 'expectedStdout' fields must be ` +
     `valid JSON STRINGS, meaning special characters (like quotes, newlines) within these strings must be properly escaped ` +
     `(e.g., use \\\\\\\\\\\" for a quote inside the string). Example of a test case object: {\\\"stdin\\\": \\\"{\\\\\\\\\\\"root\\\\\\\\\\\\\": [1,2,3,null,null,4,5]}\\\", ` +
