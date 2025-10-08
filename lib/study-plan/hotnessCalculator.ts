@@ -23,6 +23,10 @@ import {
   EXTRAPOLATED_DEFAULTS
 } from './types';
 import { calculateCompanyContextBoost } from './companyContextAnalyzer';
+import {
+  getAdaptiveThreshold,
+  ROLE_SCORE_THRESHOLDS
+} from './adaptiveThresholds';
 
 /**
  * Determine which recency buckets a problem appears in
@@ -221,9 +225,14 @@ export function batchCalculateHotness(
   role: RoleFamily,
   companyProblemMap: Map<string, CompanyProblemData>,
   roleScoreMap: Map<string, ProblemRoleScore>,
-  companyProblems: Map<RecencyBucket, CompanyProblemData[]>
+  companyProblems: Map<RecencyBucket, CompanyProblemData[]>,
+  minRoleScore?: number
 ): Map<string, ReturnType<typeof calculateProblemHotness>> {
   const results = new Map<string, ReturnType<typeof calculateProblemHotness>>();
+
+  // Determine minimum threshold for this role
+  const thresholds = ROLE_SCORE_THRESHOLDS[role];
+  const minThreshold = minRoleScore || thresholds.acceptable;
 
   for (const problem of problems) {
     const companyProblemData = companyProblemMap.get(problem.id);
@@ -232,6 +241,13 @@ export function batchCalculateHotness(
     if (!roleScoreData) {
       // Skip problems without role scores
       console.warn(`No role score data for problem: ${problem.id}`);
+      continue;
+    }
+
+    // Apply role score threshold filtering
+    const roleScore = roleScoreData.roleScores[role];
+    if (roleScore < minThreshold) {
+      // Problem doesn't meet minimum threshold for this role
       continue;
     }
 

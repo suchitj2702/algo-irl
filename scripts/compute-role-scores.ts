@@ -120,7 +120,7 @@ async function getProblemRoleScore(problemId: string): Promise<ProblemRoleScore 
       const data = docSnap.data() as ProblemRoleScore;
       return {
         ...data,
-        problemId: docSnap.id
+        id: docSnap.id
       };
     }
     return null;
@@ -135,22 +135,22 @@ async function getProblemRoleScore(problemId: string): Promise<ProblemRoleScore 
  */
 async function saveProblemRoleScore(score: ProblemRoleScore): Promise<void> {
   if (DRY_RUN) {
-    console.log(`[DRY RUN] Would save role score for: ${score.problemId}`);
+    console.log(`[DRY RUN] Would save role score for: ${score.id}`);
     return;
   }
 
   try {
     const db = adminDb();
-    const docRef = db.collection('problemRoleScores').doc(score.problemId);
+    const docRef = db.collection('problemRoleScores').doc(score.id);
     await docRef.set({
       roleScores: score.roleScores,
       enrichedTopics: score.enrichedTopics,
       computedAt: score.computedAt,
       version: score.version
     });
-    console.log(`✅ Saved role score for: ${score.problemId}`);
+    console.log(`✅ Saved role score for: ${score.id}`);
   } catch (error) {
-    console.error(`❌ Error saving role score for ${score.problemId}:`, error);
+    console.error(`❌ Error saving role score for ${score.id}:`, error);
     throw error;
   }
 }
@@ -194,7 +194,7 @@ async function computeRoleScoreForProblem(problem: Problem): Promise<ProblemRole
     const parsed = JSON.parse(cleanedResponse);
 
     return {
-      problemId: problem.id,
+      id: problem.id,
       roleScores: parsed.roleScores,
       enrichedTopics: parsed.enrichedTopics,
       computedAt: Timestamp.now(),

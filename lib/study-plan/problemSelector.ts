@@ -31,6 +31,12 @@ import {
   getCachedCompanyProblems,
   cacheCompanyProblems
 } from './requestCache';
+import { normalizePatterns } from './patternNormalizer';
+import {
+  getAdaptiveThreshold,
+  getThresholdForStage,
+  ROLE_SCORE_THRESHOLDS
+} from './adaptiveThresholds';
 
 /**
  * Load all problems with caching
@@ -70,7 +76,7 @@ async function loadAllRoleScores(): Promise<ProblemRoleScore[]> {
   const roleScores: ProblemRoleScore[] = [];
   snapshot.forEach(doc => {
     roleScores.push({
-      problemId: doc.id,
+      id: doc.id,
       ...doc.data()
     } as ProblemRoleScore);
   });
@@ -297,17 +303,25 @@ function selectDiverseProblems(
  * Main problem selection function
  *
  * This is the entry point for problem selection.
+ *
+ * @param config - Selection configuration
+ * @param company - Target company
+ * @param scope - Problem scope: 'company' (default) or 'all-problems' (generic pool)
+ * @param allowNoThreshold - If true, accept problems with any role score (no threshold)
  */
 export async function selectProblems(
   config: ProblemSelectionConfig,
-  company: Company
+  company: Company,
+  scope: 'company' | 'all-problems' = 'company',
+  allowNoThreshold: boolean = false
 ): Promise<EnrichedProblemInternal[]> {
   console.log(`\n${'='.repeat(60)}`);
   console.log('🔍 PROBLEM SELECTION');
   console.log('='.repeat(60));
   console.log(`Company: ${company.name}`);
   console.log(`Role: ${config.roleFamily}`);
-  console.log(`Target: ${config.targetCount} problems\n`);
+  console.log(`Target: ${config.targetCount} problems`);
+  console.log(`Scope: ${scope}${allowNoThreshold ? ' (no threshold)' : ''}\n`);
 
   // 1. Load all data
   console.log('📦 Loading data...');
@@ -343,7 +357,7 @@ export async function selectProblems(
   console.log(`   First 3 IDs:`, allProblems.slice(0, 3).map(p => p.id));
 
   // 2. Create lookup maps for efficient access
-  const roleScoreMap = new Map(allRoleScores.map(rs => [rs.problemId, rs]));
+  const roleScoreMap = new Map(allRoleScores.map(rs => [rs.id, rs]));
 
   // Build set of valid problem IDs to filter out "ghost problems"
   // (problems in company data that don't exist in main problems collection)
@@ -375,13 +389,16 @@ export async function selectProblems(
 
   // 3. Calculate hotness scores
   console.log('\n📊 Calculating hotness scores...');
+  // If allowNoThreshold is true, pass undefined as minRoleScore to accept all problems
+  const effectiveMinRoleScore = allowNoThreshold ? undefined : config.minRoleScore;
   const hotnessResults = batchCalculateHotness(
     allProblems,
     company,
     config.roleFamily,
     companyProblemMap,
     roleScoreMap,
-    companyProblems
+    companyProblems,
+    effectiveMinRoleScore
   );
 
   // 4. Enrich problems with all metadata
@@ -428,7 +445,9 @@ export async function selectProblems(
       roleRelevance: roleScoreData.roleScores[config.roleFamily],
       enrichedTopics: {
         dataStructures: roleScoreData.enrichedTopics.dataStructures,
-        algorithmPatterns: roleScoreData.enrichedTopics.algorithmPatterns,
+        algorithmPatterns: normalizePatterns(
+          roleScoreData.enrichedTopics.algorithmPatterns
+        ),
         domainConcepts: roleScoreData.enrichedTopics.domainConcepts,
         complexityClass: roleScoreData.enrichedTopics.complexityClass
       },
@@ -438,15 +457,28 @@ export async function selectProblems(
 
   console.log(`   Enriched: ${enrichedProblems.length} problems`);
 
-  // 5. Sort by hotness (descending)
-  enrichedProblems.sort((a, b) => b.hotnessScore - a.hotnessScore);
+  // 5. Filter by scope
+  let scopedProblems = enrichedProblems;
+  if (scope === 'company') {
+    // Only include problems that are actually asked at the company (or extrapolated with hotness > 0)
+    scopedProblems = enrichedProblems.filter(p =>
+      p.frequencyData.isActuallyAsked || p.hotnessScore > 0
+    );
+    console.log(`   After scope filter (company): ${scopedProblems.length} problems`);
+  } else {
+    // 'all-problems': Use entire problem pool
+    console.log(`   Scope: all-problems (using entire database)`);
+  }
 
-  // 6. Apply filters
+  // 6. Sort by hotness (descending)
+  scopedProblems.sort((a, b) => b.hotnessScore - a.hotnessScore);
+
+  // 7. Apply filters
   console.log('\n🔧 Applying filters...');
-  const filteredProblems = applyFilters(enrichedProblems, config);
+  const filteredProblems = applyFilters(scopedProblems, config);
   console.log(`   After filters: ${filteredProblems.length} problems`);
 
-  // 7. Select diverse problems
+  // 8. Select diverse problems
   console.log('\n🎯 Selecting diverse problems...');
   const selectedProblems = selectDiverseProblems(
     filteredProblems,
@@ -456,7 +488,7 @@ export async function selectProblems(
 
   console.log(`   Selected: ${selectedProblems.length} problems`);
 
-  // 8. Calculate statistics
+  // 9. Calculate statistics
   const actuallyAsked = selectedProblems.filter(p => p.frequencyData.isActuallyAsked).length;
   const avgHotness = selectedProblems.reduce((sum, p) => sum + p.hotnessScore, 0) / selectedProblems.length;
   const uniqueTopics = new Set(selectedProblems.flatMap(p => p.enrichedTopics.dataStructures));
@@ -469,4 +501,122 @@ export async function selectProblems(
   console.log('='.repeat(60) + '\n');
 
   return selectedProblems;
+}
+
+/**
+ * Progressive fallback configuration
+ */
+interface FallbackStage {
+  targetRatio: number;
+  relaxTopics: boolean;
+  relaxDifficulty: boolean;
+  lowerThreshold: boolean;
+  emergency: boolean;
+  /** Problem scope: 'company' (default), 'all-problems' (generic pool) */
+  scope?: 'company' | 'all-problems';
+  /** Allow problems with no role score threshold (accept any problem) */
+  allowNoThreshold?: boolean;
+}
+
+const FALLBACK_STAGES: FallbackStage[] = [
+  // Stage 1: Strict - all filters, preferred threshold
+  { targetRatio: 1.0, relaxTopics: false, relaxDifficulty: false, lowerThreshold: false, emergency: false, scope: 'company' },
+
+  // Stage 2: Lower threshold early (before reducing target count)
+  // Rationale: Better to get more problems at acceptable threshold than reduce target count
+  { targetRatio: 0.8, relaxTopics: true, relaxDifficulty: false, lowerThreshold: true, emergency: false, scope: 'company' },
+
+  // Stage 3: Lower threshold further (minimum threshold)
+  { targetRatio: 0.6, relaxTopics: true, relaxDifficulty: true, lowerThreshold: true, emergency: false, scope: 'company' },
+
+  // Stage 4-5: Original emergency fallback with company problems
+  { targetRatio: 0.5, relaxTopics: true, relaxDifficulty: true, lowerThreshold: true, emergency: false, scope: 'company' },
+  { targetRatio: 0.3, relaxTopics: true, relaxDifficulty: true, lowerThreshold: true, emergency: true, scope: 'company' },
+
+  // Stage 6: Remove role score threshold entirely (company problems only)
+  // Rationale: Better to include loosely-related problems from target company than leave days empty
+  { targetRatio: 1.0, relaxTopics: true, relaxDifficulty: true, lowerThreshold: true, emergency: true, scope: 'company', allowNoThreshold: true },
+
+  // Stage 7: Expand to entire problem database (generic pool)
+  // Rationale: For long timelines (30+ days), we need to fill all days even if company has limited data
+  { targetRatio: 1.0, relaxTopics: true, relaxDifficulty: true, lowerThreshold: true, emergency: true, scope: 'all-problems', allowNoThreshold: false },
+
+  // Stage 8: Emergency - generic pool with no role threshold
+  // Rationale: Last resort to prevent empty days (still respects difficulty preferences)
+  { targetRatio: 1.0, relaxTopics: true, relaxDifficulty: true, lowerThreshold: true, emergency: true, scope: 'all-problems', allowNoThreshold: true },
+];
+
+/**
+ * Select problems with progressive fallback
+ * Tries increasingly relaxed constraints until sufficient problems are found
+ */
+export async function selectProblemsWithFallback(
+  config: ProblemSelectionConfig,
+  company: Company
+): Promise<EnrichedProblemInternal[]> {
+  const targetCount = config.targetCount;
+  const minimumCount = config.minimumCount || 0;
+
+  for (let i = 0; i < FALLBACK_STAGES.length; i++) {
+    const stage = FALLBACK_STAGES[i];
+    // CRITICAL: Never reduce target below minimum count (for timeline filling)
+    const stageTarget = Math.max(
+      minimumCount,
+      Math.ceil(targetCount * stage.targetRatio)
+    );
+
+    console.log(`🔄 Fallback stage ${i + 1}/${FALLBACK_STAGES.length}: target=${stageTarget} (min=${minimumCount}), scope=${stage.scope || 'company'}, noThreshold=${stage.allowNoThreshold || false}`);
+
+    // Create modified config for this stage
+    const stageConfig: ProblemSelectionConfig = {
+      ...config,
+      targetCount: stageTarget,
+      topicFocus: stage.relaxTopics ? undefined : config.topicFocus,
+      difficultyFilter: stage.relaxDifficulty ? undefined : config.difficultyFilter,
+    };
+
+    // Adjust role threshold if needed
+    if (stage.lowerThreshold && !stage.allowNoThreshold) {
+      const thresholds = ROLE_SCORE_THRESHOLDS[config.roleFamily];
+      // Override threshold in hotness calculator
+      stageConfig.minRoleScore = stage.emergency ? thresholds.minimum : thresholds.acceptable;
+    }
+
+    try {
+      const problems = await selectProblems(
+        stageConfig,
+        company,
+        stage.scope || 'company',
+        stage.allowNoThreshold || false
+      );
+
+      if (problems.length >= stageTarget) {
+        console.log(`✅ Fallback stage ${i + 1} succeeded: ${problems.length} problems`);
+
+        // Add metadata about relaxed constraints
+        const metadata = {
+          fallbackStage: i + 1,
+          relaxedTopics: stage.relaxTopics,
+          relaxedDifficulty: stage.relaxDifficulty,
+          loweredThreshold: stage.lowerThreshold,
+          emergency: stage.emergency,
+          scope: stage.scope || 'company',
+          allowedNoThreshold: stage.allowNoThreshold || false,
+        };
+
+        // Attach metadata to each problem (for frontend display)
+        return problems.map(p => ({
+          ...p,
+          selectionMetadata: metadata,
+        }));
+      }
+
+      console.log(`⚠️  Fallback stage ${i + 1} insufficient: ${problems.length}/${stageTarget} problems`);
+    } catch (error) {
+      console.error(`❌ Fallback stage ${i + 1} failed:`, error);
+      // Continue to next stage
+    }
+  }
+
+  throw new Error(`Failed to generate study plan even with emergency fallback (company: ${company.id}, role: ${config.roleFamily})`);
 }

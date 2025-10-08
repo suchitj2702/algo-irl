@@ -23,7 +23,7 @@
 import { StudyPlanRequest, StudyPlanResponse, EnrichedProblem } from '@/data-types/studyPlan';
 import { getCompanyById } from '../company/companyUtils';
 import { getCachedStudyPlan, cacheStudyPlan } from './cacheManager';
-import { selectProblems } from './problemSelector';
+import { selectProblemsWithFallback } from './problemSelector';
 import { generateSchedule, DailyPlanInternal } from './scheduleGenerator';
 import { EnrichedProblemInternal, ProblemSelectionConfig } from './types';
 
@@ -75,6 +75,85 @@ function validateRequest(request: StudyPlanRequest): {
 }
 
 /**
+ * Calculate difficulty-aware average problem time
+ *
+ * Returns expected average minutes per problem based on difficulty filter.
+ * Used to calculate realistic target counts for filtered selections.
+ *
+ * @param difficultyFilter - User's difficulty preference
+ * @returns Average minutes per problem
+ */
+function calculateDifficultyAwareAverage(
+  difficultyFilter?: { easy?: boolean; medium?: boolean; hard?: boolean }
+): number {
+  // If no filter specified, use default mixed average
+  if (!difficultyFilter) {
+    return 40;
+  }
+
+  const { easy, medium, hard } = difficultyFilter;
+
+  // Count how many difficulties are selected
+  const selectedDifficulties = [easy, medium, hard].filter(Boolean).length;
+
+  // If all or none selected, use default
+  if (selectedDifficulties === 0 || selectedDifficulties === 3) {
+    return 40;
+  }
+
+  // Single difficulty selected
+  if (selectedDifficulties === 1) {
+    if (easy) return 20;
+    if (medium) return 35;
+    if (hard) return 60;
+  }
+
+  // Two difficulties selected - use weighted average
+  if (easy && medium) return 27.5;  // (20 + 35) / 2
+  if (medium && hard) return 47.5;  // (35 + 60) / 2
+  if (easy && hard) return 40;      // (20 + 60) / 2
+
+  // Fallback (should never reach here)
+  return 40;
+}
+
+/**
+ * Calculate difficulty-aware maximum problem time
+ *
+ * Returns expected maximum minutes per problem based on difficulty filter.
+ * Used to calculate minimum count needed to fill timeline.
+ *
+ * @param difficultyFilter - User's difficulty preference
+ * @returns Maximum minutes per problem
+ */
+function calculateDifficultyAwareMaxTime(
+  difficultyFilter?: { easy?: boolean; medium?: boolean; hard?: boolean }
+): number {
+  // If no filter specified, use default (Hard max)
+  if (!difficultyFilter) {
+    return 75;
+  }
+
+  const { easy, medium, hard } = difficultyFilter;
+
+  // Count how many difficulties are selected
+  const selectedDifficulties = [easy, medium, hard].filter(Boolean).length;
+
+  // If all or none selected, use default (Hard max)
+  if (selectedDifficulties === 0 || selectedDifficulties === 3) {
+    return 75;
+  }
+
+  // Return highest max time from selected difficulties
+  let maxTime = 0;
+  if (easy) maxTime = Math.max(maxTime, 25);     // Easy max
+  if (medium) maxTime = Math.max(maxTime, 43);   // Medium max
+  if (hard) maxTime = Math.max(maxTime, 75);     // Hard max
+
+  return maxTime || 75; // Fallback
+}
+
+/**
  * Calculate target number of problems based on timeline and hours
  *
  * Estimation:
@@ -83,20 +162,53 @@ function validateRequest(request: StudyPlanRequest): {
  * - Hard: 60 min (base + variance: 45-75 min)
  * - Average: ~40 min per problem
  *
- * Formula: (timeline * hoursPerDay * 60) / 40 * safetyBuffer
- * Safety buffer of 0.85 (15% reduction) accounts for:
- * - Time estimate variance
- * - Difficulty distribution skew
- * - User break time
+ * Formula: (timeline * hoursPerDay * 60) / difficultyAwareAverage * safetyBuffer
+ * Safety buffer of 1.1 (10% increase) ensures full timeline coverage
+ *
+ * @param difficultyFilter - User's difficulty preference (used to calculate realistic average)
  */
-function calculateTargetProblemCount(timeline: number, hoursPerDay: number): number {
+function calculateTargetProblemCount(
+  timeline: number,
+  hoursPerDay: number,
+  difficultyFilter?: { easy?: boolean; medium?: boolean; hard?: boolean }
+): number {
   const totalMinutes = timeline * hoursPerDay * 60;
-  const avgMinutesPerProblem = 40;
-  const safetyBuffer = 0.85; // 15% reduction to prevent overflow
+  const avgMinutesPerProblem = calculateDifficultyAwareAverage(difficultyFilter);
+  const safetyBuffer = 1.1; // 10% increase to ensure full timeline coverage
   const count = Math.floor(totalMinutes / avgMinutesPerProblem * safetyBuffer);
 
-  // Ensure at least 5 problems, max 200 problems
-  return Math.max(5, Math.min(200, count));
+  // Ensure at least 5 problems, max 300 problems
+  return Math.max(5, Math.min(300, count));
+}
+
+/**
+ * Calculate MINIMUM number of problems needed to fill the timeline
+ *
+ * Uses difficulty-aware max problem time to ensure we have enough
+ * problems to fill all days based on selected difficulty filter.
+ *
+ * This prevents under-filling when progressive fallback reduces target count.
+ *
+ * Formula: (timeline * hoursPerDay * 60) / difficultyAwareMaxTime
+ *
+ * @param difficultyFilter - User's difficulty preference (used to calculate realistic max time)
+ *
+ * @example
+ * // 30 days × 8 hours/day, Easy only
+ * calculateMinimumProblemCount(30, 8, {easy: true})
+ * // Returns: 403 problems minimum (10,080 / 25)
+ */
+function calculateMinimumProblemCount(
+  timeline: number,
+  hoursPerDay: number,
+  difficultyFilter?: { easy?: boolean; medium?: boolean; hard?: boolean }
+): number {
+  const totalMinutes = timeline * hoursPerDay * 60;
+  const maxMinutesPerProblem = calculateDifficultyAwareMaxTime(difficultyFilter);
+  const minCount = Math.ceil(totalMinutes / maxMinutesPerProblem);
+
+  // Ensure at least 5 problems
+  return Math.max(5, minCount);
 }
 
 /**
@@ -178,20 +290,30 @@ export async function generateStudyPlan(
   }
   console.log(`   ✅ Loaded: ${company.name}\n`);
 
-  // 4. Calculate target problem count
-  const targetCount = calculateTargetProblemCount(request.timeline, request.hoursPerDay);
-  console.log(`🎯 Target: ${targetCount} problems\n`);
+  // 4. Calculate target problem count and minimum (difficulty-aware)
+  const targetCount = calculateTargetProblemCount(
+    request.timeline,
+    request.hoursPerDay,
+    request.difficultyPreference
+  );
+  const minimumCount = calculateMinimumProblemCount(
+    request.timeline,
+    request.hoursPerDay,
+    request.difficultyPreference
+  );
+  console.log(`🎯 Target: ${targetCount} problems (minimum: ${minimumCount})\n`);
 
   // 5. Select problems
   const selectionConfig: ProblemSelectionConfig = {
     companyId: request.companyId,
     roleFamily: request.roleFamily,
     targetCount,
+    minimumCount, // NEW: Never go below this
     difficultyFilter: request.difficultyPreference,
     topicFocus: request.topicFocus
   };
 
-  const selectedProblems = await selectProblems(selectionConfig, company);
+  const selectedProblems = await selectProblemsWithFallback(selectionConfig, company);
 
   if (selectedProblems.length === 0) {
     throw new Error('No problems found matching your criteria. Try adjusting filters.');

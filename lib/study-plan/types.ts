@@ -12,7 +12,7 @@ import { RoleFamily } from '@/data-types/role';
  */
 export interface ProblemRoleScore {
   /** Problem identifier */
-  problemId: string;
+  id: string;
 
   /** Role-specific scores (0-100) */
   roleScores: {
@@ -108,6 +108,15 @@ export interface EnrichedProblemInternal extends Problem {
 
   /** Assigned day (set during scheduling) */
   dayAssigned?: number;
+
+  /** Metadata about selection constraints (for frontend display) */
+  selectionMetadata?: {
+    fallbackStage: number;
+    relaxedTopics: boolean;
+    relaxedDifficulty: boolean;
+    loweredThreshold: boolean;
+    emergency: boolean;
+  };
 }
 
 /**
@@ -151,6 +160,9 @@ export interface ProblemSelectionConfig {
   /** Target number of problems to select */
   targetCount: number;
 
+  /** Minimum number of problems needed to fill timeline (never reduce below this) */
+  minimumCount?: number;
+
   /** Company ID */
   companyId: string;
 
@@ -169,6 +181,9 @@ export interface ProblemSelectionConfig {
 
   /** Minimum hotness score threshold */
   minHotnessScore?: number;
+
+  /** Minimum role score threshold (for progressive fallback) */
+  minRoleScore?: number;
 }
 
 /**

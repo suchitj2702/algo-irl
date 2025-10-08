@@ -101,6 +101,59 @@ interface InternalDay {
 }
 
 /**
+ * Prune excess problems to fit timeline constraints
+ *
+ * If we have way more problems than can fit in the timeline, remove the lowest
+ * priority problems (lowest hotness scores) to prevent dumping them all into the final day.
+ *
+ * Strategy:
+ * - Calculate max problems that can fit: timeline × (hoursPerDay * 60) / minProblemTime
+ * - Use minimum problem time (15 min for Easy) to be conservative
+ * - Keep a 20% buffer to allow for variance
+ * - Remove lowest hotness problems if we exceed this threshold
+ *
+ * @param problems - All selected problems
+ * @param timeline - Number of days available
+ * @param dailyBudgetMinutes - Minutes available per day
+ * @returns Pruned problem list (sorted by hotness descending)
+ */
+function pruneExcessProblems(
+  problems: EnrichedProblemInternal[],
+  timeline: number,
+  dailyBudgetMinutes: number
+): EnrichedProblemInternal[] {
+  const totalAvailableMinutes = timeline * dailyBudgetMinutes;
+  const totalRequiredMinutes = problems.reduce((sum, p) => sum + p.estimatedTimeMinutes, 0);
+
+  // Calculate realistic max problems that can fit
+  // Use actual minimum time from problem distribution (floor at 15 min)
+  const actualMinTime = problems.length > 0
+    ? Math.min(...problems.map(p => p.estimatedTimeMinutes))
+    : 15;
+  const minProblemTime = Math.max(15, actualMinTime);
+  const maxProblemsWithBuffer = Math.floor((totalAvailableMinutes / minProblemTime) * 1.2);
+
+  // If we're under the threshold, return all problems
+  if (problems.length <= maxProblemsWithBuffer) {
+    console.log(`   ✅ Problem count (${problems.length}) within bounds (max ~${maxProblemsWithBuffer})`);
+    return sortByHotness(problems);
+  }
+
+  // We have too many problems - prune the lowest priority ones
+  const excessCount = problems.length - maxProblemsWithBuffer;
+  console.log(`   ⚠️  Too many problems: ${problems.length} > ${maxProblemsWithBuffer}`);
+  console.log(`   ✂️  Pruning ${excessCount} lowest-priority problems`);
+
+  // Sort by hotness (highest first) and take top N
+  const sorted = sortByHotness(problems);
+  const pruned = sorted.slice(0, maxProblemsWithBuffer);
+
+  console.log(`   ✅ Kept ${pruned.length} highest-priority problems`);
+
+  return pruned;
+}
+
+/**
  * Distribute problems across days using greedy algorithm with topic spacing
  *
  * Algorithm:
@@ -108,7 +161,8 @@ interface InternalDay {
  * 2. For each problem, assign to earliest day that:
  *    - Has time budget remaining
  *    - Maximizes topic diversity (prefer days with different topics)
- * 3. If no day has space, create new day
+ * 3. If no day has space, create new day (up to timeline limit)
+ * 4. Drop problems that don't fit (they were already pruned by priority)
  */
 function distributeProblemsToDays(
   problems: EnrichedProblemInternal[],
@@ -117,6 +171,7 @@ function distributeProblemsToDays(
 ): InternalDay[] {
   const sortedProblems = sortByHotness(problems);
   const days: InternalDay[] = [];
+  let droppedProblems = 0;
 
   for (const problem of sortedProblems) {
     let bestDayIndex = -1;
@@ -154,13 +209,15 @@ function distributeProblemsToDays(
           totalEstimatedMinutes: 0 // Will be calculated later
         });
       } else {
-        // Timeline exhausted but still have problems
-        // Add to last day (user will need to adjust timeline)
-        if (days.length > 0) {
-          days[days.length - 1].problems.push(problem);
-        }
+        // Timeline exhausted and no space - drop this problem
+        // (This should rarely happen after pruning, but prevents overloading last day)
+        droppedProblems++;
       }
     }
+  }
+
+  if (droppedProblems > 0) {
+    console.log(`   ℹ️  Dropped ${droppedProblems} problems (couldn't fit in timeline)`);
   }
 
   // Calculate total time for each day
@@ -271,15 +328,19 @@ export function generateSchedule(
     );
   }
 
-  // 2. Distribute problems to days
-  console.log(`\n📦 Distributing problems...`);
-  let internalDays = distributeProblemsToDays(problems, timeline, dailyBudgetMinutes);
+  // 2. Prune excess problems if needed
+  console.log(`\n✂️  Checking for excess problems...`);
+  const prunedProblems = pruneExcessProblems(problems, timeline, dailyBudgetMinutes);
 
-  // 3. Balance workload across days
+  // 3. Distribute problems to days
+  console.log(`\n📦 Distributing problems...`);
+  let internalDays = distributeProblemsToDays(prunedProblems, timeline, dailyBudgetMinutes);
+
+  // 4. Balance workload across days
   console.log(`⚖️  Balancing workload...`);
   internalDays = balanceDays(internalDays, dailyBudgetMinutes);
 
-  // 4. Convert to DailyPlanInternal format with dates and topics
+  // 5. Convert to DailyPlanInternal format with dates and topics
   const dailyPlans: DailyPlanInternal[] = internalDays.map((internalDay, index) => {
     const date = new Date(startDate);
     date.setDate(date.getDate() + index);
@@ -301,7 +362,8 @@ export function generateSchedule(
     };
   });
 
-  // 5. Calculate statistics
+  // 6. Calculate statistics
+  const totalScheduledProblems = internalDays.reduce((sum, d) => sum + d.problems.length, 0);
   const avgProblemsPerDay =
     internalDays.reduce((sum, d) => sum + d.problems.length, 0) / internalDays.length;
   const avgTimePerDay =
@@ -311,12 +373,13 @@ export function generateSchedule(
 
   console.log(`\n📈 Schedule statistics:`);
   console.log(`   Days used: ${dailyPlans.length} / ${timeline}`);
+  console.log(`   Problems scheduled: ${totalScheduledProblems} (started with ${problems.length})`);
   console.log(`   Avg problems/day: ${avgProblemsPerDay.toFixed(1)}`);
   console.log(`   Avg time/day: ${avgTimePerDay.toFixed(0)} min`);
   console.log(`   Max day: ${maxTime.toFixed(0)} min`);
   console.log(`   Min day: ${minTime.toFixed(0)} min`);
 
-  // 6. Show per-day breakdown
+  // 7. Show per-day breakdown
   console.log(`\n📋 Day-by-day breakdown:`);
   for (const day of internalDays) {
     const isOverBudget = day.totalEstimatedMinutes > dailyBudgetMinutes;

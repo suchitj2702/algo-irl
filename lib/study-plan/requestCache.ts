@@ -51,10 +51,10 @@ interface CacheEntry<T> {
 const cache = new Map<string, CacheEntry<any>>();
 
 /**
- * Default TTL: 5 minutes
- * After 5 minutes, data is considered stale and will be reloaded
+ * Default TTL: 60 minutes
+ * After 60 minutes, data is considered stale and will be reloaded
  */
-const DEFAULT_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_TTL_MS = 60 * 60 * 1000;
 
 /**
  * Check if cache entry is expired
