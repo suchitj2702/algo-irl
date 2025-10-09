@@ -33,8 +33,6 @@ import {
 } from './requestCache';
 import { normalizePatterns } from './patternNormalizer';
 import {
-  getAdaptiveThreshold,
-  getThresholdForStage,
   ROLE_SCORE_THRESHOLDS
 } from './adaptiveThresholds';
 
@@ -140,7 +138,7 @@ async function loadCompanyProblems(
         const problemsArray = data?.problems || [];
 
         // Transform from Firestore format to CompanyProblemData format
-        const problems: CompanyProblemData[] = problemsArray.map((p: any) => ({
+        const problems: CompanyProblemData[] = problemsArray.map((p: { slug: string; frequency?: number; difficulty: string; topics?: string[] }) => ({
           slug: p.slug,
           frequency: p.frequency || 0,
           difficulty: p.difficulty,
@@ -345,7 +343,7 @@ export async function selectProblems(
 
   // Show sample data
   if (totalCompanyProblems > 0) {
-    const firstBucketWithData = Array.from(companyProblems.entries()).find(([_, probs]) => probs.length > 0);
+    const firstBucketWithData = Array.from(companyProblems.entries()).find(([, probs]) => probs.length > 0);
     if (firstBucketWithData) {
       const [bucketName, problems] = firstBucketWithData;
       console.log(`\n🔍 Sample from ${bucketName}:`);

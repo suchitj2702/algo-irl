@@ -388,9 +388,57 @@ POST /api/execute-code/judge0-callback?submissionId={submissionId}
 
 ### Company Management
 
-⚠️ **INTERNAL ONLY**: All company management endpoints are for internal server-side use only. They are not accessible from external clients and are protected by middleware that blocks external access.
+#### 1. Get All Companies
+```http
+GET /api/companies?limit={limit}
+```
 
-#### 1. Get Company by ID (Internal Only)
+**Access:** Externally accessible
+
+**Parameters:**
+- `limit` (query, optional): Maximum number of companies to return. Must be a positive integer.
+
+**Description:** Retrieves a list of all companies with basic information. Returns simplified company data suitable for listing and filtering on the client side.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "google",
+      "name": "Google",
+      "description": "A global technology leader...",
+      "domain": "Technology",
+      "products": ["Search", "Cloud", "Android"],
+      "technologies": ["Python", "Go", "C++"],
+      "logoUrl": "https://..."
+    },
+    {
+      "id": "amazon",
+      "name": "Amazon",
+      "description": "E-commerce and cloud computing giant...",
+      "domain": "Technology",
+      "products": ["AWS", "Prime", "Kindle"],
+      "technologies": ["Java", "Python", "C++"],
+      "logoUrl": "https://..."
+    }
+  ]
+}
+```
+
+**Error Response:**
+```json
+{
+  "error": "Failed to fetch companies"
+}
+```
+
+---
+
+⚠️ **INTERNAL ONLY**: The following company management endpoints are for internal server-side use only. They are not accessible from external clients and are protected by middleware that blocks external access.
+
+#### 2. Get Company by ID (Internal Only)
 ```http
 GET /api/companies/{id}
 ```
@@ -413,30 +461,6 @@ GET /api/companies/{id}
     "createdAt": {...},
     "updatedAt": {...}
   }
-}
-```
-
-#### 2. Get Companies by Domain (Internal Only)
-```http
-GET /api/companies/domain?domain={domain}
-```
-
-**Access:** Internal server-side only
-
-**Parameters:**
-- `domain` (query): Company domain (e.g., "Technology", "Finance")
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "google",
-      "name": "Google",
-      ...
-    }
-  ]
 }
 ```
 

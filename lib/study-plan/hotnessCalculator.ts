@@ -24,7 +24,6 @@ import {
 } from './types';
 import { calculateCompanyContextBoost } from './companyContextAnalyzer';
 import {
-  getAdaptiveThreshold,
   ROLE_SCORE_THRESHOLDS
 } from './adaptiveThresholds';
 

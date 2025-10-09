@@ -24,7 +24,7 @@ import { StudyPlanRequest, StudyPlanResponse, EnrichedProblem } from '@/data-typ
 import { getCompanyById } from '../company/companyUtils';
 import { getCachedStudyPlan, cacheStudyPlan } from './cacheManager';
 import { selectProblemsWithFallback } from './problemSelector';
-import { generateSchedule, DailyPlanInternal } from './scheduleGenerator';
+import { generateSchedule } from './scheduleGenerator';
 import { EnrichedProblemInternal, ProblemSelectionConfig } from './types';
 
 /**

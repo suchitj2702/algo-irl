@@ -123,7 +123,6 @@ function pruneExcessProblems(
   dailyBudgetMinutes: number
 ): EnrichedProblemInternal[] {
   const totalAvailableMinutes = timeline * dailyBudgetMinutes;
-  const totalRequiredMinutes = problems.reduce((sum, p) => sum + p.estimatedTimeMinutes, 0);
 
   // Calculate realistic max problems that can fit
   // Use actual minimum time from problem distribution (floor at 15 min)
@@ -314,17 +313,16 @@ export function generateSchedule(
 
   // 1. Calculate total time needed
   const totalTime = problems.reduce((sum, p) => sum + p.estimatedTimeMinutes, 0);
-  const totalAvailableTime = timeline * dailyBudgetMinutes;
 
   console.log(`📊 Time analysis:`);
   console.log(`   Total needed: ${totalTime} min (${(totalTime / 60).toFixed(1)} hrs)`);
   console.log(
-    `   Total available: ${totalAvailableTime} min (${(totalAvailableTime / 60).toFixed(1)} hrs)`
+    `   Total available: ${dailyBudgetMinutes * timeline} min (${(dailyBudgetMinutes * timeline / 60).toFixed(1)} hrs)`
   );
 
-  if (totalTime > totalAvailableTime) {
+  if (totalTime > dailyBudgetMinutes * timeline) {
     console.log(
-      `   ⚠️  Warning: Need ${((totalTime - totalAvailableTime) / 60).toFixed(1)} more hours`
+      `   ⚠️  Warning: Need ${((totalTime - dailyBudgetMinutes * timeline) / 60).toFixed(1)} more hours`
     );
   }
 

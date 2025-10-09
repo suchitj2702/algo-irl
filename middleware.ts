@@ -7,6 +7,8 @@ const allowedEndpoints = [
   '/api/execute-code/status',
   '/api/execute-code/judge0-callback',
   '/api/debug/signature-failure',
+  '/api/companies',
+  '/api/study-plan/generate',
 ];
 
 // Define endpoints that are allowed for internal calls but should be blocked for external access
@@ -15,10 +17,8 @@ const internalOnlyEndpoints = [
   '/api/problem/transform',
   '/api/problem/by-difficulty',
   '/api/problem/blind75',
-  '/api/companies/domain',
   '/api/companies/initialize',
   '/api/problem',
-  '/api/companies',
 ];
 
 function isAllowedEndpoint(pathname: string, request: NextRequest): boolean {
