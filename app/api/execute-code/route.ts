@@ -7,7 +7,6 @@ import type { TestCase } from '../../../data-types/problem';
 import { enhancedSecurityMiddleware } from '@/lib/security/enhanced-middleware';
 import { validateCodeSubmission, SecurityLimits } from '@/lib/security/validation';
 import { getCorsHeaders } from '@/lib/security/cors';
-import { generateFingerprint } from '@/lib/security/fingerprint';
 import { sanitizeInput } from '@/lib/security/input-sanitization';
 
 // Handle CORS preflight requests
@@ -123,8 +122,10 @@ export async function POST(request: NextRequest) {
         });
       }
       
-      // Store submission with fingerprint for tracking
-      const fingerprint = generateFingerprint(req);
+      // Store submission with IP for tracking (Vercel provides IP in headers)
+      const ip = req.headers.get('x-real-ip') ||
+                 req.headers.get('x-forwarded-for')?.split(',')[0] ||
+                 'unknown';
       await createCodeSubmission({
         id: submissionResult.internalSubmissionId,
         code,
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
         judge0Tokens: submissionResult.judge0Tokens.map((t: { token: string }) => t.token),
         status: 'pending',
         testCases: testCasesToStore,
-        fingerprint, // Add fingerprint for tracking
+        fingerprint: ip, // Use IP as fingerprint (Vercel provides this)
       });
       
       return NextResponse.json(
@@ -161,8 +162,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse, { status: 500, headers: corsHeaders });
     }
   }, {
-    rateLimiterType: 'codeExecution',
-    checkHoneypotField: true,
     requireSignature: true // Require signature from frontend
+    // Note: Rate limiting now handled by Vercel Firewall
+    // Note: Bot protection now handled by Vercel Bot Protection
   });
 } 

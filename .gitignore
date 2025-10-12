@@ -50,9 +50,12 @@ service-account-key.json
 .env.test.local
 .env.production.local
 
+# Documents not to add in git
 IMPROVEMENT_PLAN.md
+SECURITY_MIGRATION_SUMMARY.md
+VERCEL_SECURITY_SETUP.md
 
-temp/*
+temp
 
 scripts/batch-problem-generation/input/*
 scripts/batch-problem-generation/output/*

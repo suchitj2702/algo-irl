@@ -26,7 +26,17 @@ import { AnalogyGenerator } from './analogy/analogyGenerator';
 import { RolePromptGenerator } from './prompt/rolePromptGenerator';
 import { ScenarioParser } from './parser/scenarioParser';
 import { TransformationContext, StructuredScenario } from './types/transformationTypes';
+import { ScenarioParsingError, TransformationContextError, LlmServiceError } from './errors/ParsingError';
+import { createRetryPromptFeedback, formatValidationErrors } from './parser/scenarioValidator';
 import { applyFunctionMappings, applyMappingsToTestCases } from './functionMappingUtils';
+
+/**
+ * Feature flag for problem transformation caching.
+ * When disabled (default), every transform call generates fresh content.
+ */
+export const PROBLEM_CACHE_FEATURE_ENABLED = process.env.FEATURE_PROBLEM_CACHE === 'true';
+
+const isProblemCacheEnabled = (): boolean => PROBLEM_CACHE_FEATURE_ENABLED;
 
 /**
  * Main Problem Transformer class - coordinates all transformation modules
@@ -214,8 +224,9 @@ class ProblemTransformerOrchestrator {
         wasRoleAutoSelected = true;
         console.log(`Auto-selected role for transformation: ${selectedRole} (problem: ${problemId}, company: ${companyId})`);
       }
+      const shouldUseCache = useCache && isProblemCacheEnabled();
       // Step 2: Check cache if enabled (using selected role)
-      if (useCache) {
+      if (shouldUseCache) {
         const cachedTransformation = await getTransformation(problemId, companyId, selectedRole);
 
         if (cachedTransformation) {
@@ -245,50 +256,131 @@ class ProblemTransformerOrchestrator {
       );
 
       if (!context) {
-        throw new Error('Failed to create transformation context');
+        throw new TransformationContextError(
+          'Failed to create transformation context - problem or company not found',
+          problemId,
+          companyId
+        );
       }
 
       // Step 4: Generate role-enhanced prompt (role is always provided here)
-      const optimizedPrompt = this.promptGenerator.generateOptimizedPromptWithRole(context, selectedRole);
+      let basePrompt = this.promptGenerator.generateOptimizedPromptWithRole(context, selectedRole);
 
-      // Step 5: Call LLM service
+      // Step 5: Call LLM service with retry logic for parsing failures
       const transformationSystemPrompt = `You are an expert technical interviewer who specializes in creating algorithm and data structure problems for software engineering interviews.
 Your task is to transform coding problems into realistic company-specific interview scenarios while preserving their algorithmic essence.
 Your scenarios should feel like actual questions a candidate would receive in a technical interview, with appropriate domain-specific framing that aligns with the company's business and technology.`;
-
-      // DEBUG: Print the complete prompt being sent to the LLM
-      console.log('\n' + '='.repeat(80));
-      console.log('🤖 PROBLEM TRANSFORMATION PROMPT - DEBUG OUTPUT');
-      console.log('='.repeat(80));
-      console.log(`Problem ID: ${problemId}`);
-      console.log(`Company ID: ${companyId}`);
-      console.log(`Role: ${selectedRole}${wasRoleAutoSelected ? ' (auto-selected)' : ' (user-provided)'}`);
-      console.log('='.repeat(80));
-      console.log('SYSTEM PROMPT:');
-      console.log('-'.repeat(80));
-      console.log(transformationSystemPrompt);
-      console.log('-'.repeat(80));
-      console.log('\nUSER PROMPT:');
-      console.log('-'.repeat(80));
-      console.log(optimizedPrompt);
-      console.log('-'.repeat(80));
-      console.log('='.repeat(80) + '\n');
 
       // Create cache key for this transformation (using selected role)
       const cacheKey = `transform-prompt-${problemId}-${companyId}-${selectedRole}`
         .toLowerCase()
         .replace(/\s+/g, '-');
 
-      // Use the LLM utility to get transformation
-      const scenarioText = await transformWithPrompt(
-        optimizedPrompt,
-        transformationSystemPrompt,
-        cacheKey,
-        useCache
-      );
+      // Retry configuration
+      const MAX_ATTEMPTS = 3; // Initial attempt + 2 retries
+      let attemptNumber = 0;
+      let lastScenarioText = '';
+      let lastValidationResult;
+      let structuredScenario: StructuredScenario | null = null;
 
-      // Step 6: Parse the scenario text into structured sections
-      const structuredScenario = this.scenarioParser.parseScenarioIntoSections(scenarioText);
+      while (attemptNumber < MAX_ATTEMPTS && !structuredScenario) {
+        attemptNumber++;
+
+        // Build the prompt for this attempt
+        let currentPrompt = basePrompt;
+        if (attemptNumber > 1 && lastValidationResult) {
+          // Add feedback from previous failed attempt
+          currentPrompt = createRetryPromptFeedback(lastValidationResult, attemptNumber) + basePrompt;
+        }
+
+        // DEBUG: Print the complete prompt being sent to the LLM
+        console.log('\n' + '='.repeat(80));
+        console.log(`🤖 PROBLEM TRANSFORMATION PROMPT - ATTEMPT ${attemptNumber}/${MAX_ATTEMPTS}`);
+        console.log('='.repeat(80));
+        console.log(`Problem ID: ${problemId}`);
+        console.log(`Company ID: ${companyId}`);
+        console.log(`Role: ${selectedRole}${wasRoleAutoSelected ? ' (auto-selected)' : ' (user-provided)'}`);
+        console.log('='.repeat(80));
+        console.log('SYSTEM PROMPT:');
+        console.log('-'.repeat(80));
+        console.log(transformationSystemPrompt);
+        console.log('-'.repeat(80));
+        console.log('\nUSER PROMPT:');
+        console.log('-'.repeat(80));
+        console.log(currentPrompt);
+        console.log('-'.repeat(80));
+        console.log('='.repeat(80) + '\n');
+
+        try {
+          // Call LLM service
+          // Only use cache on first attempt - retries should always be fresh
+          const shouldUseCacheThisAttempt = shouldUseCache && attemptNumber === 1;
+          const scenarioText = await transformWithPrompt(
+            currentPrompt,
+            transformationSystemPrompt,
+            cacheKey,
+            shouldUseCacheThisAttempt
+          );
+
+          lastScenarioText = scenarioText;
+
+          // Step 6: Parse and validate the scenario text
+          const parseResult = this.scenarioParser.parseAndValidateScenario(scenarioText);
+
+          if (parseResult.validation.isValid) {
+            // Success! Parsing was successful
+            structuredScenario = parseResult.scenario;
+            console.log(`✅ Scenario parsing successful on attempt ${attemptNumber}/${MAX_ATTEMPTS}`);
+
+            // Log warnings if any
+            if (parseResult.validation.warnings.length > 0) {
+              console.warn('Validation warnings:', parseResult.validation.warnings);
+            }
+          } else {
+            // Parsing failed - validation errors found
+            lastValidationResult = parseResult.validation;
+            console.warn(`⚠️  Scenario parsing failed on attempt ${attemptNumber}/${MAX_ATTEMPTS}`);
+            console.warn(formatValidationErrors(parseResult.validation));
+
+            if (attemptNumber < MAX_ATTEMPTS) {
+              console.log(`Retrying with enhanced prompt... (${MAX_ATTEMPTS - attemptNumber} attempts remaining)`);
+            }
+          }
+        } catch (llmError) {
+          // LLM service itself failed (network error, API error, etc.)
+          console.error(`LLM service error on attempt ${attemptNumber}:`, llmError);
+
+          if (attemptNumber >= MAX_ATTEMPTS) {
+            throw new LlmServiceError(
+              `LLM service failed after ${attemptNumber} attempts`,
+              problemId,
+              companyId,
+              attemptNumber,
+              llmError instanceof Error ? llmError : undefined
+            );
+          }
+
+          // Wait a bit before retrying on service errors
+          await new Promise(resolve => setTimeout(resolve, 1000 * attemptNumber));
+        }
+      }
+
+      // Check if we successfully parsed the scenario
+      if (!structuredScenario) {
+        // All attempts exhausted and still no valid scenario
+        if (lastValidationResult) {
+          throw new ScenarioParsingError(
+            `Failed to parse valid scenario after ${MAX_ATTEMPTS} attempts`,
+            problemId,
+            companyId,
+            MAX_ATTEMPTS,
+            lastValidationResult,
+            lastScenarioText.substring(0, 1000) // Include first 1000 chars for debugging
+          );
+        } else {
+          throw new Error(`Unexpected error: scenario parsing failed without validation result`);
+        }
+      }
 
       // Prepare result with role metadata
       const result = {
@@ -305,27 +397,39 @@ Your scenarios should feel like actual questions a candidate would receive in a 
 
       // Step 7: Save to cache asynchronously (non-blocking for user response)
       // Fire-and-forget: cache write happens in background without blocking user
-      saveTransformation(
-        {
-          problemId,
-          companyId,
-          scenario: scenarioText,
-          functionMapping: structuredScenario.functionMapping,
-          contextInfo: result.contextInfo,
-        },
-        selectedRole
-      )
-        .then(() => {
-          console.log(`Saved transformation for problem ${problemId}, company ${companyId}, role ${selectedRole}${wasRoleAutoSelected ? ' (auto-selected)' : ''}`);
-        })
-        .catch((error) => {
-          // Log error but don't fail the transformation
-          console.error('Error saving transformation to cache:', error);
-        });
+      // Only cache if we have a valid transformation
+      if (shouldUseCache && structuredScenario) {
+        saveTransformation(
+          {
+            problemId,
+            companyId,
+            scenario: lastScenarioText, // Use the successful scenario text from the retry loop
+            functionMapping: structuredScenario.functionMapping,
+            contextInfo: result.contextInfo,
+          },
+          selectedRole
+        )
+          .then(() => {
+            console.log(`✅ Saved valid transformation to cache for problem ${problemId}, company ${companyId}, role ${selectedRole}${wasRoleAutoSelected ? ' (auto-selected)' : ''}`);
+          })
+          .catch((error) => {
+            // Log error but don't fail the transformation
+            console.error('Error saving transformation to cache:', error);
+          });
+      }
 
       return result;
     } catch (error) {
       console.error('Error transforming problem:', error);
+
+      // Re-throw custom errors with full details
+      if (error instanceof ScenarioParsingError ||
+          error instanceof TransformationContextError ||
+          error instanceof LlmServiceError) {
+        throw error;
+      }
+
+      // Wrap unknown errors
       throw new Error(`Failed to transform problem: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
@@ -361,7 +465,7 @@ export async function transformProblem(
   problemId: string,
   companyId: string,
   roleFamily?: RoleFamily,
-  useCache: boolean = true,
+  useCache: boolean = PROBLEM_CACHE_FEATURE_ENABLED,
   prefetchedProblem?: Problem | null,
   prefetchedCompany?: Company | null
 ) {
@@ -407,7 +511,7 @@ export async function transformAndPrepareProblem(
   problemId: string,
   companyId: string,
   roleFamily?: RoleFamily,
-  useCache: boolean = true
+  useCache: boolean = PROBLEM_CACHE_FEATURE_ENABLED
 ): Promise<{
   transformedProblem: {
     structuredScenario: StructuredScenario;

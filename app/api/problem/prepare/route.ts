@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enhancedSecurityMiddleware } from '@/lib/security/enhanced-middleware';
 import { getCorsHeaders } from '@/lib/security/cors';
-import { transformAndPrepareProblem } from '@/lib/problem/problemTransformer';
+import { transformAndPrepareProblem, PROBLEM_CACHE_FEATURE_ENABLED } from '@/lib/problem/problemTransformer';
 import { getFilteredProblems } from '@/lib/problem/problemDatastoreUtils';
 import { RoleFamily } from '@/data-types/role';
 import { ProblemDifficulty } from '@/data-types/problem';
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
             resolvedProblemId as string,
             companyId as string,
             roleFamily as RoleFamily | undefined, // Optional - transformer will auto-select if not provided
-            true // useCache
+            PROBLEM_CACHE_FEATURE_ENABLED
           );
 
           // Format response with role metadata (always included by transformer)
@@ -177,8 +177,7 @@ export async function POST(request: NextRequest) {
         }
       },
       {
-        rateLimiterType: 'problemGeneration',
-        checkHoneypotField: true,
+        // Rate limiting now handled by Vercel Firewall
         requireSignature: true,
       }
     );
@@ -194,8 +193,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to parse request for debugging' }, { status: 500, headers: corsHeaders });
       },
       {
-        rateLimiterType: 'problemGeneration',
-        checkHoneypotField: true,
+        // Rate limiting now handled by Vercel Firewall
         requireSignature: true,
       }
     );

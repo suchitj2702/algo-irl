@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { transformProblem } from '@/lib/problem/problemTransformer';
+import { transformProblem, PROBLEM_CACHE_FEATURE_ENABLED } from '@/lib/problem/problemTransformer';
 import { getProblemById } from '@/lib/problem/problemDatastoreUtils';
 import { getCompanyById } from '@/lib/company/companyUtils';
 import { RoleFamily } from '@/data-types/role';
@@ -66,7 +66,15 @@ export async function POST(request: Request) {
     }
 
     // Transform problem (role will be auto-selected by transformer if not provided)
-    const result = await transformProblem(problemId, companyId, roleFamily, useCache);
+    const requestUseCache =
+      typeof useCache === 'boolean'
+        ? useCache
+        : typeof useCache === 'string'
+          ? useCache.toLowerCase() === 'true'
+          : Boolean(useCache);
+    const featureControlledUseCache = PROBLEM_CACHE_FEATURE_ENABLED && requestUseCache;
+
+    const result = await transformProblem(problemId, companyId, roleFamily, featureControlledUseCache);
 
     // Return the transformed scenario with role metadata
     return NextResponse.json(result);

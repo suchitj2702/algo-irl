@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { kv } from '@vercel/kv';
 
 // Define allowed API endpoints for external access
 const allowedEndpoints = [
@@ -103,10 +104,10 @@ function isInternalRequest(request: NextRequest): boolean {
   return false;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get('origin');
-  
+
   // Handle all API routes
   if (pathname.startsWith('/api/')) {
     // Handle CORS preflight requests
@@ -117,12 +118,39 @@ export function middleware(request: NextRequest) {
       });
     }
 
+    // Get IP from Vercel headers for tracking
+    const ip = request.headers.get('x-real-ip') ||
+               request.headers.get('x-forwarded-for')?.split(',')[0] ||
+               'unknown';
+
+    // Check if IP is manually blocked (via Vercel KV) - only in production
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      try {
+        const blockedUntil = await kv.get<number>(`blocked:${ip}`);
+        if (blockedUntil && blockedUntil > Date.now()) {
+          console.log(`[SECURITY] Blocked IP attempted access: ${ip} on ${pathname}`);
+          return NextResponse.json(
+            { error: 'Access denied' },
+            {
+              status: 403,
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            }
+          );
+        }
+      } catch (error) {
+        console.error('[SECURITY] Error checking blocked IPs from KV:', error);
+        // Continue processing request if KV check fails
+      }
+    }
+
     // SECURITY CHECK 1: Block access to internal-only endpoints from external sources
     if (isInternalOnlyEndpoint(pathname) && !isInternalRequest(request)) {
       console.log(`[SECURITY] Blocked external access to internal-only endpoint: ${pathname}`);
       return NextResponse.json(
         { error: 'Access denied. This endpoint is for internal use only.' },
-        { 
+        {
           status: 403,
           headers: {
             'Content-Type': 'application/json',
@@ -136,7 +164,7 @@ export function middleware(request: NextRequest) {
       console.log(`[SECURITY] Blocked access to non-allowed endpoint: ${pathname}`);
       return NextResponse.json(
         { error: 'Endpoint not found.' },
-        { 
+        {
           status: 404,
           headers: {
             'Content-Type': 'application/json',
@@ -147,16 +175,16 @@ export function middleware(request: NextRequest) {
 
     // For allowed endpoints, continue with the request and add CORS headers
     const response = NextResponse.next();
-    
+
     // Set CORS headers for allowed requests
     const corsHeaders = createCorsHeaders(origin);
     Object.entries(corsHeaders).forEach(([key, value]) => {
       response.headers.set(key, value);
     });
-    
+
     return response;
   }
-  
+
   // For non-API routes, continue normally
   return NextResponse.next();
 }

@@ -162,8 +162,7 @@ export async function GET(
       );
     }
   }, {
-    rateLimiterType: 'general',
-    checkHoneypotField: false, // GET request doesn't have honeypot
+    // Rate limiting now handled by Vercel Firewall
     requireSignature: true // Require signature from frontend
   });
 } 

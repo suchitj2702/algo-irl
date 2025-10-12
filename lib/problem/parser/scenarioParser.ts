@@ -6,6 +6,7 @@
  */
 
 import { StructuredScenario } from '../types/transformationTypes';
+import { validateStructuredScenario, ValidationResult } from './scenarioValidator';
 
 export class ScenarioParser {
   /**
@@ -37,6 +38,23 @@ export class ScenarioParser {
       requirements: this.extractRequirements(scenarioText),
       functionMapping: this.extractFunctionMapping(scenarioText),
     };
+  }
+
+  /**
+   * Parse and validate a scenario in one step.
+   * This method parses the scenario and returns both the structured scenario
+   * and validation results, allowing callers to check if parsing was successful.
+   *
+   * @param scenarioText - Complete AI-generated scenario text
+   * @returns Object containing the parsed scenario and validation result
+   */
+  parseAndValidateScenario(scenarioText: string): {
+    scenario: StructuredScenario;
+    validation: ValidationResult;
+  } {
+    const scenario = this.parseScenarioIntoSections(scenarioText);
+    const validation = validateStructuredScenario(scenario);
+    return { scenario, validation };
   }
 
   /**
