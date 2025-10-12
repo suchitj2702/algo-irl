@@ -264,7 +264,7 @@ class ProblemTransformerOrchestrator {
       }
 
       // Step 4: Generate role-enhanced prompt (role is always provided here)
-      let basePrompt = this.promptGenerator.generateOptimizedPromptWithRole(context, selectedRole);
+      const basePrompt = this.promptGenerator.generateOptimizedPromptWithRole(context, selectedRole);
 
       // Step 5: Call LLM service with retry logic for parsing failures
       const transformationSystemPrompt = `You are an expert technical interviewer who specializes in creating algorithm and data structure problems for software engineering interviews.
