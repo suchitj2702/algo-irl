@@ -18,13 +18,17 @@ function getAdminApp(): App {
             credential: cert(serviceAccount),
             projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
           });
-          console.log('✅ Firebase Admin initialized with environment variable');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Firebase Admin initialized with environment variable');
+          }
         } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
           // Method 2: Use Google Application Credentials
           adminApp = initializeApp({
             projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
           });
-          console.log('✅ Firebase Admin initialized with Google Application Credentials');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Firebase Admin initialized with Google Application Credentials');
+          }
         } else {
           // Method 3: Try to read service account file from project root
           try {
@@ -34,7 +38,9 @@ function getAdminApp(): App {
               credential: cert(serviceAccount),
               projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
             });
-            console.log('✅ Firebase Admin initialized with service-account-key.json file');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Firebase Admin initialized with service-account-key.json file');
+            }
           } catch {
             throw new Error(
               '❌ Firebase Admin SDK requires credentials. Please:\n' +

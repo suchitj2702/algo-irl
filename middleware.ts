@@ -1,15 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
+import { verifyFirebaseToken } from '@algo-irl/lib/auth/verifyFirebaseTokenEdge';
 
-// Define allowed API endpoints for external access
-const allowedEndpoints = [
-  '/api/problem/prepare',
-  '/api/execute-code',
-  '/api/execute-code/status',
-  '/api/execute-code/judge0-callback',
-  '/api/debug/signature-failure',
-  '/api/companies',
-  '/api/study-plan/generate',
+interface EndpointRule {
+  path: string;
+  description: string;
+  match?: 'exact' | 'prefix';
+  requiresAuth?: boolean;
+}
+
+/**
+ * Allowed external API endpoints.
+ * `requiresAuth` marks routes that must present a valid Firebase ID token.
+ */
+const allowedEndpoints: EndpointRule[] = [
+  {
+    path: '/api/problem/prepare',
+    description: 'Public problem preparation endpoint.',
+  },
+  {
+    path: '/api/execute-code',
+    description: 'Public code execution endpoint.',
+  },
+  {
+    path: '/api/execute-code/status',
+    match: 'prefix',
+    description: 'Job status polling for code execution.',
+  },
+  {
+    path: '/api/execute-code/judge0-callback',
+    description: 'Judge0 callback endpoint (signature verified via Judge0).',
+  },
+  {
+    path: '/api/companies',
+    description: 'Public company catalogue.',
+  },
+  {
+    path: '/api/study-plan/generate',
+    description: 'Public study plan generation endpoint.',
+  },
+  {
+    path: '/api/user',
+    match: 'prefix',
+    requiresAuth: true,
+    description: 'Authenticated user routes (Firebase ID token required).',
+  },
+  {
+    path: '/api/billing',
+    match: 'prefix',
+    requiresAuth: true,
+    description: 'Authenticated billing routes (Firebase ID token required).',
+  },
+  {
+    path: '/api/razorpay/webhook',
+    description: 'Razorpay webhook endpoint (signature verified).',
+  },
 ];
 
 // Define endpoints that are allowed for internal calls but should be blocked for external access
@@ -21,23 +66,6 @@ const internalOnlyEndpoints = [
   '/api/companies/initialize',
   '/api/problem',
 ];
-
-function isAllowedEndpoint(pathname: string, request: NextRequest): boolean {
-  // For internal requests, allow internal-only endpoints
-  if (isInternalRequest(request)) {
-    return true;
-  }
-  
-  // For external requests, only allow explicitly listed endpoints
-  return allowedEndpoints.some(endpoint => {
-    if (endpoint === '/api/execute-code/status') {
-      // Allow any path that starts with /api/execute-code/status/
-      return pathname.startsWith('/api/execute-code/status/');
-    }
-    // Exact match for all other endpoints
-    return pathname === endpoint;
-  });
-}
 
 function isInternalOnlyEndpoint(pathname: string): boolean {
   // Check exact matches first
@@ -59,14 +87,30 @@ function isInternalOnlyEndpoint(pathname: string): boolean {
   return false;
 }
 
+function matchesEndpoint(pathname: string, rule: EndpointRule): boolean {
+  if (rule.match === 'prefix') {
+    return pathname === rule.path || pathname.startsWith(`${rule.path}/`);
+  }
+
+  return pathname === rule.path;
+}
+
+function findAllowedEndpoint(pathname: string): EndpointRule | undefined {
+  return allowedEndpoints.find((endpoint) => matchesEndpoint(pathname, endpoint));
+}
+
+function requiresAuthForEndpoint(pathname: string): boolean {
+  return allowedEndpoints.some((endpoint) => endpoint.requiresAuth && matchesEndpoint(pathname, endpoint));
+}
+
 function createCorsHeaders(origin: string | null) {
   // In production, restrict CORS to specific origins
-  const allowedOrigins = process.env.NODE_ENV === 'production' 
+  const allowedOrigins = process.env.NODE_ENV === 'production'
     ? [
         process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com',
         // Add other allowed origins here
       ]
-    : ['http://localhost:3000', 'http://localhost:3001']; // Development origins
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173']; // Development origins
   
   // Check if the origin is allowed
   const isAllowedOrigin = origin && allowedOrigins.includes(origin);
@@ -74,7 +118,7 @@ function createCorsHeaders(origin: string | null) {
   return {
     'Access-Control-Allow-Origin': isAllowedOrigin ? origin : allowedOrigins[0],
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Timestamp, X-Signature, X-Hp-Field, X-Client-Fingerprint, X-Requested-With, Accept, X-Debug-Client-Time, X-Debug-Request-Id, X-Debug-Client-Version, X-Debug-Payload-Keys, X-Debug-Payload-Length, X-Debug-UA, X-Debug-Timezone-Offset, X-Debug-Serialization, X-Debug-Payload-Size, X-Debug-Signature-Method, X-Debug-Browser, X-Debug-User-Agent, X-Debug-Session-Id, X-Debug-Endpoint',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept',
     'Access-Control-Max-Age': '86400',
     'Access-Control-Allow-Credentials': 'true',
   };
@@ -107,6 +151,7 @@ function isInternalRequest(request: NextRequest): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get('origin');
+  const corsHeaders = createCorsHeaders(origin);
 
   // Handle all API routes
   if (pathname.startsWith('/api/')) {
@@ -114,7 +159,7 @@ export async function middleware(request: NextRequest) {
     if (request.method === 'OPTIONS') {
       return new NextResponse(null, {
         status: 200,
-        headers: createCorsHeaders(origin),
+        headers: corsHeaders,
       });
     }
 
@@ -122,13 +167,15 @@ export async function middleware(request: NextRequest) {
     const ip = request.headers.get('x-real-ip') ||
                request.headers.get('x-forwarded-for')?.split(',')[0] ||
                'unknown';
+    const internalRequest = isInternalRequest(request);
+    const allowedEndpoint = findAllowedEndpoint(pathname);
 
     // Check if IP is manually blocked (via Vercel KV) - only in production
     if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
       try {
         const blockedUntil = await kv.get<number>(`blocked:${ip}`);
         if (blockedUntil && blockedUntil > Date.now()) {
-          console.log(`[SECURITY] Blocked IP attempted access: ${ip} on ${pathname}`);
+          console.log(`[SECURITY][ACCESS] Blocked IP attempted access: ${ip} on ${pathname}`);
           return NextResponse.json(
             { error: 'Access denied' },
             {
@@ -140,14 +187,14 @@ export async function middleware(request: NextRequest) {
           );
         }
       } catch (error) {
-        console.error('[SECURITY] Error checking blocked IPs from KV:', error);
+        console.error('[SECURITY][KV] Error checking blocked IPs from KV:', error);
         // Continue processing request if KV check fails
       }
     }
 
     // SECURITY CHECK 1: Block access to internal-only endpoints from external sources
-    if (isInternalOnlyEndpoint(pathname) && !isInternalRequest(request)) {
-      console.log(`[SECURITY] Blocked external access to internal-only endpoint: ${pathname}`);
+    if (isInternalOnlyEndpoint(pathname) && !internalRequest) {
+      console.log(`[SECURITY][ACCESS] Blocked external access to internal-only endpoint: ${pathname}`);
       return NextResponse.json(
         { error: 'Access denied. This endpoint is for internal use only.' },
         {
@@ -160,8 +207,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // SECURITY CHECK 2: Only allow access to explicitly allowed endpoints
-    if (!isAllowedEndpoint(pathname, request)) {
-      console.log(`[SECURITY] Blocked access to non-allowed endpoint: ${pathname}`);
+    if (!internalRequest && !allowedEndpoint) {
+      console.log(`[SECURITY][ACCESS] Blocked access to non-allowed endpoint: ${pathname}`);
       return NextResponse.json(
         { error: 'Endpoint not found.' },
         {
@@ -173,11 +220,52 @@ export async function middleware(request: NextRequest) {
       );
     }
 
+    const requiresAuth = requiresAuthForEndpoint(pathname);
+
+    if (requiresAuth) {
+      try {
+        const authorizationHeader = request.headers.get('authorization');
+        const { user } = await verifyFirebaseToken(authorizationHeader);
+        const requestHeaders = new Headers(request.headers);
+
+        requestHeaders.set('x-user-id', user.uid);
+        requestHeaders.set('x-user-email', user.email ?? '');
+        requestHeaders.set('x-user-email-verified', String(user.emailVerified));
+
+        const response = NextResponse.next({
+          request: {
+            headers: requestHeaders,
+          },
+        });
+
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          response.headers.set(key, value);
+        });
+
+        return response;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown authentication error';
+        console.log(
+          `[SECURITY][AUTH] Authentication failure for ${pathname} from ${ip}: ${errorMessage}`
+        );
+
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders,
+            },
+          }
+        );
+      }
+    }
+
     // For allowed endpoints, continue with the request and add CORS headers
     const response = NextResponse.next();
 
     // Set CORS headers for allowed requests
-    const corsHeaders = createCorsHeaders(origin);
     Object.entries(corsHeaders).forEach(([key, value]) => {
       response.headers.set(key, value);
     });

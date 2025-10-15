@@ -36,16 +36,13 @@ The API is designed to be deployed on Vercel/Next.js infrastructure with the bas
 
 ### Security Layers
 
-1. **Enhanced Security Middleware**: All sensitive endpoints are protected by a comprehensive security middleware that includes:
-   - Request fingerprinting for tracking
-   - Multi-tier rate limiting
-   - Abuse pattern detection
-   - Honeypot bot detection
-   - Optional request signature verification
+1. **CORS Configuration**: Flexible CORS headers with origin validation
 
-2. **CORS Configuration**: Flexible CORS headers with origin validation
+2. **Input Sanitization**: All user inputs are sanitized to prevent XSS and injection attacks
 
-3. **Input Sanitization**: All user inputs are sanitized to prevent XSS and injection attacks
+3. **Rate Limiting**: Handled by Vercel Firewall at the infrastructure level
+
+4. **Firebase Authentication**: Protected endpoints require valid Firebase ID tokens
 
 ### Security Headers
 
@@ -262,10 +259,8 @@ POST /api/problem/prepare
 POST /api/execute-code
 ```
 
-**Security:** Protected by enhanced security middleware with:
-- Rate limit: 10 requests per minute
-- Honeypot field checking
-- Request fingerprinting
+**Security:** Protected endpoint with the following limits:
+- Rate limiting: Handled by Vercel Firewall
 - Maximum 20 test cases per submission
 - Maximum execution time: 5 seconds per test case
 - Maximum memory usage: 128 MB per test case
@@ -686,17 +681,13 @@ Beyond rate limiting, the system implements:
 
 ### Security Considerations
 
-1. **Request Fingerprinting:**
-   - Combines IP, User-Agent, and other headers
-   - Used for rate limiting and abuse tracking
-
-2. **Input Sanitization:**
+1. **Input Sanitization:**
    - Applied to all non-code string inputs
    - Code inputs preserved to maintain syntax
 
-3. **Honeypot Fields:**
-   - Hidden fields in request headers (X-Hp-Field)
-   - Bots filling these fields are automatically blocked
+2. **IP Tracking:**
+   - Request IP addresses tracked for monitoring
+   - Used in conjunction with Vercel Firewall
 
 ### Error Handling Patterns
 
@@ -753,8 +744,7 @@ OPENAI_API_KEY=your-openai-key
 ANTHROPIC_API_KEY=your-anthropic-key
 GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-key
 
-# Security (Optional)
-REQUEST_SIGNATURE_SECRET=your-secret-for-signatures
+# Security
 ALLOWED_ORIGINS=https://your-frontend.com,https://another-allowed-origin.com
 ```
 
@@ -789,10 +779,10 @@ ALLOWED_ORIGINS=https://your-frontend.com,https://another-allowed-origin.com
 ### Production Considerations
 
 1. **Security:**
-   - Enable request signature verification for sensitive endpoints
    - Configure CORS allowed origins restrictively
    - Implement IP whitelisting for Judge0 callbacks
    - Use Firebase Security Rules for Firestore
+   - Enable Vercel Firewall for rate limiting and bot protection
 
 2. **Performance:**
    - Enable Firestore indexes for common queries
