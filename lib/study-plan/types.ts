@@ -184,6 +184,9 @@ export interface ProblemSelectionConfig {
 
   /** Minimum role score threshold (for progressive fallback) */
   minRoleScore?: number;
+
+  /** Optional flag to only include Blind75 problems */
+  onlyBlind75?: boolean;
 }
 
 /**

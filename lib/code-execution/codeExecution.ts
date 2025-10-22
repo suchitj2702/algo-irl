@@ -471,8 +471,16 @@ export function aggregateBatchResults(
   const compilationErrorDetail = judge0Details.find(d => d.status.id === 6); // Status 6: Compilation Error
   if (compilationErrorDetail) {
     passedOverall = false;
+    // Priority: compile_output > stderr > message (compile_output usually has the most detail)
     overallError = compilationErrorDetail.compile_output || compilationErrorDetail.stderr || compilationErrorDetail.message || "Compilation failed";
-    
+
+    // Log full compilation error for debugging
+    console.error('Compilation error detected:', {
+      compile_output: compilationErrorDetail.compile_output,
+      stderr: compilationErrorDetail.stderr,
+      message: compilationErrorDetail.message,
+    });
+
     // Populate all test results with compilation error
     for (let i = 0; i < originalTestCases.length; i++) {
       individualTestResults.push({
@@ -543,11 +551,28 @@ export function aggregateBatchResults(
           statusId = 3; // Override Judge0 status ID
           currentTestError = null; // Clear any error message
           actualOutput = parseStdout(detail.stdout);
-        } else { 
+        } else {
           // Outputs still don't match after all comparison strategies
           passedOverall = false; // Mark overall submission as failed
-          currentTestError = detail.message || detail.status.description;
-          if (detail.stderr) currentTestError += ` (Stderr: ${detail.stderr})`;
+
+          // Build comprehensive error message with priority: stderr > message > status.description
+          // stderr often contains the most detailed error information (stack traces, etc.)
+          if (detail.stderr) {
+            currentTestError = detail.stderr;
+            // Log full error details for debugging
+            console.error(`Test case ${i} failed with stderr:`, detail.stderr);
+          } else if (detail.message) {
+            currentTestError = detail.message;
+            console.error(`Test case ${i} failed with message:`, detail.message);
+          } else {
+            currentTestError = detail.status.description;
+          }
+
+          // Log additional context if available
+          if (detail.stdout && detail.stderr) {
+            console.log(`Test case ${i} stdout:`, detail.stdout);
+          }
+
           // Keep original statusDescription and statusId from Judge0
           if (!overallError && detail.status.id !== 4) { // Don't override with "Wrong Answer" if a more severe error exists
               overallError = currentTestError;

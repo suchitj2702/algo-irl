@@ -231,7 +231,9 @@ export function batchCalculateHotness(
 
   // Determine minimum threshold for this role
   const thresholds = ROLE_SCORE_THRESHOLDS[role];
-  const minThreshold = minRoleScore || thresholds.acceptable;
+  // Use minRoleScore if provided (even if 0), otherwise fall back to acceptable threshold
+  // Note: undefined means "no threshold" (accept all), not "use default"
+  const minThreshold = minRoleScore !== undefined ? minRoleScore : thresholds.acceptable;
 
   for (const problem of problems) {
     const companyProblemData = companyProblemMap.get(problem.id);
@@ -243,12 +245,15 @@ export function batchCalculateHotness(
       continue;
     }
 
-    // Apply role score threshold filtering
-    const roleScore = roleScoreData.roleScores[role];
-    if (roleScore < minThreshold) {
-      // Problem doesn't meet minimum threshold for this role
-      continue;
+    // Apply role score threshold filtering (only if minRoleScore was explicitly set)
+    if (minRoleScore !== undefined) {
+      const roleScore = roleScoreData.roleScores[role];
+      if (roleScore < minThreshold) {
+        // Problem doesn't meet minimum threshold for this role
+        continue;
+      }
     }
+    // If minRoleScore is undefined, skip threshold check (accept all problems)
 
     const result = calculateProblemHotness(
       problem,

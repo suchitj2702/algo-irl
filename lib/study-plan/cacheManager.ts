@@ -50,7 +50,7 @@ const CACHE_TTL_DAYS = 7;
 
 /**
  * Generate cache key from study plan request
- * Format: companyId_role_timeline_hours_filters
+ * Format: companyId_role_timeline_hours_filters_blind75
  */
 function generateCacheKey(request: StudyPlanRequest): string {
   const parts = [
@@ -77,6 +77,11 @@ function generateCacheKey(request: StudyPlanRequest): string {
   if (request.topicFocus && request.topicFocus.length > 0) {
     const topics = request.topicFocus.sort().join('-');
     parts.push(`topics-${topics}`);
+  }
+
+  // Add Blind75 flag if present
+  if (request.onlyBlind75) {
+    parts.push('blind75');
   }
 
   return parts.join('_');

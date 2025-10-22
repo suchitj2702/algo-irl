@@ -75,12 +75,51 @@ export class Judge0Client {
 
   /**
    * Helper function to delay execution for throttling and retry logic.
-   * 
+   *
    * @param ms - Milliseconds to delay
    * @returns Promise that resolves after the specified delay
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Decodes a base64-encoded field from Judge0 response.
+   * Judge0 can return stdout, stderr, compile_output, and message as base64 encoded.
+   *
+   * @param field - Base64-encoded string or undefined
+   * @returns Decoded string or undefined if input was undefined/null
+   */
+  private decodeBase64Field(field: string | null | undefined): string | undefined {
+    if (!field) {
+      return undefined;
+    }
+
+    try {
+      // Node.js environment (backend)
+      return Buffer.from(field, 'base64').toString('utf-8');
+    } catch (error) {
+      console.error('Failed to decode base64 field:', error);
+      // Return original field if decoding fails (might not be base64)
+      return field;
+    }
+  }
+
+  /**
+   * Decodes all base64-encoded fields in a Judge0 submission detail.
+   * Modifies the submission detail in place to replace base64 strings with decoded text.
+   *
+   * @param detail - Judge0 submission detail with potentially base64-encoded fields
+   * @returns The same detail object with decoded fields
+   */
+  private decodeSubmissionDetail(detail: Judge0SubmissionDetail): Judge0SubmissionDetail {
+    return {
+      ...detail,
+      stdout: this.decodeBase64Field(detail.stdout),
+      stderr: this.decodeBase64Field(detail.stderr),
+      compile_output: this.decodeBase64Field(detail.compile_output),
+      message: this.decodeBase64Field(detail.message),
+    };
   }
 
   /**
@@ -202,9 +241,9 @@ export class Judge0Client {
   /**
    * Submits a single code submission to Judge0.
    * Used as fallback when batch submission fails or for single test cases.
-   * 
+   *
    * @param submission - Single submission object with code and test data
-   * @param base64Encoded - Whether source code is base64 encoded
+   * @param base64Encoded - Whether source code is base64 encoded (default: false - send plain text)
    * @returns Promise resolving to submission token
    * @throws Error if submission fails
    */
@@ -231,7 +270,7 @@ export class Judge0Client {
   /**
    * Submits a batch of code submissions to Judge0 with intelligent processing.
    * Implements sophisticated batch processing with automatic fallback strategies.
-   * 
+   *
    * Algorithm:
    * 1. Validate input and determine processing mode
    * 2. If single submission or forced single mode, process individually
@@ -242,10 +281,10 @@ export class Judge0Client {
    *    - Handle rate limiting with inter-batch delays
    * 5. If batch mode fails, automatically retry in single mode
    * 6. Return consolidated list of all submission tokens
-   * 
+   *
    * @param submissions - Array of submission objects for the batch
    * @param callbackUrl - Optional callback URL for Judge0 to POST results when all are processed
-   * @param base64Encoded - Whether source code is base64 encoded (defaults to false)
+   * @param base64Encoded - Whether source code is base64 encoded (default: false - send plain text)
    * @param forceSingleMode - Force single submission mode instead of batch
    * @returns Promise resolving to array of submission tokens
    * @throws Error if all submission attempts fail
@@ -253,7 +292,7 @@ export class Judge0Client {
   async createBatchSubmissions(
     submissions: Judge0BatchSubmissionItem[],
     callbackUrl?: string,
-    base64Encoded: boolean = false, // Judge0 defaults to false for source_code
+    base64Encoded: boolean = false, // Send source code as plain text
     forceSingleMode: boolean = false // Force single submission mode
   ): Promise<Judge0BatchCreationTokenResponse[]> {
     const MAX_SUBMISSIONS_PER_BATCH = this.throttlingConfig.maxSubmissionsPerBatch;
@@ -403,18 +442,23 @@ export class Judge0Client {
       
       try {
         // Judge0 expects tokens as a comma-separated string for batch GET.
-        const endpoint = `/submissions/batch?tokens=${chunkTokensString}&fields=*&base64_encoded=false`;
+        // Use base64_encoded=true to get full, non-truncated output
+        const endpoint = `/submissions/batch?tokens=${chunkTokensString}&fields=*&base64_encoded=true`;
         const batchResult = await this.requestWithRetry<{ submissions: Judge0SubmissionDetail[] }>(
-          endpoint, 
+          endpoint,
           'GET',
           undefined,
-          this.throttlingConfig.statusCheckMaxRetries, 
+          this.throttlingConfig.statusCheckMaxRetries,
           this.throttlingConfig.statusCheckInitialDelayMs
         );
-        
+
         if (batchResult && batchResult.submissions) {
-          allSubmissions = allSubmissions.concat(batchResult.submissions);
-          console.log(`Successfully received details for ${batchResult.submissions.length} submissions`);
+          // Decode base64-encoded fields (stdout, stderr, compile_output, message)
+          const decodedSubmissions = batchResult.submissions.map(detail =>
+            this.decodeSubmissionDetail(detail)
+          );
+          allSubmissions = allSubmissions.concat(decodedSubmissions);
+          console.log(`Successfully received details for ${decodedSubmissions.length} submissions`);
           
           // Add a delay between batches to avoid rate limiting
           if (i + MAX_TOKENS_PER_BATCH < tokenArray.length) {
@@ -436,16 +480,20 @@ export class Judge0Client {
 
   /**
    * Fetches the execution details of a single submission using its token.
-   * 
+   *
    * @param token - The submission token
-   * @returns Promise resolving to the submission details
+   * @returns Promise resolving to the submission details with decoded base64 fields
    * @throws Error if the request fails
    */
   async getSubmissionDetails(token: string): Promise<Judge0SubmissionDetail> {
-    return this.requestWithRetry<Judge0SubmissionDetail>(
-      `/submissions/${token}?fields=*&base64_encoded=false`,
+    // Use base64_encoded=true to get full, non-truncated output
+    const detail = await this.requestWithRetry<Judge0SubmissionDetail>(
+      `/submissions/${token}?fields=*&base64_encoded=true`,
       'GET'
       // Retries and delay will now use this.throttlingConfig.requestMaxRetries and .requestInitialDelayMs by default
     );
+
+    // Decode base64-encoded fields before returning
+    return this.decodeSubmissionDetail(detail);
   }
 } 

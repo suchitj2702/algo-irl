@@ -291,16 +291,29 @@ export async function generateStudyPlan(
   console.log(`   ✅ Loaded: ${company.name}\n`);
 
   // 4. Calculate target problem count and minimum (difficulty-aware)
-  const targetCount = calculateTargetProblemCount(
+  let targetCount = calculateTargetProblemCount(
     request.timeline,
     request.hoursPerDay,
     request.difficultyPreference
   );
-  const minimumCount = calculateMinimumProblemCount(
+  let minimumCount = calculateMinimumProblemCount(
     request.timeline,
     request.hoursPerDay,
     request.difficultyPreference
   );
+
+  // Special handling for Blind75: use all available problems when target is high
+  if (request.onlyBlind75) {
+    const MAX_BLIND75_PROBLEMS = 75;
+    if (targetCount >= MAX_BLIND75_PROBLEMS) {
+      console.log(`📌 Blind75 mode: Setting target to all ${MAX_BLIND75_PROBLEMS} problems`);
+      console.log(`   Original target: ${targetCount}, will use entire Blind75 pool`);
+      targetCount = MAX_BLIND75_PROBLEMS;
+      minimumCount = MAX_BLIND75_PROBLEMS;
+    }
+    // If target < 75, normal filtering logic applies
+  }
+
   console.log(`🎯 Target: ${targetCount} problems (minimum: ${minimumCount})\n`);
 
   // 5. Select problems
@@ -310,7 +323,8 @@ export async function generateStudyPlan(
     targetCount,
     minimumCount, // NEW: Never go below this
     difficultyFilter: request.difficultyPreference,
-    topicFocus: request.topicFocus
+    topicFocus: request.topicFocus,
+    onlyBlind75: request.onlyBlind75
   };
 
   const selectedProblems = await selectProblemsWithFallback(selectionConfig, company);

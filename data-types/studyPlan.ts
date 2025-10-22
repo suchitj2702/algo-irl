@@ -32,6 +32,9 @@ export interface StudyPlanRequest {
 
   /** Optional specific topics to focus on */
   topicFocus?: string[];
+
+  /** Optional flag to only include Blind75 problems */
+  onlyBlind75?: boolean;
 }
 
 /**

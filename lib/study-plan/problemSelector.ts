@@ -21,7 +21,7 @@ import {
   RecencyBucket,
   ESTIMATED_TIME_BY_DIFFICULTY
 } from './types';
-import { getAllProblems } from '../problem/problemDatastoreUtils';
+import { getAllProblems, getBlind75Problems } from '../problem/problemDatastoreUtils';
 import { batchCalculateHotness } from './hotnessCalculator';
 import {
   getCachedAllProblems,
@@ -38,21 +38,28 @@ import {
 
 /**
  * Load all problems with caching
+ * @param onlyBlind75 - If true, only load Blind75 problems
  */
-async function loadAllProblems(): Promise<Problem[]> {
-  // Check cache first
+async function loadAllProblems(onlyBlind75?: boolean): Promise<Problem[]> {
+  // Check cache first (cache key differs for Blind75 vs all)
   const cached = getCachedAllProblems();
-  if (cached) {
+  if (cached && !onlyBlind75) {
     console.log('✅ Using cached problems');
     return cached;
   }
 
   // Cache miss - load from Firestore
-  console.log('📥 Loading all problems from Firestore...');
-  const problems = await getAllProblems();
-  cacheAllProblems(problems);
-
-  return problems;
+  if (onlyBlind75) {
+    console.log('📥 Loading Blind75 problems from Firestore...');
+    const problems = await getBlind75Problems();
+    // Don't cache Blind75 separately for now (small dataset)
+    return problems;
+  } else {
+    console.log('📥 Loading all problems from Firestore...');
+    const problems = await getAllProblems();
+    cacheAllProblems(problems);
+    return problems;
+  }
 }
 
 /**
@@ -324,7 +331,7 @@ export async function selectProblems(
   // 1. Load all data
   console.log('📦 Loading data...');
   const [allProblems, allRoleScores, companyProblems] = await Promise.all([
-    loadAllProblems(),
+    loadAllProblems(config.onlyBlind75),
     loadAllRoleScores(),
     loadCompanyProblems(config.companyId)
   ]);
@@ -457,13 +464,20 @@ export async function selectProblems(
 
   // 5. Filter by scope
   let scopedProblems = enrichedProblems;
-  if (scope === 'company') {
+  if (config.onlyBlind75) {
+    // BLIND75 ONLY: Use all Blind75 problems regardless of company context
+    // Blind75 is a curated list meant to be comprehensive
+    console.log(`   📌 Blind75 mode: Using all ${enrichedProblems.length} problems (skipping scope filter)`);
+    scopedProblems = enrichedProblems; // Use all
+  } else if (scope === 'company') {
+    // REGULAR API: Apply scope filter
     // Only include problems that are actually asked at the company (or extrapolated with hotness > 0)
     scopedProblems = enrichedProblems.filter(p =>
       p.frequencyData.isActuallyAsked || p.hotnessScore > 0
     );
     console.log(`   After scope filter (company): ${scopedProblems.length} problems`);
   } else {
+    // REGULAR API: 'all-problems' scope
     // 'all-problems': Use entire problem pool
     console.log(`   Scope: all-problems (using entire database)`);
   }
@@ -555,6 +569,50 @@ export async function selectProblemsWithFallback(
   const targetCount = config.targetCount;
   const minimumCount = config.minimumCount || 0;
 
+  // BLIND75 ONLY: Try once with minimal filtering
+  // Blind75 is a curated list of 75 problems - we want to use all available regardless of strict filters
+  if (config.onlyBlind75) {
+    console.log(`\n🎯 Blind75 Special Mode: Using all available Blind75 problems`);
+
+    // For Blind75, remove restrictive filters to get the full curated list
+    const blind75Config: ProblemSelectionConfig = {
+      ...config,
+      difficultyFilter: undefined,  // Remove difficulty restrictions
+      topicFocus: config.topicFocus, // Keep if user explicitly requested
+      minRoleScore: undefined,       // Remove role score requirements
+    };
+
+    try {
+      const problems = await selectProblems(
+        blind75Config,
+        company,
+        'all-problems',  // Don't filter by company
+        true             // allowNoThreshold - accept any role score
+      );
+
+      console.log(`✅ Blind75 mode: Found ${problems.length} problems`);
+
+      // Accept whatever we got - Blind75 is a fixed curated list
+      // Return with metadata indicating relaxed constraints
+      return problems.map(p => ({
+        ...p,
+        selectionMetadata: {
+          fallbackStage: 0,
+          relaxedTopics: config.topicFocus ? false : true,
+          relaxedDifficulty: true,
+          loweredThreshold: true,
+          emergency: false,
+          scope: 'all-problems',
+          allowedNoThreshold: true,
+        },
+      }));
+    } catch (error) {
+      console.error(`❌ Blind75 mode failed:`, error);
+      // Fall through to regular fallback as safety net
+    }
+  }
+
+  // REGULAR API: Normal progressive fallback
   for (let i = 0; i < FALLBACK_STAGES.length; i++) {
     const stage = FALLBACK_STAGES[i];
     // CRITICAL: Never reduce target below minimum count (for timeline filling)
