@@ -570,16 +570,16 @@ export async function selectProblemsWithFallback(
   const minimumCount = config.minimumCount || 0;
 
   // BLIND75 ONLY: Try once with minimal filtering
-  // Blind75 is a curated list of 75 problems - we want to use all available regardless of strict filters
+  // Blind75 is a curated list - remove SYSTEM filters (role scores) but keep USER preferences (difficulty, topics)
   if (config.onlyBlind75) {
     console.log(`\n🎯 Blind75 Special Mode: Using all available Blind75 problems`);
 
-    // For Blind75, remove restrictive filters to get the full curated list
+    // For Blind75, only remove system-imposed filters (role scores)
+    // Keep user-specified filters (difficulty, topics) to respect their explicit preferences
     const blind75Config: ProblemSelectionConfig = {
       ...config,
-      difficultyFilter: undefined,  // Remove difficulty restrictions
-      topicFocus: config.topicFocus, // Keep if user explicitly requested
-      minRoleScore: undefined,       // Remove role score requirements
+      // Keep user preferences: difficultyFilter and topicFocus
+      minRoleScore: undefined,       // Remove role score requirements (system filter)
     };
 
     try {
@@ -593,14 +593,14 @@ export async function selectProblemsWithFallback(
       console.log(`✅ Blind75 mode: Found ${problems.length} problems`);
 
       // Accept whatever we got - Blind75 is a fixed curated list
-      // Return with metadata indicating relaxed constraints
+      // Return with metadata indicating which constraints were relaxed
       return problems.map(p => ({
         ...p,
         selectionMetadata: {
           fallbackStage: 0,
           relaxedTopics: config.topicFocus ? false : true,
-          relaxedDifficulty: true,
-          loweredThreshold: true,
+          relaxedDifficulty: false, // We now keep user's difficulty preference
+          loweredThreshold: true,   // Role score threshold removed
           emergency: false,
           scope: 'all-problems',
           allowedNoThreshold: true,

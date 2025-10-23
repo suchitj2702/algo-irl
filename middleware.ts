@@ -40,6 +40,10 @@ const allowedEndpoints: EndpointRule[] = [
     description: 'Public study plan generation endpoint.',
   },
   {
+    path: '/api/study-plan/generate-blind75',
+    description: 'Public Blind75 study plan generation endpoint.',
+  },
+  {
     path: '/api/user',
     match: 'prefix',
     requiresAuth: true,
