@@ -33,7 +33,7 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^3.0.0",
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@types/jest": "^29.5.14",
