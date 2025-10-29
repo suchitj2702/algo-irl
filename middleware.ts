@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
 import { verifyFirebaseToken } from '@algo-irl/lib/auth/verifyFirebaseTokenEdge';
+import { getCorsHeaders } from '@/lib/security/cors';
 
 interface EndpointRule {
   path: string;
@@ -107,27 +108,6 @@ function requiresAuthForEndpoint(pathname: string): boolean {
   return allowedEndpoints.some((endpoint) => endpoint.requiresAuth && matchesEndpoint(pathname, endpoint));
 }
 
-function createCorsHeaders(origin: string | null) {
-  // In production, restrict CORS to specific origins
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? [
-        process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com',
-        // Add other allowed origins here
-      ]
-    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173']; // Development origins
-  
-  // Check if the origin is allowed
-  const isAllowedOrigin = origin && allowedOrigins.includes(origin);
-  
-  return {
-    'Access-Control-Allow-Origin': isAllowedOrigin ? origin : allowedOrigins[0],
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept',
-    'Access-Control-Max-Age': '86400',
-    'Access-Control-Allow-Credentials': 'true',
-  };
-}
-
 function isInternalRequest(request: NextRequest): boolean {
   // Check if this is an internal server-side request
   const origin = request.headers.get('origin');
@@ -155,7 +135,7 @@ function isInternalRequest(request: NextRequest): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get('origin');
-  const corsHeaders = createCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders(origin);
 
   // Handle all API routes
   if (pathname.startsWith('/api/')) {
