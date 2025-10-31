@@ -1,4 +1,5 @@
 import Razorpay from 'razorpay';
+import type { Subscriptions } from 'razorpay/dist/types/subscriptions';
 import crypto from 'crypto';
 import { adminDb } from '@algo-irl/lib/firebase/firebaseAdmin';
 import { Timestamp, FieldValue } from 'firebase-admin/firestore';
@@ -104,9 +105,7 @@ function getRazorpayClient(): Razorpay {
   return razorpayInstance;
 }
 
-export async function checkRazorpayHealth(): Promise<
-  { healthy: true } | { healthy: false; error: unknown }
-> {
+export async function checkRazorpayHealth(): Promise<{ healthy: boolean; error?: unknown }> {
   try {
     const razorpay = getRazorpayClient();
     await razorpay.plans.all({ count: 1 });
@@ -261,7 +260,9 @@ export async function createRazorpaySubscription(params: {
     subscriptionPayload.notify_info = notifyInfo;
   }
 
-  const subscription = await razorpay.subscriptions.create(subscriptionPayload);
+  const subscription = await razorpay.subscriptions.create(
+    subscriptionPayload as unknown as Subscriptions.RazorpaySubscriptionCreateRequestBody
+  );
 
   return subscription as unknown as RazorpaySubscription;
 }

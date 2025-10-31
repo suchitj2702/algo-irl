@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@algo-irl/lib/firebase/firebaseAdmin';
 import { checkRazorpayHealth } from '@algo-irl/lib/razorpay/razorpayClient';
@@ -33,7 +33,7 @@ function calculateHealthScore(metrics: HealthMetrics): number {
   return Math.max(0, score);
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   const db = adminDb();
 
   try {
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   const db = adminDb();
 
   try {
