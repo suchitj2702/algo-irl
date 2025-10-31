@@ -3,6 +3,7 @@ import { requireUser } from '@algo-irl/lib/auth/verifyFirebaseToken';
 import { adminDb } from '@algo-irl/lib/firebase/firebaseAdmin';
 import { verifyPaymentSignature } from '@algo-irl/lib/razorpay/razorpayClient';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { getCorsHeaders } from '@algo-irl/lib/security/cors';
 
 interface VerifyPaymentRequest {
   paymentId: string;
@@ -131,13 +132,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function OPTIONS() {
+export async function OPTIONS(request: Request) {
+  const origin = request.headers.get('origin');
   return new NextResponse(null, {
     status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': process.env.NEXT_PUBLIC_APP_URL || '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
+    headers: getCorsHeaders(origin, request),
   });
 }

@@ -63,13 +63,39 @@ class RateLimiter {
       return this.config.keyGenerator(req);
     }
 
+    // First, try to use user ID if available (for authenticated requests)
+    // This prevents corporate users sharing the same IP from being rate limited together
+    const userId = req.headers.get('x-user-id');
+    if (userId) {
+      return `user:${userId}`;
+    }
+
+    // Check for Firebase auth token as another way to identify users
+    const authHeader = req.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Use a hash of the token as a key (first 16 chars should be enough for uniqueness)
+      const tokenPart = authHeader.substring(7, 23);
+      if (tokenPart) {
+        return `token:${tokenPart}`;
+      }
+    }
+
+    // Fall back to IP-based rate limiting for unauthenticated requests
     const forwarded = req.headers.get('x-forwarded-for');
     if (forwarded) {
-      return forwarded.split(',')[0]?.trim() || 'unknown';
+      const ip = forwarded.split(',')[0]?.trim() || 'unknown';
+      // Log when we're using IP-based limiting (helps debug corporate network issues)
+      if (ip !== 'unknown' && req.headers.get('user-agent')?.includes('Mozilla')) {
+        console.log('[RATE_LIMIT] Using IP-based limiting for browser request:', {
+          ip: ip.substring(0, 20),
+          path: req.nextUrl.pathname,
+        });
+      }
+      return `ip:${ip}`;
     }
 
     const realIp = req.headers.get('x-real-ip');
-    return realIp || 'unknown';
+    return `ip:${realIp || 'unknown'}`;
   }
 
   async middleware(req: NextRequest): Promise<{ response: NextResponse | null; key: string }> {

@@ -113,29 +113,42 @@ function isInternalRequest(request: NextRequest): boolean {
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
   const host = request.headers.get('host');
-  
-  // If there's no origin header, it's likely a server-side request
-  if (!origin) {
-    return true;
+  const userAgent = request.headers.get('user-agent');
+
+  // Only treat as internal if BOTH origin AND referer are missing
+  // This prevents corporate proxies (which strip origin) from being treated as internal
+  if (!origin && !referer) {
+    // Additional check: if there's a browser user-agent, it's likely not internal
+    if (userAgent && (userAgent.includes('Mozilla') || userAgent.includes('Chrome') || userAgent.includes('Safari'))) {
+      // Log for debugging corporate proxy issues
+      console.log('[CORS] Possible corporate proxy detected - missing origin but has browser UA:', {
+        pathname: request.nextUrl.pathname,
+        userAgent: userAgent.substring(0, 50),
+        hasOrigin: false,
+        hasReferer: false,
+      });
+      return false; // Treat as external if it looks like a browser request
+    }
+    return true; // Only truly internal if no browser indicators
   }
-  
+
   // If origin matches the host, it's an internal request
-  if (host && origin.includes(host)) {
+  if (host && origin && origin.includes(host)) {
     return true;
   }
-  
+
   // If referer is from the same host, it's internal
   if (host && referer && referer.includes(host)) {
     return true;
   }
-  
+
   return false;
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const origin = request.headers.get('origin');
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders(origin, request);
 
   // Handle all API routes
   if (pathname.startsWith('/api/')) {
@@ -166,6 +179,7 @@ export async function middleware(request: NextRequest) {
               status: 403,
               headers: {
                 'Content-Type': 'application/json',
+                ...corsHeaders,
               }
             }
           );
@@ -185,6 +199,7 @@ export async function middleware(request: NextRequest) {
           status: 403,
           headers: {
             'Content-Type': 'application/json',
+            ...corsHeaders,
           }
         }
       );
@@ -199,6 +214,7 @@ export async function middleware(request: NextRequest) {
           status: 404,
           headers: {
             'Content-Type': 'application/json',
+            ...corsHeaders,
           }
         }
       );

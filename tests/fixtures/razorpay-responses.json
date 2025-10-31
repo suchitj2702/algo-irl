@@ -1,0 +1,65 @@
+{
+  "subscription": {
+    "id": "sub_test_123",
+    "entity": "subscription",
+    "plan_id": "plan_test_monthly_inr",
+    "customer_id": "cust_test_123",
+    "status": "created",
+    "current_start": 1700000000,
+    "current_end": 1702592000,
+    "ended_at": null,
+    "quantity": 1,
+    "notes": {
+      "firebase_uid": "user_test_123",
+      "source": "integration-test"
+    },
+    "charge_at": null,
+    "start_at": 1700000000,
+    "end_at": 1702592000,
+    "auth_attempts": 0,
+    "total_count": 12,
+    "paid_count": 0,
+    "customer_notify": 1,
+    "created_at": 1699990000,
+    "expire_by": null,
+    "short_url": "https://rzp.io/i/test",
+    "has_scheduled_changes": false,
+    "change_scheduled_at": null,
+    "source": "api",
+    "payment_method": "card",
+    "offer_id": null,
+    "remaining_count": 12
+  },
+  "payment": {
+    "id": "pay_test_123",
+    "entity": "payment",
+    "amount": 9900,
+    "currency": "INR",
+    "status": "captured",
+    "order_id": null,
+    "invoice_id": null,
+    "subscription_id": "sub_test_123",
+    "method": "card",
+    "description": "Test payment",
+    "captured": true,
+    "email": "test@example.com",
+    "contact": "+910000000000",
+    "customer_id": "cust_test_123",
+    "notes": {
+      "firebase_uid": "user_test_123"
+    },
+    "created_at": 1699990500
+  },
+  "customer": {
+    "id": "cust_test_123",
+    "entity": "customer",
+    "name": "Test User",
+    "email": "test@example.com",
+    "contact": "+910000000000",
+    "gstin": null,
+    "notes": {
+      "firebaseUID": "user_test_123"
+    },
+    "created_at": 1699989000
+  }
+}

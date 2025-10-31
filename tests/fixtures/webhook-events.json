@@ -1,0 +1,77 @@
+{
+  "subscriptionActivated": {
+    "id": "evt_test_subscription_activated",
+    "entity": "event",
+    "account_id": "acc_test_123",
+    "event": "subscription.activated",
+    "contains": ["subscription"],
+    "payload": {
+      "subscription": {
+        "entity": {
+          "id": "sub_test_123",
+          "entity": "subscription",
+          "plan_id": "plan_test_monthly_inr",
+          "customer_id": "cust_test_123",
+          "status": "active",
+          "current_start": 1700000000,
+          "current_end": 1702592000,
+          "ended_at": null,
+          "quantity": 1,
+          "notes": {
+            "firebase_uid": "user_test_123",
+            "source": "integration-test"
+          },
+          "charge_at": null,
+          "start_at": 1700000000,
+          "end_at": 1702592000,
+          "auth_attempts": 0,
+          "total_count": 12,
+          "paid_count": 1,
+          "customer_notify": 1,
+          "created_at": 1699990000,
+          "expire_by": null,
+          "short_url": "https://rzp.io/i/test",
+          "has_scheduled_changes": false,
+          "change_scheduled_at": null,
+          "source": "api",
+          "payment_method": "card",
+          "offer_id": null,
+          "remaining_count": 11
+        }
+      }
+    },
+    "created_at": 1700000100
+  },
+  "paymentCaptured": {
+    "id": "evt_test_payment_captured",
+    "entity": "event",
+    "account_id": "acc_test_123",
+    "event": "payment.captured",
+    "contains": ["payment"],
+    "payload": {
+      "payment": {
+        "entity": {
+          "id": "pay_test_123",
+          "entity": "payment",
+          "amount": 9900,
+          "currency": "INR",
+          "status": "captured",
+          "order_id": null,
+          "invoice_id": null,
+          "subscription_id": "sub_test_123",
+          "method": "card",
+          "description": "Test payment",
+          "captured": true,
+          "email": "test@example.com",
+          "contact": "+910000000000",
+          "customer_id": "cust_test_123",
+          "notes": {
+            "firebase_uid": "user_test_123"
+          },
+          "created_at": 1699990500
+        }
+      }
+    },
+    "created_at": 1700000150
+  }
+}
