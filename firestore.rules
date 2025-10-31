@@ -2,12 +2,114 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasActiveSubscription() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tier == 'premium';
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Only backend can write
+
+      match /public/{document=**} {
+        allow read: if true;
+      }
+
+      match /preferences/{docId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+    }
+
+    // Customers collection (Razorpay data)
+    match /customers/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false; // Only backend/webhooks can write
+
+      match /subscriptions/{subscriptionId} {
+        allow read: if isOwner(userId) && !('data' in resource.data); // Hide raw Razorpay data
+        allow write: if false; // Only backend can write
+      }
+
+      match /payments/{paymentId} {
+        allow read: if isOwner(userId);
+        allow write: if false; // Only backend can write
+      }
+
+      match /failed_payments/{paymentId} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+    }
+
+    // Payment intents (temporary payment tracking)
+    match /payment_intents/{intentId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false; // Only backend
+    }
+
+    // Webhook events (admin only)
+    match /webhook_events/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only webhook endpoint
+    }
+
+    // Study plans
+    match /study_plans/{planId} {
+      allow read: if isOwner(resource.data.userId);
+
+      allow create: if isOwner(request.resource.data.userId) && (
+        hasActiveSubscription() ||
+        (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.studyPlanCount < 3
+        )
+      );
+
+      allow update: if isOwner(resource.data.userId);
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // Remote config cache (public read)
+    match /remote_config/{document=**} {
+      allow read: if true;
+      allow write: if false; // Only backend
+    }
+
+    // Analytics events (write only for users)
+    match /analytics/{eventId} {
+      allow read: if false;
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.timestamp == request.time;
+    }
+
+    // Audit logs (admin only)
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only backend
+    }
+
     // Problems collection - read-only for clients
     match /problems/{problemId} {
       allow read: if true;
       allow write: if false; // Only backend can write
     }
-    
+
     // Companies collection - read-only for clients (legacy)
     match /companies/{companyId} {
       allow read: if true;
@@ -37,7 +139,7 @@ service cloud.firestore {
       allow read: if false;
       allow write: if false;
     }
-    
+
     // Scenarios cache - no direct client access
     match /scenarios/{scenarioId} {
       allow read: if false;
@@ -56,22 +158,6 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // User profiles - users can read/write their own, but cannot modify payment fields
-    match /users/{uid} {
-      allow read: if isOwner(uid);
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid)
-        && !request.resource.data.diff(resource.data).affectedKeys()
-             .hasAny(['razorpayCustomerId', 'tier', 'subscriptionStatus', 'subscriptionTier',
-                      'subscriptionCurrentPeriodEnd', 'subscriptionCancelAt']);
-      allow delete: if false; // Prevent accidental deletion
-
-      match /preferences/{docId} {
-        allow read: if isOwner(uid);
-        allow write: if isOwner(uid);
-      }
-    }
-
     match /userStudyPlans/{uid}/plans/{planId} {
       allow read: if isOwner(uid);
       allow write: if isOwner(uid);
@@ -82,36 +168,11 @@ service cloud.firestore {
       allow write: if isOwner(uid);
     }
 
-    match /customers/{uid} {
-      allow read: if isOwner(uid);
-      allow write: if false;
-
-      match /subscriptions/{subscriptionId} {
-        allow read: if isOwner(uid);
-        allow write: if false;
-      }
-
-      match /payments/{paymentId} {
-        allow read: if isOwner(uid);
-        allow write: if false;
-      }
-    }
-
     // Block all other collections by default
     match /{document=**} {
       allow read: if false;
       allow write: if false;
     }
-  }
-
-  function isOwner(uid) {
-    return request.auth != null && request.auth.uid == uid;
-  }
-
-  // Helper function to check if user has active premium subscription
-  function hasActiveSubscription(uid) {
-    let user = get(/databases/$(database)/documents/users/$(uid));
-    return user.data.tier == 'premium';
   }
 }
 

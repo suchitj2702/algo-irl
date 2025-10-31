@@ -104,6 +104,18 @@ function getRazorpayClient(): Razorpay {
   return razorpayInstance;
 }
 
+export async function checkRazorpayHealth(): Promise<
+  { healthy: true } | { healthy: false; error: unknown }
+> {
+  try {
+    const razorpay = getRazorpayClient();
+    await razorpay.plans.all({ count: 1 });
+    return { healthy: true };
+  } catch (error) {
+    return { healthy: false, error };
+  }
+}
+
 /**
  * Verify Razorpay webhook signature
  */
@@ -124,6 +136,37 @@ export function verifyWebhookSignature(
     );
   } catch (error) {
     console.error('[Razorpay] Webhook signature verification failed:', error);
+    return false;
+  }
+}
+
+/**
+ * Verify a Razorpay payment signature using the configured key secret.
+ */
+export function verifyPaymentSignature(message: string, signature: string): boolean {
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keySecret) {
+    console.error('[Razorpay] Missing RAZORPAY_KEY_SECRET for payment verification');
+    return false;
+  }
+
+  try {
+    const expectedSignature = crypto
+      .createHmac('sha256', keySecret)
+      .update(message)
+      .digest('hex');
+
+    const providedBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+
+    if (providedBuffer.length !== expectedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch (error) {
+    console.error('[Razorpay] Payment signature verification failed:', error);
     return false;
   }
 }
@@ -182,26 +225,43 @@ export async function createRazorpaySubscription(params: {
   planId: string;
   totalCount?: number;
   customerNotify?: 0 | 1;
-  notes?: Record<string, string>;
+  notes?: Record<string, string | undefined | null>;
+  notifyInfo?: {
+    notify_email?: string;
+    notify_phone?: string;
+  };
 }): Promise<RazorpaySubscription> {
   const {
+    customerId,
     planId,
     totalCount = 0, // 0 means infinite
     customerNotify = 1,
     notes = {},
+    notifyInfo,
   } = params;
 
-  // Note: customerId is in params but not used during subscription creation
-  // The customer will be linked when they authorize payment via the hosted page
+  const sanitizedNotes = Object.entries(notes).reduce<Record<string, string>>((acc, [key, value]) => {
+    if (value !== undefined && value !== null) {
+      acc[key] = String(value);
+    }
+    return acc;
+  }, {});
 
   const razorpay = getRazorpayClient();
 
-  const subscription = await razorpay.subscriptions.create({
+  const subscriptionPayload: Record<string, unknown> = {
     plan_id: planId,
+    customer_id: customerId,
     total_count: totalCount,
     customer_notify: customerNotify,
-    notes,
-  });
+    notes: sanitizedNotes,
+  };
+
+  if (notifyInfo) {
+    subscriptionPayload.notify_info = notifyInfo;
+  }
+
+  const subscription = await razorpay.subscriptions.create(subscriptionPayload);
 
   return subscription as unknown as RazorpaySubscription;
 }

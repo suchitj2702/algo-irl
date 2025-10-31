@@ -47,27 +47,6 @@
           "value": "1; mode=block"
         }
       ]
-    },
-    {
-      "source": "/api/(problem/prepare|execute-code|execute-code/status/.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "https://algoirl.ai,https://www.algoirl.ai,https://algo-irl.vercel.app"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization, X-Timestamp, X-Signature, X-Request-Id, X-Hp-Field, X-Client-Fingerprint"
-        },
-        {
-          "key": "Access-Control-Max-Age",
-          "value": "86400"
-        }
-      ]
     }
   ],
   "env": {
