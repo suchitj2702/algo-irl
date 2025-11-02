@@ -45,6 +45,7 @@ const configService = RemoteConfigService.getInstance();
 export async function refreshRemoteConfig(): Promise<boolean> {
   try {
     // Clear cache to force refresh
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (configService as any).clearCache();
     await configService.getPaymentFlags();
     console.log('[RemoteConfig] Config refreshed from Firestore');
