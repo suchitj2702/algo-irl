@@ -21,7 +21,6 @@ export class PaymentSecurityManager {
 
   private readonly expectedAmounts: Record<string, ExpectedPlanAmount> = {
     plan_monthly_study_plan_inr: { amount: 49_900, currency: 'INR' },
-    plan_yearly_study_plan_inr: { amount: 4_99_000, currency: 'INR' },
   };
 
   private constructor() {}

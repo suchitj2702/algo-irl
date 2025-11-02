@@ -8,8 +8,18 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:razorpay": "jest --testPathPattern=razorpay",
+    "test:billing": "jest --testPathPattern=billing",
+    "test:webhook": "jest __tests__/api/razorpay/webhook.test.ts",
+    "test:e2e": "playwright test",
     "test:rules": "firebase emulators:exec --only firestore \"jest --runTestsByPath tests/firestore/rules.spec.ts\"",
-    "emulators:start": "firebase emulators:start --only firestore"
+    "emulators:start": "firebase emulators:start --only firestore",
+    "razorpay:test": "node scripts/test-razorpay.js",
+    "razorpay:webhook": "node scripts/test-webhook.js",
+    "firebase:test-user": "node scripts/firebase-test-user.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.41.0",

@@ -351,16 +351,11 @@ function toUnixSeconds(value: unknown): number | null {
 
 /**
  * Derive tier name from plan ID
+ * Simplified for single monthly plan
  */
 function deriveTier(planId: string): string | null {
-  // Extract tier from plan ID convention like "plan_monthly_study_plan_inr"
-  if (planId.includes('monthly')) {
-    return 'monthly';
-  }
-  if (planId.includes('yearly')) {
-    return 'yearly';
-  }
-  return planId;
+  // Currently only supporting monthly plans
+  return planId ? 'monthly' : null;
 }
 
 /**

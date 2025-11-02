@@ -6,12 +6,8 @@ import { adminDb } from '@algo-irl/lib/firebase/firebaseAdmin';
 
 const ACTIVE_SUBSCRIPTION_STATUSES = ['active', 'past_due'];
 
-const PLAN_DISPLAY_NAMES: Record<string, string> = {
-  plan_monthly_study_plan_inr: 'Monthly - INR',
-  plan_monthly_study_plan_usd: 'Monthly - USD',
-  plan_yearly_study_plan_inr: 'Yearly - INR',
-  plan_yearly_study_plan_usd: 'Yearly - USD',
-};
+// Single plan display name
+const PLAN_DISPLAY_NAME = 'Monthly Subscription - INR';
 
 type SubscriptionDoc = {
   id: string;
@@ -41,10 +37,8 @@ function calculateDaysRemaining(date: Date | null): number | null {
 }
 
 function getPlanDisplayName(planId: string | undefined | null): string {
-  if (!planId) {
-    return 'Comprehensive Plan';
-  }
-  return PLAN_DISPLAY_NAMES[planId] ?? 'Comprehensive Plan';
+  // Return the single plan display name for any valid plan
+  return planId ? PLAN_DISPLAY_NAME : 'Comprehensive Plan';
 }
 
 async function getActiveSubscription(userId: string): Promise<SubscriptionDoc | null> {

@@ -61,3 +61,4 @@ scripts/batch-problem-transform/input/*
 scripts/batch-problem-transform/output/*
 
 test-outputs/*
+test-results/*

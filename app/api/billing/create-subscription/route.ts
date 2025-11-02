@@ -83,15 +83,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate plan ID against environment variables
-    const validPlanIds = [
-      process.env.RAZORPAY_PLAN_MONTHLY_INR,
-      process.env.RAZORPAY_PLAN_MONTHLY_USD,
-      process.env.RAZORPAY_PLAN_YEARLY_INR,
-      process.env.RAZORPAY_PLAN_YEARLY_USD,
-    ].filter(Boolean);
+    // Validate plan ID against environment variable
+    const validPlanId = process.env.RAZORPAY_PLAN_MONTHLY_INR;
 
-    if (!validPlanIds.includes(planId)) {
+    if (!validPlanId || planId !== validPlanId) {
       return NextResponse.json(
         { error: 'Invalid planId' },
         { status: 400 }
