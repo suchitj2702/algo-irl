@@ -60,6 +60,12 @@ const allowedEndpoints: EndpointRule[] = [
     path: '/api/razorpay/webhook',
     description: 'Razorpay webhook endpoint (signature verified).',
   },
+  {
+    path: '/api/issue/report',
+    match: 'exact',
+    requiresAuth: false,
+    description: 'Issue reporting endpoint (optional authentication).',
+  },
 ];
 
 // Define endpoints that are allowed for internal calls but should be blocked for external access
