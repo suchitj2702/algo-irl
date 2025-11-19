@@ -28,14 +28,17 @@ The Study Plan System generates personalized, company-specific algorithm problem
 - **Company-Specific Prioritization**: Problems actually asked at the target company rank highest
 - **Role Optimization**: Problems scored for relevance to 5 engineering roles (Backend, ML, Frontend, Infrastructure, Security)
 - **Adaptive Thresholds**: Role-specific score thresholds prevent under-serving Frontend/Security roles
-- **Pattern Normalization**: Maps 2,269 fine-grained patterns → 34 canonical patterns for better topic matching
+- **Pattern Normalization**: Maps 2,269 fine-grained patterns → ~30 core canonical patterns for better topic matching
 - **Progressive Fallback**: 8-stage constraint relaxation ensures 100% success rate
 - **Difficulty-Aware Targeting**: Adjusts problem count based on difficulty filter (Easy: 2.7× more problems than Hard)
 - **Timeline Fill Optimization**: 99.4% average fill rate across all scenarios (was 74.7%)
 - **Smart Problem Pruning**: Prevents overflow while maintaining quality and hotness priority
+- **Blind75 Curated Mode**: Optional filtering to only include problems from the curated Blind75 list
+- **Minimum Count Enforcement**: Prevents under-filling by calculating floor based on maximum time estimates
 - **Topic Diversity**: Ensures broad coverage of data structures and algorithm patterns
 - **Time-Based Scheduling**: Distributes problems across days based on difficulty and available hours
 - **Smart Extrapolation**: Fills gaps with relevant problems when company data is sparse
+- **Ghost Problem Filtering**: Validates that all problems exist in the main database
 - **Two-Tier Caching**: In-memory (5 min) + Firestore (7 days) for fast responses
 
 ### Current System Stats
@@ -160,9 +163,15 @@ calculateTargetProblemCount(timeline, hoursPerDay, difficultyFilter)
 ```typescript
 // Prevents under-filling when fallback reduces target
 calculateMinimumProblemCount(timeline, hoursPerDay, difficultyFilter)
+// Formula: (timeline * hoursPerDay * 60) / difficultyAwareMaxTime
 // Uses max time per difficulty to ensure enough problems
 // Easy only: 25 min max → 403 min problems
+// Medium only: 43 min max → 234 min problems
 // Hard only: 75 min max → 134 min problems
+// Mixed: Uses weighted average of selected difficulties
+
+// This ensures progressive fallback doesn't reduce target below what
+// can physically fit in the timeline. Acts as a floor constraint.
 ```
 
 **Performance:**
@@ -208,6 +217,32 @@ Selects optimal problems with progressive fallback.
 - Stage 7: Expand to generic problem pool (100% target, all problems)
 - Stage 8: Generic pool with no threshold (100% target, all problems)
 
+**Selection Metadata:**
+Each problem includes `selectionMetadata` for transparency:
+```typescript
+{
+  stage: number,              // Which fallback stage selected this problem (1-8)
+  relaxedTopics: boolean,     // Were topic constraints relaxed?
+  relaxedDifficulty: boolean, // Were difficulty constraints relaxed?
+  usedLowerThreshold: boolean,// Was role threshold lowered?
+  scope: string              // 'company' or 'all-problems'
+}
+```
+This metadata helps frontend display why each problem was selected and provides transparency when constraints were relaxed.
+
+**Ghost Problem Filtering:**
+The system validates that all problems referenced in company sub-collections exist in the main `problems` collection. Problems that exist in company data but are missing from the main database are filtered out and logged:
+```typescript
+// Filters out "ghost problems" - IDs in company data with no matching problem doc
+const validProblems = companyProblems.filter(cp =>
+  problemsMap.has(cp.id)
+);
+if (validProblems.length < companyProblems.length) {
+  console.log(`Filtered out ${ghostCount} ghost problems for ${companyId}`);
+}
+```
+This prevents broken references and ensures data integrity across collections.
+
 #### 4. **adaptiveThresholds.ts**
 Role-specific score thresholds based on dataset analysis.
 
@@ -229,9 +264,9 @@ Role-specific score thresholds based on dataset analysis.
 #### 5. **patternNormalizer.ts**
 Maps fine-grained LLM patterns to canonical patterns.
 
-**Compression:** 2,269 unique patterns → 34 canonical patterns (66.7x)
+**Compression:** 2,269 unique patterns → ~30 core canonical patterns + dynamic classification
 
-**Canonical Patterns:** BFS, DFS, Binary Search, Dynamic Programming, Two Pointers, Sliding Window, Hash Table, Heap, Stack, Queue, Trie, Union Find, Topological Sort, Greedy, Sorting, Backtracking, Recursion, Math, Bit Manipulation, String Matching, Prefix Sum, etc.
+**Canonical Patterns:** BFS, DFS, Binary Search, Dynamic Programming, Two Pointers, Sliding Window, Hash Table, Heap, Stack, Queue, Trie, Union Find, Topological Sort, Greedy, Sorting, Backtracking, Recursion, Math, Bit Manipulation, String Matching, Prefix Sum, Simulation, State Machine, Array Manipulation, Tree Traversal, Counting, Enumeration, etc.
 
 **Impact:** Better topic matching and meaningful clustering
 
@@ -637,7 +672,8 @@ X-Timestamp: <unix timestamp>
     "medium": true,
     "hard": false
   },
-  "topicFocus": []
+  "topicFocus": [],
+  "onlyBlind75": false
 }
 ```
 
@@ -648,6 +684,7 @@ X-Timestamp: <unix timestamp>
 - `hoursPerDay` (required): Hours available per day (0.5-8)
 - `difficultyPreference` (optional): Filter by difficulty levels
 - `topicFocus` (optional): Specific topics to prioritize (max 5)
+- `onlyBlind75` (optional): If true, only include problems from the curated Blind75 list. When enabled, system-imposed filters (role thresholds) are removed while user preferences are preserved. If target ≥ 75 problems, uses entire Blind75 pool.
 
 #### Response
 
@@ -1267,6 +1304,8 @@ Examples:
 - google_backend_14d_2h
 - meta_ml_30d_3h_diff-em
 - netflix_frontend_21d_1.5h_topics-arrays-graphs
+- amazon_backend_7d_4h_blind75
+- google_ml_14d_2h_diff-m_topics-dp-graphs_blind75
 ```
 
 ### Optimization Strategies
