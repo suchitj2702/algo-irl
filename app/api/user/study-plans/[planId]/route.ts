@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@algo-irl/lib/firebase/firebaseAdmin';
 import { requireUser } from '@algo-irl/lib/auth/verifyFirebaseToken';
@@ -6,6 +6,7 @@ import {
   StudyPlanProgressSchema,
 } from '@algo-irl/lib/user/studyPlanValidation';
 import { serializeStudyPlanDoc } from '@algo-irl/lib/user/studyPlanSerialization';
+import { apiError, apiSuccess } from '@/lib/shared/apiResponse';
 
 export const runtime = 'nodejs';
 
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     const planId = extractPlanId(request);
 
     if (!planId) {
-      return NextResponse.json({ error: 'planId is required' }, { status: 400 });
+      return apiError(400, 'planId is required');
     }
 
     const db = adminDb();
@@ -29,13 +30,13 @@ export async function GET(request: NextRequest) {
     const doc = await planRef.get();
 
     if (!doc.exists) {
-      return NextResponse.json({ error: 'Study plan not found' }, { status: 404 });
+      return apiError(404, 'Study plan not found');
     }
 
-    return NextResponse.json(serializeStudyPlanDoc(doc));
+    return apiSuccess(serializeStudyPlanDoc(doc));
   } catch (error) {
     console.error('[API][StudyPlans][GET] Failed to fetch study plan:', error);
-    return NextResponse.json({ error: 'Failed to fetch study plan' }, { status: 500 });
+    return apiError(500, 'Failed to fetch study plan');
   }
 }
 
@@ -45,7 +46,7 @@ export async function PATCH(request: NextRequest) {
     const planId = extractPlanId(request);
 
     if (!planId) {
-      return NextResponse.json({ error: 'planId is required' }, { status: 400 });
+      return apiError(400, 'planId is required');
     }
 
     const payload = await request.json();
@@ -56,7 +57,7 @@ export async function PATCH(request: NextRequest) {
     // Get current document
     const currentDoc = await planRef.get();
     if (!currentDoc.exists) {
-      return NextResponse.json({ error: 'Study plan not found' }, { status: 404 });
+      return apiError(404, 'Study plan not found');
     }
 
     // Handle problemProgress updates
@@ -74,9 +75,7 @@ export async function PATCH(request: NextRequest) {
         currentProblemProgress[problemId] = {
           ...existingProgress,
           ...newProgress,
-          // Preserve problemDetails if not provided in update
           problemDetails: newProgress.problemDetails || existingProgress.problemDetails,
-          // Preserve codeDetails if not provided in update
           codeDetails: newProgress.codeDetails || existingProgress.codeDetails
         };
 
@@ -116,16 +115,13 @@ export async function PATCH(request: NextRequest) {
       });
 
       const updatedDoc = await planRef.get();
-      return NextResponse.json(serializeStudyPlanDoc(updatedDoc));
+      return apiSuccess(serializeStudyPlanDoc(updatedDoc));
     }
 
     // Handle regular progress updates (non-problemProgress)
     const parsed = StudyPlanProgressSchema.safeParse(payload);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Invalid progress payload', details: parsed.error.flatten() },
-        { status: 400 }
-      );
+      return apiError(400, 'Invalid progress payload');
     }
 
     const updateData: Record<string, unknown> = {};
@@ -142,10 +138,10 @@ export async function PATCH(request: NextRequest) {
     await planRef.update(updateData);
 
     const updatedDoc = await planRef.get();
-    return NextResponse.json(serializeStudyPlanDoc(updatedDoc));
+    return apiSuccess(serializeStudyPlanDoc(updatedDoc));
   } catch (error) {
     console.error('[API][StudyPlans][PATCH] Failed to update study plan:', error);
-    return NextResponse.json({ error: 'Failed to update study plan' }, { status: 500 });
+    return apiError(500, 'Failed to update study plan');
   }
 }
 
@@ -155,7 +151,7 @@ export async function DELETE(request: NextRequest) {
     const planId = extractPlanId(request);
 
     if (!planId) {
-      return NextResponse.json({ error: 'planId is required' }, { status: 400 });
+      return apiError(400, 'planId is required');
     }
 
     const db = adminDb();
@@ -163,18 +159,14 @@ export async function DELETE(request: NextRequest) {
     const planSnapshot = await planRef.get();
 
     if (!planSnapshot.exists) {
-      return NextResponse.json({ error: 'Study plan not found' }, { status: 404 });
+      return apiError(404, 'Study plan not found');
     }
 
-    // Delete the study plan document (progress is now embedded, no subcollections to clean up)
     await planRef.delete();
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ success: true });
   } catch (error) {
     console.error('[API][StudyPlans][DELETE] Failed to delete study plan:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete study plan' },
-      { status: 500 }
-    );
+    return apiError(500, 'Failed to delete study plan');
   }
 }

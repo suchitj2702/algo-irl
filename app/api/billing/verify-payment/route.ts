@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { requireUser } from '@algo-irl/lib/auth/verifyFirebaseToken';
 import { adminDb } from '@algo-irl/lib/firebase/firebaseAdmin';
 import { verifyPaymentSignature } from '@algo-irl/lib/razorpay/razorpayClient';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { getCorsHeaders } from '@algo-irl/lib/security/cors';
+import { apiError, apiSuccess } from '@/lib/shared/apiResponse';
 
 interface VerifyPaymentRequest {
   paymentId: string;
@@ -34,10 +34,7 @@ export async function POST(request: NextRequest) {
     const signature = body?.signature;
 
     if (!paymentId || !subscriptionId) {
-      return NextResponse.json(
-        { error: 'Payment ID and Subscription ID required' },
-        { status: 400 }
-      );
+      return apiError(400, 'Payment ID and Subscription ID required');
     }
 
     if (signature) {
@@ -51,10 +48,7 @@ export async function POST(request: NextRequest) {
           subscriptionId,
         });
 
-        return NextResponse.json(
-          { error: 'Invalid payment signature' },
-          { status: 400 }
-        );
+        return apiError(400, 'Invalid payment signature');
       }
     }
 
@@ -67,7 +61,7 @@ export async function POST(request: NextRequest) {
     const paymentDoc = await paymentDocRef.get();
 
     if (!paymentDoc.exists) {
-      return NextResponse.json({
+      return apiSuccess({
         verified: false,
         status: 'pending',
         message: 'Payment is being processed',
@@ -85,7 +79,7 @@ export async function POST(request: NextRequest) {
     const subscriptionDoc = await subscriptionDocRef.get();
 
     if (!subscriptionDoc.exists) {
-      return NextResponse.json({
+      return apiSuccess({
         verified: false,
         status: 'pending',
         message: 'Subscription activation in progress',
@@ -106,7 +100,7 @@ export async function POST(request: NextRequest) {
         { merge: true }
       );
 
-    return NextResponse.json({
+    return apiSuccess({
       verified: true,
       status: 'success',
       subscription: {
@@ -124,18 +118,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[API][Billing][VerifyPayment] Error:', error);
-
-    return NextResponse.json(
-      { error: 'Failed to verify payment' },
-      { status: 500 }
-    );
+    return apiError(500, 'Failed to verify payment');
   }
-}
-
-export async function OPTIONS(request: Request) {
-  const origin = request.headers.get('origin');
-  return new NextResponse(null, {
-    status: 200,
-    headers: getCorsHeaders(origin, request),
-  });
 }

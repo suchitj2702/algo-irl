@@ -1,25 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { orchestrateJudge0Submission } from '../../../lib/code-execution/codeExecution';
 import judge0Config from '../../../lib/code-execution/judge0Config';
 import { Judge0Client } from '../../../lib/code-execution/judge0Client';
 import { createCodeSubmission } from '../../../lib/code-execution/codeExecutionUtils';
 import type { TestCase } from '../../../data-types/problem';
 import { validateCodeSubmission, SecurityLimits } from '@/lib/security/validation';
-import { getCorsHeaders } from '@/lib/security/cors';
+import { withCors } from '@/lib/shared/apiResponse';
 import { sanitizeInput } from '@/lib/security/input-sanitization';
 
-// Handle CORS preflight requests
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get('origin');
-  const corsHeaders = getCorsHeaders(origin);
-  
-  return new NextResponse(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
-}
-
-// Initialize Judge0Client without the global callbackUrl, 
+// Initialize Judge0Client without the global callbackUrl,
 // as it's now handled per-batch by orchestrateJudge0Submission
 const judge0Client = new Judge0Client({
   apiUrl: judge0Config.apiUrl,
@@ -28,49 +17,37 @@ const judge0Client = new Judge0Client({
 
 export async function POST(request: NextRequest) {
   try {
-    const origin = request.headers.get('origin');
-    const corsHeaders = getCorsHeaders(origin);
-
     const body = await request.json();
     const { code, language, testCases, boilerplateCode } = body;
 
     // Basic validation
     if (!code || typeof code !== 'string') {
-      return NextResponse.json({ error: 'Code is required' }, { status: 400, headers: corsHeaders });
+      return withCors(request, { error: 'Code is required' }, { status: 400 });
     }
 
     if (!language || typeof language !== 'string') {
-      return NextResponse.json({ error: 'Language is required' }, { status: 400, headers: corsHeaders });
+      return withCors(request, { error: 'Language is required' }, { status: 400 });
     }
     if (!boilerplateCode || typeof boilerplateCode !== 'string') {
-      return NextResponse.json({ error: 'Boilerplate code is required' }, { status: 400, headers: corsHeaders });
+      return withCors(request, { error: 'Boilerplate code is required' }, { status: 400 });
     }
 
     // Sanitize input strings (but preserve code structure for non-code fields)
     const sanitizedLanguage = sanitizeInput(language);
     // Note: We don't sanitize code or boilerplateCode as they need to preserve structure
     if (!testCases || !Array.isArray(testCases) || testCases.length === 0) {
-      return NextResponse.json(
-        { error: 'Test cases are required' },
-        { status: 400, headers: corsHeaders }
-      );
+      return withCors(request, { error: 'Test cases are required' }, { status: 400 });
     }
 
     // Validate code submission
     const validation = validateCodeSubmission(code, sanitizedLanguage);
     if (!validation.valid) {
-      return NextResponse.json(
-        { error: validation.error },
-        { status: 400, headers: corsHeaders }
-      );
+      return withCors(request, { error: validation.error }, { status: 400 });
     }
 
     // Validate test cases count
     if (testCases.length > SecurityLimits.MAX_TEST_CASES) {
-      return NextResponse.json(
-        { error: `Maximum ${SecurityLimits.MAX_TEST_CASES} test cases allowed` },
-        { status: 400, headers: corsHeaders }
-      );
+      return withCors(request, { error: `Maximum ${SecurityLimits.MAX_TEST_CASES} test cases allowed` }, { status: 400 });
     }
 
     // Add security constraints to Judge0 submission
@@ -133,29 +110,24 @@ export async function POST(request: NextRequest) {
       fingerprint: ip, // Use IP as fingerprint (Vercel provides this)
     });
 
-    return NextResponse.json(
-      {
-        submissionId: submissionResult.internalSubmissionId,
-        message: 'Code submitted successfully. Poll for results using the submissionId.'
-      },
-      { headers: corsHeaders }
-    );
+    return withCors(request, {
+      submissionId: submissionResult.internalSubmissionId,
+      message: 'Code submitted successfully. Poll for results using the submissionId.'
+    });
 
   } catch (error) {
     console.error('Code submission API error:', error);
-    const origin = request.headers.get('origin');
-    const corsHeaders = getCorsHeaders(origin);
 
     // Construct a generic error response structure
     const errorResponse = {
       error: error instanceof Error ? error.message : 'An unknown error occurred during submission.',
       passed: false,
       testCasesPassed: 0,
-      testCasesTotal: 0, // Can't reliably determine total now
+      testCasesTotal: 0,
       executionTime: null,
       memoryUsage: null,
-      status: 'error' // Add a status field to the error response
+      status: 'error'
     };
-    return NextResponse.json(errorResponse, { status: 500, headers: corsHeaders });
+    return withCors(request, errorResponse, { status: 500 });
   }
-} 
+}

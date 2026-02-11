@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { requireUser } from '@algo-irl/lib/auth/verifyFirebaseToken';
 import {
   syncRazorpayCustomer,
@@ -7,6 +7,7 @@ import {
 import { isPaymentsEnabled, isUserInRollout } from '@algo-irl/lib/firebase/remoteConfig';
 import { adminDb } from '@algo-irl/lib/firebase/firebaseAdmin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { apiError, apiSuccess, toErrorMessage } from '@/lib/shared/apiResponse';
 
 interface CreateSubscriptionRequest {
   planId: string;
@@ -23,45 +24,29 @@ interface CreateSubscriptionRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify user authentication
     const { user } = await requireUser(request);
 
-    // Check if payments are enabled via Remote Config
     const paymentsEnabled = await isPaymentsEnabled();
     if (!paymentsEnabled) {
-      return NextResponse.json(
-        { error: 'Payments are currently disabled. Please try again later.' },
-        { status: 503 } // Service Unavailable
-      );
+      return apiError(503, 'Payments are currently disabled. Please try again later.');
     }
 
-    // Check if user is in the rollout (percentage-based or whitelist)
     const userInRollout = await isUserInRollout(user.uid, user.email);
     if (!userInRollout) {
-      return NextResponse.json(
-        { error: 'Payments are not available for your account yet. Please check back later.' },
-        { status: 403 } // Forbidden
-      );
+      return apiError(403, 'Payments are not available for your account yet. Please check back later.');
     }
 
-    // Parse request body
     const body: CreateSubscriptionRequest = await request.json();
     const { planId, totalCount, customerNotify = 1 } = body;
 
     if (!planId) {
-      return NextResponse.json(
-        { error: 'planId is required' },
-        { status: 400 }
-      );
+      return apiError(400, 'planId is required');
     }
 
     const appUrlString = process.env.NEXT_PUBLIC_APP_URL;
     if (!appUrlString) {
       console.error('[API][Billing][CreateSubscription] Missing NEXT_PUBLIC_APP_URL environment variable');
-      return NextResponse.json(
-        { error: 'Payment configuration is invalid. Please contact support.' },
-        { status: 500 }
-      );
+      return apiError(500, 'Payment configuration is invalid. Please contact support.');
     }
 
     const appUrl = new URL(appUrlString);
@@ -70,27 +55,16 @@ export async function POST(request: NextRequest) {
       try {
         const candidateUrl = new URL(body.returnUrl, appUrl);
         if (candidateUrl.origin !== appUrl.origin) {
-          return NextResponse.json(
-            { error: 'Invalid return URL' },
-            { status: 400 }
-          );
+          return apiError(400, 'Invalid return URL');
         }
       } catch {
-        return NextResponse.json(
-          { error: 'Invalid return URL format' },
-          { status: 400 }
-        );
+        return apiError(400, 'Invalid return URL format');
       }
     }
 
-    // Validate plan ID against environment variable
     const validPlanId = process.env.RAZORPAY_PLAN_MONTHLY_INR;
-
     if (!validPlanId || planId !== validPlanId) {
-      return NextResponse.json(
-        { error: 'Invalid planId' },
-        { status: 400 }
-      );
+      return apiError(400, 'Invalid planId');
     }
 
     const db = adminDb();
@@ -109,13 +83,9 @@ export async function POST(request: NextRequest) {
       .get();
 
     if (recentAttempts.size >= 3) {
-      return NextResponse.json(
-        { error: 'Too many payment attempts. Please wait a minute.' },
-        { status: 429 }
-      );
+      return apiError(429, 'Too many payment attempts. Please wait a minute.');
     }
 
-    // Create or get Razorpay customer
     const razorpayCustomerId = await syncRazorpayCustomer({
       uid: user.uid,
       email: user.email,
@@ -130,7 +100,6 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     };
 
-    // Create Razorpay subscription
     const subscription = await createRazorpaySubscription({
       customerId: razorpayCustomerId,
       planId,
@@ -158,7 +127,7 @@ export async function POST(request: NextRequest) {
         shortUrl: subscription.short_url ?? null,
       });
 
-    return NextResponse.json({
+    return apiSuccess({
       subscriptionId: subscription.id,
       status: subscription.status,
       shortUrl: subscription.short_url,
@@ -174,12 +143,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[API][Billing][CreateSubscription] Error:', error);
-
-    const errorMessage = error instanceof Error ? error.message : 'Failed to create subscription';
-
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    return apiError(500, toErrorMessage(error));
   }
 }

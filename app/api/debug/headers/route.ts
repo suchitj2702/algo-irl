@@ -97,11 +97,3 @@ export async function GET(request: NextRequest) {
     },
   });
 }
-
-export async function OPTIONS(request: Request) {
-  const origin = request.headers.get('origin');
-  return new NextResponse(null, {
-    status: 200,
-    headers: getCorsHeaders(origin, request),
-  });
-}

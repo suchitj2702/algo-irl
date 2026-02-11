@@ -3,6 +3,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import type { DocumentData } from 'firebase-admin/firestore';
 import { requireUser } from '@algo-irl/lib/auth/verifyFirebaseToken';
 import { adminDb } from '@algo-irl/lib/firebase/firebaseAdmin';
+import { apiError, apiSuccess } from '@/lib/shared/apiResponse';
 
 const ACTIVE_SUBSCRIPTION_STATUSES = ['active', 'past_due'];
 
@@ -20,7 +21,6 @@ function toDate(value: unknown): Date | null {
   }
 
   if (typeof value === 'number' && !Number.isNaN(value)) {
-    // Accept Unix seconds and milliseconds
     return value > 10_000_000_000 ? new Date(value) : new Date(value * 1000);
   }
 
@@ -28,16 +28,12 @@ function toDate(value: unknown): Date | null {
 }
 
 function calculateDaysRemaining(date: Date | null): number | null {
-  if (!date) {
-    return null;
-  }
-
+  if (!date) return null;
   const diffMs = date.getTime() - Date.now();
   return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 function getPlanDisplayName(planId: string | undefined | null): string {
-  // Return the single plan display name for any valid plan
   return planId ? PLAN_DISPLAY_NAME : 'Comprehensive Plan';
 }
 
@@ -52,9 +48,7 @@ async function getActiveSubscription(userId: string): Promise<SubscriptionDoc | 
     .limit(1)
     .get();
 
-  if (snapshot.empty) {
-    return null;
-  }
+  if (snapshot.empty) return null;
 
   const doc = snapshot.docs[0];
   return { id: doc.id, data: doc.data() };
@@ -66,10 +60,7 @@ export async function GET(request: NextRequest) {
     const action = request.nextUrl.searchParams.get('action');
 
     if (!action) {
-      return NextResponse.json(
-        { error: 'action query parameter is required' },
-        { status: 400 }
-      );
+      return apiError(400, 'action query parameter is required');
     }
 
     switch (action) {
@@ -84,36 +75,26 @@ export async function GET(request: NextRequest) {
       case 'upcoming':
         return await getUpcomingInvoice(user.uid);
       default:
-        return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
-        );
+        return apiError(400, 'Invalid action');
     }
   } catch (error) {
     console.error('[API][Billing][ManageSubscription] Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to manage subscription' },
-      { status: 500 }
-    );
+    return apiError(500, 'Failed to manage subscription');
   }
 }
 
-async function getSubscriptionDetails(userId: string) {
+async function getSubscriptionDetails(userId: string): Promise<NextResponse> {
   const subscriptionDoc = await getActiveSubscription(userId);
 
   if (!subscriptionDoc) {
-    return NextResponse.json({
-      hasSubscription: false,
-      status: 'none',
-    });
+    return apiSuccess({ hasSubscription: false, status: 'none' });
   }
 
   const subscription = subscriptionDoc.data;
-
   const currentPeriodEndDate = toDate(subscription.currentPeriodEnd);
   const daysRemaining = calculateDaysRemaining(currentPeriodEndDate);
 
-  return NextResponse.json({
+  return apiSuccess({
     hasSubscription: true,
     subscription: {
       id: subscriptionDoc.id,
@@ -131,7 +112,7 @@ async function getSubscriptionDetails(userId: string) {
   });
 }
 
-async function getPaymentHistory(userId: string, limit = 10) {
+async function getPaymentHistory(userId: string, limit = 10): Promise<NextResponse> {
   const db = adminDb();
 
   const snapshot = await db
@@ -155,25 +136,25 @@ async function getPaymentHistory(userId: string, limit = 10) {
     };
   });
 
-  return NextResponse.json({ payments });
+  return apiSuccess({ payments });
 }
 
-async function getUpcomingInvoice(userId: string) {
+async function getUpcomingInvoice(userId: string): Promise<NextResponse> {
   const subscriptionDoc = await getActiveSubscription(userId);
 
   if (!subscriptionDoc) {
-    return NextResponse.json({ upcoming: null });
+    return apiSuccess({ upcoming: null });
   }
 
   const subscription = subscriptionDoc.data;
 
   if ((subscription.statusMapped ?? subscription.status) !== 'active') {
-    return NextResponse.json({ upcoming: null });
+    return apiSuccess({ upcoming: null });
   }
 
   const nextBillingDate = toDate(subscription.currentPeriodEnd);
 
-  return NextResponse.json({
+  return apiSuccess({
     upcoming: {
       amount: subscription.data?.plan?.amount ?? 79_900,
       currency: subscription.data?.plan?.currency ?? 'INR',

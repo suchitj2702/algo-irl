@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { withRetry } from '@/lib/shared/withRetry';
 
 // Extended interface for OpenAI request parameters with reasoning support
 interface ExtendedChatCompletionCreateParams extends OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming {
@@ -7,10 +8,6 @@ interface ExtendedChatCompletionCreateParams extends OpenAI.Chat.Completions.Cha
     effort: "low" | "medium" | "high";
   };
 }
-
-// Constants for OpenAI Service
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // ms
 
 export interface OpenAiModelOptions {
     systemPrompt?: string;
@@ -30,7 +27,6 @@ export class OpenAiService {
     constructor(apiKey?: string) {
         const effectiveApiKey = apiKey || process.env.OPENAI_API_KEY;
         if (!effectiveApiKey) {
-            // Don't throw immediately - allow lazy initialization
             console.warn('Warning: OpenAI API key not found. Set OPENAI_API_KEY or provide key to constructor.');
             return;
         }
@@ -39,7 +35,6 @@ export class OpenAiService {
 
     private ensureClient(): OpenAI {
         if (!this.client) {
-            // Try one more time in case env was set after construction
             const key = process.env.OPENAI_API_KEY;
             if (key) {
                 this.client = new OpenAI({ apiKey: key });
@@ -56,10 +51,8 @@ export class OpenAiService {
         optionsOrSystemPrompt?: string | OpenAiModelOptions
     ): Promise<string> {
         const client = this.ensureClient();
-        let retries = 0;
 
-        // Handle both legacy string systemPrompt and new options object
-        const options: OpenAiModelOptions = typeof optionsOrSystemPrompt === 'string' 
+        const options: OpenAiModelOptions = typeof optionsOrSystemPrompt === 'string'
             ? { systemPrompt: optionsOrSystemPrompt }
             : optionsOrSystemPrompt || {};
 
@@ -69,8 +62,8 @@ export class OpenAiService {
         }
         messages.push({ role: 'user', content: promptContent });
 
-        while (retries <= MAX_RETRIES) {
-            try {
+        return withRetry(
+            async () => {
                 const requestParams: ExtendedChatCompletionCreateParams = {
                     model: model,
                     messages: messages,
@@ -79,16 +72,12 @@ export class OpenAiService {
                     ...(options.presence_penalty !== undefined && { presence_penalty: options.presence_penalty }),
                     ...(options.frequency_penalty !== undefined && { frequency_penalty: options.frequency_penalty })
                 };
-                
-                // Add reasoning parameter for newer models that support it
+
                 if (options.thinking_enabled || options.reasoning) {
-                    // Use native OpenAI reasoning parameter
-                    // This works with o1, o2, o4, and newer GPT-4 models
                     requestParams.reasoning = options.reasoning || { effort: "medium" };
                 }
 
                 const completion = await client.chat.completions.create(requestParams);
-
                 const responseText = completion.choices[0]?.message?.content;
 
                 if (!responseText) {
@@ -97,25 +86,16 @@ export class OpenAiService {
                     throw new Error(`OpenAI API call failed or returned no text. Finish Reason: ${finishReason}`);
                 }
                 return responseText;
-
-            } catch (error: unknown) {
-                retries++;
-                if (retries > MAX_RETRIES) {
-                    console.error(`Failed OpenAI API call to model ${model} after ${MAX_RETRIES} retries. Error: ${error}`);
-                    // Consider more specific error formatting for OpenAI if needed
-                    if (error && typeof error === 'object' && 'response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) { // Check for OpenAI specific error structure
-                        console.error('OpenAI API Error Details:', (error.response as {data: unknown}).data);
-                    }
-                    throw error; // Rethrow original error or format it
-                }
-                console.warn(`OpenAI API call to ${model} failed (attempt ${retries}/${MAX_RETRIES}), retrying in ${RETRY_DELAY * retries}ms... Error: ${error instanceof Error ? error.message : String(error)}`);
-                await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * retries));
+            },
+            {
+                onRetry: (attempt, error) => {
+                    console.warn(`OpenAI API call to ${model} failed (attempt ${attempt}/3), retrying... Error: ${error instanceof Error ? error.message : String(error)}`);
+                },
             }
-        }
-        throw new Error(`Failed to get response from OpenAI model ${model} after maximum retries`);
+        );
     }
 }
 
 // Export default instance
 const openAiService = new OpenAiService();
-export default openAiService; 
+export default openAiService;

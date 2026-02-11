@@ -1,53 +1,33 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCorsHeaders } from '@/lib/security/cors';
+import { NextRequest } from 'next/server';
+import { withCors } from '@/lib/shared/apiResponse';
 import { transformAndPrepareProblem, PROBLEM_CACHE_FEATURE_ENABLED } from '@/lib/problem/problemTransformer';
 import { getFilteredProblems } from '@/lib/problem/problemDatastoreUtils';
 import { RoleFamily } from '@/data-types/role';
 import { ProblemDifficulty } from '@/data-types/problem';
 
-// Handle CORS preflight requests
-export async function OPTIONS(request: NextRequest) {
-  const origin = request.headers.get('origin');
-  const corsHeaders = getCorsHeaders(origin);
-
-  return new NextResponse(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
-}
-
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin');
-  const corsHeaders = getCorsHeaders(origin);
-
   try {
     const body = await request.json();
     const { problemId, companyId, difficulty, isBlind75, roleFamily } = body;
 
     // Validate required parameters
     if (!problemId && !difficulty) {
-      return NextResponse.json(
-        {
-          error: 'Either problemId or difficulty is required. You may also provide isBlind75 parameter when using difficulty.',
-        },
-        { status: 400, headers: corsHeaders }
+      return withCors(request,
+        { error: 'Either problemId or difficulty is required. You may also provide isBlind75 parameter when using difficulty.' },
+        { status: 400 }
       );
     }
 
     if (!companyId || typeof companyId !== 'string') {
-      return NextResponse.json({ error: 'Company ID is required' }, { status: 400, headers: corsHeaders });
+      return withCors(request, { error: 'Company ID is required' }, { status: 400 });
     }
 
     // Validate role family if provided
     if (roleFamily !== undefined && roleFamily !== null) {
       if (!Object.values(RoleFamily).includes(roleFamily as RoleFamily)) {
-        return NextResponse.json(
-          {
-            error: 'Invalid role family',
-            providedRole: roleFamily,
-            validRoles: Object.values(RoleFamily),
-          },
-          { status: 400, headers: corsHeaders }
+        return withCors(request,
+          { error: 'Invalid role family', providedRole: roleFamily, validRoles: Object.values(RoleFamily) },
+          { status: 400 }
         );
       }
     }
@@ -62,9 +42,9 @@ export async function POST(request: NextRequest) {
         const problems = await getFilteredProblems(blind75Value, difficulty as ProblemDifficulty);
 
         if (problems.length === 0) {
-          return NextResponse.json(
+          return withCors(request,
             { error: `No problems found with ${difficulty} difficulty and isBlind75=${blind75Value}` },
-            { status: 404, headers: corsHeaders }
+            { status: 404 }
           );
         }
 
@@ -73,11 +53,9 @@ export async function POST(request: NextRequest) {
         resolvedProblemId = problems[randomIndex].id;
       } catch (filterError) {
         console.error('Error filtering problems:', filterError);
-        return NextResponse.json(
-          {
-            error: filterError instanceof Error ? filterError.message : 'Failed to filter problems',
-          },
-          { status: 500, headers: corsHeaders }
+        return withCors(request,
+          { error: filterError instanceof Error ? filterError.message : 'Failed to filter problems' },
+          { status: 500 }
         );
       }
     }
@@ -86,7 +64,7 @@ export async function POST(request: NextRequest) {
     const preparedProblem = await transformAndPrepareProblem(
       resolvedProblemId as string,
       companyId as string,
-      roleFamily as RoleFamily | undefined, // Optional - transformer will auto-select if not provided
+      roleFamily as RoleFamily | undefined,
       PROBLEM_CACHE_FEATURE_ENABLED
     );
 
@@ -120,12 +98,12 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    return NextResponse.json(response, { headers: corsHeaders });
+    return withCors(request, response);
   } catch (error) {
     console.error('Error preparing problem:', error);
-    return NextResponse.json(
+    return withCors(request,
       { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
-      { status: 500, headers: corsHeaders }
+      { status: 500 }
     );
   }
 }
