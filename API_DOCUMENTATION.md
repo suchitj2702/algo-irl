@@ -7,6 +7,11 @@
    - [Problem Management](#problem-management)
    - [Code Execution](#code-execution)
    - [Company Management](#company-management)
+   - [Study Plan Generation](#study-plan-generation)
+   - [User Management](#user-management) (Auth Required)
+   - [Subscription & Billing](#subscription--billing) (Auth Required)
+   - [Webhooks](#webhooks)
+   - [Issue Reporting](#issue-reporting)
 4. [Data Models](#data-models)
 5. [Error Handling](#error-handling)
 6. [Rate Limiting](#rate-limiting)
@@ -28,9 +33,13 @@ The API is designed to be deployed on Vercel/Next.js infrastructure with the bas
 ### Key Features
 - Problem management with LeetCode integration
 - Real-time code execution
-- AI-powered problem transformation to company-specific scenarios
+- AI-powered problem transformation to company- and role-specific scenarios
 - Company profile management with AI-generated content
-- Multi-layered security with rate limiting and abuse prevention
+- Personalized study plan generation
+- User study plan persistence and progress tracking
+- Subscription billing via Razorpay
+- Issue reporting via Sentry
+- Security via CORS, input sanitization, IP blocking, and Vercel Firewall rate limiting
 
 ## Authentication & Security
 
@@ -44,22 +53,24 @@ The API is designed to be deployed on Vercel/Next.js infrastructure with the bas
 
 4. **Firebase Authentication**: Protected endpoints require valid Firebase ID tokens
 
-### Security Headers
+### Access Control
 
-Protected endpoints include the following headers:
-- `X-RateLimit-Limit`: Maximum requests allowed in the time window
-- `X-RateLimit-Remaining`: Remaining requests in current window
-- `X-RateLimit-Reset`: Timestamp when the rate limit resets
-- `Retry-After`: Seconds to wait before retrying (on 429 responses)
+API endpoints fall into three categories:
+
+1. **Externally Accessible**: Available to frontend clients (e.g., `/api/problem/prepare`, `/api/execute-code`, `/api/companies`)
+2. **Auth Required**: Require a valid Firebase ID token via `Authorization: Bearer <token>` header (e.g., `/api/user/*`, `/api/billing/*`)
+3. **Internal Only**: Blocked from external access by middleware; only available to internal server-side calls (e.g., `/api/problem/filter`, `/api/problem/transform`, `/api/companies/initialize`)
 
 ## API Endpoints
 
 ### Problem Management
 
-#### 1. Get All Problems
+#### 1. Get All Problems (Internal Only)
 ```http
 GET /api/problem
 ```
+
+**Access:** Internal server-side only
 
 **Response:**
 ```json
@@ -74,10 +85,12 @@ GET /api/problem
 ]
 ```
 
-#### 2. Get Problem by ID
+#### 2. Get Problem by ID (Internal Only)
 ```http
 GET /api/problem/{problemId}?language={language}
 ```
+
+**Access:** Internal server-side only
 
 **Parameters:**
 - `problemId` (path): Problem identifier
@@ -107,17 +120,21 @@ GET /api/problem/{problemId}?language={language}
 }
 ```
 
-#### 3. Get Blind 75 Problems
+#### 3. Get Blind 75 Problems (Internal Only)
 ```http
 GET /api/problem/blind75
 ```
 
+**Access:** Internal server-side only
+
 **Response:** Array of simplified problem objects (same as Get All Problems)
 
-#### 4. Get Problems by Difficulty
+#### 4. Get Problems by Difficulty (Internal Only)
 ```http
 GET /api/problem/by-difficulty/{difficulty}
 ```
+
+**Access:** Internal server-side only
 
 **Parameters:**
 - `difficulty` (path): One of "Easy", "Medium", or "Hard"
@@ -127,10 +144,12 @@ GET /api/problem/by-difficulty/{difficulty}
 ["problem-id-1", "problem-id-2", ...]
 ```
 
-#### 5. Filter Problems
+#### 5. Filter Problems (Internal Only)
 ```http
 GET /api/problem/filter?isBlind75={boolean}&difficulty={difficulty}
 ```
+
+**Access:** Internal server-side only
 
 **Parameters:**
 - `isBlind75` (query, required): Filter for Blind 75 problems
@@ -157,19 +176,28 @@ The new system offers:
 
 ---
 
-#### 7. Transform Problem
+#### 7. Transform Problem (Internal Only)
 ```http
 POST /api/problem/transform
 ```
+
+**Access:** Internal server-side only
 
 **Request Body:**
 ```json
 {
   "problemId": "two-sum",
   "companyId": "google",
+  "roleFamily": "backend",
   "useCache": true
 }
 ```
+
+**Parameters:**
+- `problemId` (required): Problem identifier
+- `companyId` (required): Company identifier
+- `roleFamily` (optional): Engineering role family for targeted transformation. One of `"backend"`, `"frontend"`, `"ml"`, `"infrastructure"`, `"security"`. If omitted, a random role is auto-selected.
+- `useCache` (optional, default `true`): Whether to use cached transformations
 
 **Response:**
 ```json
@@ -217,16 +245,25 @@ POST /api/problem/transform
 POST /api/problem/prepare
 ```
 
+**Access:** Externally accessible
+
 **Request Body:**
 ```json
 {
   "problemId": "two-sum",
   "companyId": "google",
+  "roleFamily": "backend",
   "difficulty": "Easy",
-  "isBlind75": true,
-  "transformedProblem": {} // Optional, if not provided will call transform API
+  "isBlind75": true
 }
 ```
+
+**Parameters:**
+- `problemId` (conditionally required): Problem identifier. Either `problemId` **or** `difficulty` must be provided. When `difficulty` is provided without `problemId`, a random matching problem is selected.
+- `companyId` (required): Company identifier
+- `roleFamily` (optional): Engineering role family. One of `"backend"`, `"frontend"`, `"ml"`, `"infrastructure"`, `"security"`. If omitted, a random role is auto-selected.
+- `difficulty` (conditionally required): One of `"Easy"`, `"Medium"`, `"Hard"`. Used to select a random problem if `problemId` is not provided.
+- `isBlind75` (optional, default `false`): When `true`, restricts random problem selection to Blind 75 problems. Only relevant when using `difficulty` instead of `problemId`.
 
 **Response:**
 ```json
@@ -241,13 +278,29 @@ POST /api/problem/prepare
     "examples": [...],
     "requirements": [...],
     "testCases": [...],
-    "leetcodeUrl": "https://leetcode.com/problems/two-sum/"
+    "leetcodeUrl": "https://leetcode.com/problems/two-sum/",
+    "categories": ["Array", "Hash Table"],
+    "timeComplexity": "O(n)",
+    "spaceComplexity": "O(n)"
   },
   "codeDetails": {
     "functionName": "findMatchingDocumentIndices",
     "solutionStructureHint": "class with findMatchingDocumentIndices method",
     "defaultUserCode": "...",
     "boilerplateCode": "..."
+  },
+  "roleMetadata": {
+    "roleFamily": "backend",
+    "wasRoleAutoSelected": false,
+    "contextInfo": {
+      "detectedAlgorithms": ["Hashing", "ArrayTraversal"],
+      "detectedDataStructures": ["Array", "HashMap"],
+      "relevanceScore": 12,
+      "suggestedAnalogyPoints": [
+        "Google search results list",
+        "Document relevance scoring system"
+      ]
+    }
   }
 }
 ```
@@ -261,9 +314,9 @@ POST /api/execute-code
 
 **Security:** Protected endpoint with the following limits:
 - Rate limiting: Handled by Vercel Firewall
-- Maximum 20 test cases per submission
-- Maximum execution time: 5 seconds per test case
-- Maximum memory usage: 128 MB per test case
+- Maximum 150 test cases per submission
+- Maximum execution time: 10 seconds per test case
+- Maximum memory usage: 256 MB per test case
 
 **Supported Languages:**
 - `javascript` - Node.js 12.14.0
@@ -286,8 +339,8 @@ POST /api/execute-code
       "expectedStdout": "[0,1]",
       "explanation": "nums[0] + nums[1] = 2 + 7 = 9",
       "isSample": true,
-      "maxCpuTimeLimit": 5,
-      "maxMemoryLimit": 128
+      "maxCpuTimeLimit": 10,
+      "maxMemoryLimit": 256
     }
   ]
 }
@@ -348,7 +401,7 @@ GET /api/execute-code/status/{submissionId}
 }
 ```
 
-**Response (Error):**
+**Response (Error):** *(HTTP 500)*
 ```json
 {
   "status": "error",
@@ -514,6 +567,464 @@ POST /api/companies/initialize
 
 **Note:** The new company generation uses Claude Sonnet 4.5 to generate rich, comprehensive company data including role-specific information for backend, ML, frontend, infrastructure, and security roles. Data is stored in the `companies-v2` Firestore collection.
 
+### Study Plan Generation
+
+#### 1. Generate Study Plan
+```http
+POST /api/study-plan/generate
+```
+
+**Access:** Externally accessible
+
+**Description:** Generate a personalized study plan for interview preparation based on company, role, timeline, and preferences.
+
+**Request Body:**
+```json
+{
+  "companyId": "google",
+  "roleFamily": "backend",
+  "timeline": 30,
+  "hoursPerDay": 2,
+  "difficultyPreference": {
+    "easy": true,
+    "medium": true,
+    "hard": false
+  },
+  "topicFocus": ["Array", "Dynamic Programming"]
+}
+```
+
+**Parameters:**
+- `companyId` (required): Company identifier
+- `roleFamily` (required): One of `"backend"`, `"frontend"`, `"ml"`, `"infrastructure"`, `"security"`
+- `timeline` (required): Number of days (1–90)
+- `hoursPerDay` (required): Hours per day (0.5–8)
+- `difficultyPreference` (optional): Object with `easy`, `medium`, `hard` boolean flags
+- `topicFocus` (optional): Array of topic strings (max 5)
+
+**Response:**
+```json
+{
+  "company": { "id": "google", "name": "Google", ... },
+  "roleFamily": "backend",
+  "timeline": 30,
+  "hoursPerDay": 2,
+  "totalProblems": 25,
+  "schedule": [...],
+  "problems": [...]
+}
+```
+
+#### 2. Generate Blind75 Study Plan
+```http
+POST /api/study-plan/generate-blind75
+```
+
+**Access:** Externally accessible
+
+**Description:** Same as Generate Study Plan, but restricts the problem pool to only Blind 75 problems.
+
+**Request/Response:** Same as Generate Study Plan above. The `onlyBlind75` flag is set internally.
+
+---
+
+### User Management
+
+> **Authentication Required:** All user endpoints require a valid Firebase ID token via `Authorization: Bearer <token>` header.
+
+#### 1. Get User Preferences
+```http
+GET /api/user/preferences
+```
+
+**Description:** Retrieve the authenticated user's UI preferences.
+
+**Response:**
+```json
+{
+  "preferences": { ... },
+  "updatedAt": "2025-01-15T10:30:00.000Z"
+}
+```
+
+#### 2. Update User Preferences
+```http
+PUT /api/user/preferences
+```
+
+**Description:** Update the authenticated user's UI preferences. Merges with existing preferences.
+
+**Request Body:** Preferences object (validated against `UserPreferencesSchema`)
+
+**Response:**
+```json
+{
+  "preferences": { ... },
+  "updatedAt": "2025-01-15T10:30:00.000Z"
+}
+```
+
+#### 3. List User Study Plans
+```http
+GET /api/user/study-plans?limit={limit}&cursor={cursor}
+```
+
+**Description:** Retrieve the authenticated user's saved study plans with pagination.
+
+**Parameters:**
+- `limit` (query, optional): Number of plans to return (1–50, default 10)
+- `cursor` (query, optional): Plan ID for cursor-based pagination
+
+**Response:**
+```json
+{
+  "data": [...],
+  "nextCursor": "plan_id_or_null"
+}
+```
+
+#### 4. Save Study Plan
+```http
+POST /api/user/study-plans
+```
+
+**Description:** Save a generated study plan to the authenticated user's collection.
+
+**Request Body:** Study plan payload (validated against `StudyPlanCreatePayloadSchema`)
+
+**Response (201):**
+```json
+{
+  "id": "plan_123",
+  "config": { ... },
+  "response": { ... },
+  "progress": {
+    "status": "not_started",
+    "completedProblems": 0,
+    "totalProblems": 25,
+    "currentDay": 0
+  },
+  "createdAt": "...",
+  "updatedAt": "..."
+}
+```
+
+#### 5. Get Study Plan by ID
+```http
+GET /api/user/study-plans/{planId}
+```
+
+**Description:** Retrieve a specific study plan by its ID.
+
+**Response:** Full study plan object.
+
+#### 6. Update Study Plan Progress
+```http
+PATCH /api/user/study-plans/{planId}
+```
+
+**Description:** Update progress on a specific study plan. Supports both general progress updates and per-problem progress tracking. Automatically calculates `completedProblems` count and updates `status` (`not_started` → `in_progress` → `completed`).
+
+**Request Body (problem progress):**
+```json
+{
+  "problemProgress": {
+    "two-sum": {
+      "status": "solved",
+      "lastWorkedAt": "2025-01-15T10:30:00.000Z",
+      "problemDetails": { ... },
+      "codeDetails": { ... }
+    }
+  }
+}
+```
+
+**Request Body (general progress):**
+```json
+{
+  "status": "in_progress",
+  "currentDay": 5,
+  "note": "Halfway through week 1"
+}
+```
+
+#### 7. Delete Study Plan
+```http
+DELETE /api/user/study-plans/{planId}
+```
+
+**Description:** Permanently delete a study plan.
+
+**Response:**
+```json
+{ "success": true }
+```
+
+---
+
+### Subscription & Billing
+
+> **Authentication Required:** All billing endpoints require a valid Firebase ID token via `Authorization: Bearer <token>` header.
+
+#### 1. Get Subscription Status
+```http
+GET /api/user/subscription/status
+```
+
+**Description:** Get the authenticated user's current subscription status.
+
+**Response:**
+```json
+{
+  "status": "active",
+  "currentPeriodEnd": 1705312800000,
+  "cancelAt": null
+}
+```
+
+**Note:** Response includes `Cache-Control: private, max-age=60` header.
+
+#### 2. Create Subscription
+```http
+POST /api/billing/create-subscription
+```
+
+**Description:** Create a Razorpay subscription for the authenticated user. Requires payments to be enabled via Firebase Remote Config and user to be in the rollout.
+
+**Request Body:**
+```json
+{
+  "planId": "plan_xyz",
+  "totalCount": 120,
+  "customerNotify": 1,
+  "returnUrl": "/my-study-plans",
+  "metadata": {
+    "source": "landing",
+    "feature": "study-plans"
+  }
+}
+```
+
+**Parameters:**
+- `planId` (required): Razorpay plan ID (must match configured plan)
+- `totalCount` (optional, default 120): Total billing cycles
+- `customerNotify` (optional, default 1): Whether Razorpay notifies the customer (0 or 1)
+- `returnUrl` (optional): Redirect URL after payment (must be same origin)
+- `metadata` (optional): Source tracking metadata
+
+**Response (201):**
+```json
+{
+  "subscriptionId": "sub_xyz",
+  "status": "created",
+  "shortUrl": "https://rzp.io/...",
+  "currentStart": null,
+  "currentEnd": null,
+  "planId": "plan_xyz",
+  "returnUrl": "/my-study-plans",
+  "callbackUrl": "https://app.example.com/payment-status?subscription_id=sub_xyz"
+}
+```
+
+#### 3. Verify Payment
+```http
+POST /api/billing/verify-payment
+```
+
+**Description:** Verify a Razorpay payment after checkout completion. Optionally validates the Razorpay signature.
+
+**Request Body:**
+```json
+{
+  "paymentId": "pay_xyz",
+  "subscriptionId": "sub_xyz",
+  "signature": "optional_razorpay_signature"
+}
+```
+
+**Response:**
+```json
+{
+  "verified": true,
+  "status": "success",
+  "subscription": {
+    "id": "sub_xyz",
+    "status": "active",
+    "planId": "plan_xyz",
+    "currentPeriodEnd": 1705312800000
+  },
+  "payment": {
+    "id": "pay_xyz",
+    "amount": 79900,
+    "currency": "INR",
+    "status": "captured"
+  }
+}
+```
+
+#### 4. Manage Subscription
+```http
+GET /api/billing/manage-subscription?action={action}&limit={limit}
+```
+
+**Description:** Query subscription details, payment history, or upcoming invoices.
+
+**Parameters:**
+- `action` (required): One of `"details"`, `"history"`, `"upcoming"`
+- `limit` (optional, for `history`): Number of payments to return (1–50, default 10)
+
+**Response (action=details):**
+```json
+{
+  "hasSubscription": true,
+  "subscription": {
+    "id": "sub_xyz",
+    "status": "active",
+    "planId": "plan_xyz",
+    "planName": "Monthly Subscription - INR",
+    "currentPeriodStart": "...",
+    "currentPeriodEnd": "...",
+    "cancelAt": null,
+    "daysRemaining": 22,
+    "isExpiring": false,
+    "amount": 79900,
+    "currency": "INR"
+  }
+}
+```
+
+#### 5. Cancel Subscription
+```http
+POST /api/billing/cancel-subscription
+```
+
+**Description:** Cancel a Razorpay subscription. Can cancel immediately or at the end of the current billing cycle.
+
+**Request Body:**
+```json
+{
+  "subscriptionId": "sub_xyz",
+  "cancelAtCycleEnd": true
+}
+```
+
+**Parameters:**
+- `subscriptionId` (required): Razorpay subscription ID (must belong to authenticated user)
+- `cancelAtCycleEnd` (optional, default `false`): If `true`, subscription remains active until the end of the current billing cycle
+
+**Response:**
+```json
+{
+  "subscriptionId": "sub_xyz",
+  "status": "cancelled",
+  "endedAt": 1705312800,
+  "message": "Subscription will be cancelled at the end of the current billing cycle"
+}
+```
+
+---
+
+### Webhooks
+
+#### 1. Razorpay Webhook
+```http
+POST /api/razorpay/webhook
+```
+
+**Access:** Externally accessible (signature-verified)
+
+**Description:** Receives Razorpay webhook events. Validates the `x-razorpay-signature` header against the configured webhook secret. Implements idempotent processing with claim-based deduplication.
+
+**Handled Events:**
+- `subscription.activated`, `subscription.charged` — Lookup by customer ID
+- `subscription.cancelled`, `subscription.completed`, `subscription.paused`, `subscription.resumed` — Lookup by subscription ID
+- `payment.authorized`, `payment.captured`, `payment.failed` — Payment processing
+
+**Response:**
+```json
+{ "received": true }
+```
+
+#### 2. Webhook Health Check
+```http
+GET /api/razorpay/webhook/health
+```
+
+**Description:** Dashboard showing webhook processing health metrics for the last hour.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "healthScore": 90,
+  "metrics": {
+    "webhooksLastHour": 15,
+    "failedWebhooks": 0,
+    "avgProcessingTimeMs": 250,
+    "razorpayStatus": "connected",
+    "firestoreStatus": "connected"
+  },
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}
+```
+
+#### 3. Webhook Event Cleanup
+```http
+DELETE /api/razorpay/webhook/health
+```
+
+**Description:** Delete webhook events older than 30 days. Processes up to 100 events per call.
+
+**Response:**
+```json
+{
+  "deleted": 42,
+  "message": "Deleted 42 old webhook events"
+}
+```
+
+---
+
+### Issue Reporting
+
+#### 1. Report Issue
+```http
+POST /api/issue/report
+```
+
+**Access:** Externally accessible (optional authentication)
+
+**Description:** Report issues with the platform. Issues are sent to Sentry for tracking. Authentication is optional — if an `Authorization` header is present it must be valid (invalid tokens return 401), but anonymous reports are accepted.
+
+**Request Body:** Validated against `IssueReportPayloadSchema`. Includes fields such as:
+- `notificationType` (required): Type of issue
+- `problemId` (required): Related problem ID
+- `description` (required): Issue description
+- `companyId` (optional): Related company ID
+- `roleId` (optional): Related role ID
+- `userCode` (optional): User's code at time of issue
+- `consoleLogs` (optional): Browser console logs
+- `rawPrepareResponse` (optional): Raw API response for debugging
+
+**Response:**
+```json
+{
+  "success": true,
+  "issueId": "sentry_event_id",
+  "message": "Issue reported successfully. We'll look into it!"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "VALIDATION_ERROR",
+  "message": "Description is required",
+  "details": { ... }
+}
+```
+
 ## Data Models
 
 ### Problem
@@ -619,27 +1130,17 @@ The API uses consistent error response format:
 
 ## Rate Limiting
 
-Different endpoints have different rate limits based on their resource intensity:
+Rate limiting is handled entirely at the **Vercel Firewall** level — the application code does not implement its own rate limiting or return rate limit headers. Specific rate limit thresholds are configured in the Vercel Firewall dashboard and are not part of the application codebase.
 
-| Endpoint Type | Limit | Window | Reset Strategy |
-|--------------|-------|---------|----------------|
-| Code Execution | 10 requests | 1 minute | Sliding window |
-| Problem Generation | 30 requests | 1 minute | Sliding window |
-| Company Creation | 5 requests | 1 hour | Sliding window |
-| General API | 100 requests | 1 minute | Sliding window |
-
-Rate limit information is included in response headers:
-- `X-RateLimit-Limit`: Total requests allowed
-- `X-RateLimit-Remaining`: Requests remaining
-- `X-RateLimit-Reset`: Unix timestamp for limit reset
-- `Retry-After`: Seconds to wait (on 429 responses)
+When a request is rate-limited, Vercel returns an HTTP `429 Too Many Requests` response before the request reaches the application.
 
 ### Abuse Prevention
-Beyond rate limiting, the system implements:
-- Pattern-based abuse detection
-- Suspicious activity tracking
-- Automatic blocking for repeated violations
-- Configurable cool-down periods
+
+The application implements the following security measures:
+
+- **IP blocking via Vercel KV**: Manually blocked IPs are checked in middleware and denied access with HTTP 403. This is a manual process, not automatic detection.
+- **Code submission validation**: User-submitted code is checked for suspicious patterns (e.g., `import os`, `subprocess`, `child_process`, `eval`, `exec`, `__import__`) and rejected if dangerous operations are detected.
+- **Input sanitization**: All non-code string inputs are sanitized to prevent XSS and injection attacks. Code inputs are preserved to maintain syntax.
 
 ## Implementation Notes
 
@@ -685,9 +1186,17 @@ Beyond rate limiting, the system implements:
    - Applied to all non-code string inputs
    - Code inputs preserved to maintain syntax
 
-2. **IP Tracking:**
+2. **Code Submission Validation:**
+   - Checks for suspicious patterns (`import os`, `subprocess`, `child_process`, `eval`, `exec`, `__import__`)
+   - Enforces maximum code length (50KB)
+
+3. **IP Blocking:**
+   - Manual IP blocking via Vercel KV (checked in middleware)
    - Request IP addresses tracked for monitoring
-   - Used in conjunction with Vercel Firewall
+
+4. **Rate Limiting:**
+   - Handled entirely by Vercel Firewall at infrastructure level
+   - Application code does not set rate limit headers
 
 ### Error Handling Patterns
 
@@ -746,6 +1255,22 @@ GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-key
 
 # Security
 ALLOWED_ORIGINS=https://your-frontend.com,https://another-allowed-origin.com
+
+# Vercel KV (for IP blocking)
+KV_REST_API_URL=your-kv-url
+KV_REST_API_TOKEN=your-kv-token
+
+# Razorpay (Billing)
+RAZORPAY_KEY_ID=your-razorpay-key-id
+RAZORPAY_KEY_SECRET=your-razorpay-key-secret
+RAZORPAY_WEBHOOK_SECRET=your-webhook-secret
+RAZORPAY_PLAN_MONTHLY_INR=plan_xyz
+
+# Application URL
+NEXT_PUBLIC_APP_URL=https://your-app.com
+
+# Sentry (Issue Reporting)
+SENTRY_DSN=your-sentry-dsn
 ```
 
 ### Development Setup
