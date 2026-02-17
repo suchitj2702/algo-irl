@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
 import { verifyFirebaseToken } from '@algo-irl/lib/auth/verifyFirebaseTokenEdge';
-import { getCorsHeaders } from '@/lib/security/cors';
+import { getCorsHeaders, getAllowedOrigins } from '@/lib/security/cors';
 
 interface EndpointRule {
   path: string;
@@ -146,6 +146,24 @@ function isInternalRequest(request: NextRequest): boolean {
   // If referer is from the same host, it's internal
   if (host && referer && referer.includes(host)) {
     return true;
+  }
+
+  // In development, treat requests from allowed dev origins as internal
+  if (process.env.NODE_ENV === 'development') {
+    const allowedOrigins = getAllowedOrigins();
+    let effectiveOrigin = origin;
+    if (!effectiveOrigin || effectiveOrigin === 'null') {
+      if (referer) {
+        try {
+          effectiveOrigin = new URL(referer).origin;
+        } catch {
+          // ignore parse errors
+        }
+      }
+    }
+    if (effectiveOrigin && allowedOrigins.includes(effectiveOrigin)) {
+      return true;
+    }
   }
 
   return false;
