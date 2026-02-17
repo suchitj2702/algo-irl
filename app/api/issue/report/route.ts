@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { requireUser, type CurrentUser } from '@algo-irl/lib/auth/verifyFirebaseToken';
 import { FirebaseTokenError } from '@algo-irl/lib/auth/tokenUtils';
 import {
@@ -146,7 +147,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(errorResponse, { status: 500 });
     }
 
-    // Step 5: Return success response
+    // Step 5: Flush Sentry buffer to ensure the event is sent before the serverless function terminates
+    await Sentry.flush(2000);
+
+    // Step 6: Return success response
     const successResponse: IssueReportSuccessResponse = {
       success: true,
       issueId: sentryEventId,
