@@ -1,6 +1,7 @@
 import { adminDb } from '../firebase/firebaseAdmin';
 import { TestCase } from '../../data-types/problem';
 import { ExecutionResults } from '../../data-types/execution';
+import { ComparisonConfig } from '../../data-types/comparison';
 
 /**
  * Represents a code submission stored in the database.
@@ -14,6 +15,7 @@ export interface CodeSubmission {
   status: 'pending' | 'processing' | 'completed' | 'error';
   testCases: TestCase[];
   results?: ExecutionResults;
+  comparisonConfig?: ComparisonConfig;
   fingerprint?: string; // Security fingerprint for rate limiting and abuse prevention
   createdAt?: Date;
   updatedAt?: Date;

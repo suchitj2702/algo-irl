@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { ComparisonConfig } from "./comparison";
 
 export type ProblemDifficulty = "Easy" | "Medium" | "Hard";
 
@@ -13,6 +14,7 @@ export interface Problem {
   isBlind75: boolean;
   testCases: TestCase[];
   languageSpecificDetails: Record<string, LanguageSpecificProblemDetails>;
+  comparisonConfig?: ComparisonConfig;
   solutionApproach?: string | null;
   timeComplexity?: string | null;
   spaceComplexity?: string | null;
@@ -107,6 +109,7 @@ export interface PreparedProblemResponse {
     testCases: TestCase[];
     leetcodeUrl?: string;
     categories: string[];
+    comparisonConfig?: ComparisonConfig;
     timeComplexity?: string | null;
     spaceComplexity?: string | null;
   };

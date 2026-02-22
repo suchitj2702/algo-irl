@@ -63,3 +63,5 @@ scripts/firestore-exports/*
 
 test-outputs/*
 test-results/*
+
+.claude
