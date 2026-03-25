@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Judge0Client, Judge0BatchSubmissionItem, Judge0SubmissionDetail } from './judge0Client';
 import judge0Config from './judge0Config';
 import { compareOutputs } from './outputComparison';
+import { buildMultiTestCaseCode, packTestCasesIntoStdin, parseMultiTestCaseOutput, adjustErrorLineNumbers } from './multiTestCaseBuilder';
+import config from './codeExecutionConfig';
 
 import type { TestCase } from '../../data-types/problem';
 import type { ExecutionResults, TestCaseOutput } from '../../data-types/execution';
@@ -44,7 +46,9 @@ export interface OrchestratedSubmissionInput {
 
 export interface OrchestratedSubmissionOutput {
   internalSubmissionId: string;
-  judge0Tokens: Array<{ token: string }>; 
+  judge0Tokens: Array<{ token: string }>;
+  executionMode: 'multi-test-case' | 'legacy-batch';
+  userCodeLineOffset: number;
 }
 
 /**
@@ -108,70 +112,97 @@ export async function orchestrateJudge0Submission(
   submissionInput: OrchestratedSubmissionInput
 ): Promise<OrchestratedSubmissionOutput> {
   const { code, language, testCases, boilerplateCode } = submissionInput;
-  let finalCode = code;
-  const finalTestCases: TestCase[] = testCases;
-  let maxCpuTimeLimit: number | undefined;
-  let maxMemoryLimit: number | undefined;
-  let expectedOutput: string | null = null;
-  
-  // Combine user code with boilerplate
-  finalCode = combineUserCodeWithBoilerplate(
-    code, 
-    boilerplateCode,
-    language
-  );
-    
-  if (!finalTestCases || finalTestCases.length === 0) {
+
+  if (!testCases || testCases.length === 0) {
     throw new Error('TestCases must be provided');
   }
 
-  const internalSubmissionId = uuidv4();
-  const langId = getLanguageId(language); // Get language ID for Judge0
+  // Combine user code with boilerplate
+  const combinedCode = combineUserCodeWithBoilerplate(code, boilerplateCode, language);
 
-  // Create batch submission items - one for each test case
-  const batchItems: Judge0BatchSubmissionItem[] = finalTestCases.map(testCase => {
-    // Prepare input based on test case format
+  const internalSubmissionId = uuidv4();
+  const langId = getLanguageId(language);
+  const callbackUrl = getJudge0CallbackUrl(internalSubmissionId);
+
+  // Attempt multi-test-case mode: pack all test cases into a single execution
+  const multiTcEnabled = config.execution.multiTcModeEnabled;
+  if (multiTcEnabled) {
+    const buildResult = buildMultiTestCaseCode(combinedCode, language);
+    if (buildResult) {
+      console.log(`Using multi-test-case mode for ${testCases.length} test cases (${language})`);
+
+      const packedStdin = packTestCasesIntoStdin(testCases);
+      const overallTimeLimit = calculateMultiTcTimeLimit(testCases);
+
+      const singleItem: Judge0BatchSubmissionItem = {
+        language_id: langId,
+        source_code: buildResult.code,
+        stdin: packedStdin,
+        cpu_time_limit: overallTimeLimit,
+      };
+
+      const judge0TokenResponses = await client.createBatchSubmissions([singleItem], callbackUrl);
+
+      return {
+        internalSubmissionId,
+        judge0Tokens: judge0TokenResponses,
+        executionMode: 'multi-test-case',
+        userCodeLineOffset: buildResult.userCodeLineOffset,
+      };
+    }
+    console.log(`Multi-TC transformation failed for ${language}, falling back to legacy batch mode`);
+  }
+
+  // Legacy batch mode: one Judge0 submission per test case
+  let expectedOutput: string | null = null;
+  const batchItems: Judge0BatchSubmissionItem[] = testCases.map(testCase => {
     const stdin = testCase.stdin;
     expectedOutput = testCase.expectedStdout;
-    
-    // Normalize "None" output to "null" for consistent JSON handling
+
     if (expectedOutput == "None") {
       expectedOutput = "null";
     }
-    
+
     const item: Judge0BatchSubmissionItem = {
       language_id: langId,
-      source_code: finalCode,
+      source_code: combinedCode,
       stdin: stdin,
       expected_output: expectedOutput,
     };
-    
-    // Apply global resource limits if provided
-    if (maxCpuTimeLimit) {
-      item.cpu_time_limit = maxCpuTimeLimit;
-    }
-    if (maxMemoryLimit) {
-      item.memory_limit = maxMemoryLimit;
-    }
-    
-    // Override with test case specific limits if available
+
     if (testCase.maxCpuTimeLimit) {
       item.cpu_time_limit = testCase.maxCpuTimeLimit;
     }
     if (testCase.maxMemoryLimit) {
       item.memory_limit = testCase.maxMemoryLimit;
     }
-    
+
     return item;
   });
 
-  const callbackUrl = getJudge0CallbackUrl(internalSubmissionId);
   const judge0TokenResponses = await client.createBatchSubmissions(batchItems, callbackUrl);
 
   return {
     internalSubmissionId,
     judge0Tokens: judge0TokenResponses,
+    executionMode: 'legacy-batch',
+    userCodeLineOffset: 0,
   };
+}
+
+/**
+ * Calculates the overall CPU time limit for a multi-test-case execution.
+ * Uses the sum of individual test case limits, clamped between 10s and 30s.
+ */
+function calculateMultiTcTimeLimit(testCases: TestCase[]): number {
+  const perTcDefault = config.execution.multiTcPerTestCaseTimeout / 1000; // Convert ms to seconds
+  const totalSeconds = testCases.reduce(
+    (sum, tc) => sum + (tc.maxCpuTimeLimit || perTcDefault),
+    0
+  );
+  const maxOverall = config.execution.multiTcOverallTimeLimit / 1000; // Convert ms to seconds
+  const JUDGE0_MAX_CPU_TIME = 20; // Judge0 hard limit: cpu_time_limit must be <= 20.0
+  return Math.min(Math.max(totalSeconds, 10), maxOverall, JUDGE0_MAX_CPU_TIME);
 }
 
 /**
@@ -354,9 +385,191 @@ export function aggregateBatchResults(
     passed: passedOverall,
     testCasesPassed: totalTestCasesPassed,
     testCasesTotal: originalTestCases.length,
-    executionTime: maxTimeMs, 
-    memoryUsage: maxMemoryKb, 
+    executionTime: maxTimeMs,
+    memoryUsage: maxMemoryKb,
     error: overallError,
     testResults: individualTestResults,
   };
-} 
+}
+
+/**
+ * Aggregates results from a single multi-test-case Judge0 execution.
+ * Parses the structured JSON stdout containing all test case results,
+ * compares outputs, and handles TLE/MLE by returning only completed +
+ * the offending test case.
+ */
+export function aggregateMultiTestCaseResult(
+  judge0Detail: Judge0SubmissionDetail,
+  originalTestCases: TestCase[],
+  userCodeLineOffset: number,
+  language: string
+): ExecutionResults {
+  const overallMemoryKb = judge0Detail.memory || 0;
+
+  // Check for compilation error (status 6)
+  if (judge0Detail.status.id === 6) {
+    const errorMsg = adjustErrorLineNumbers(
+      judge0Detail.compile_output || judge0Detail.stderr || judge0Detail.message || "Compilation failed",
+      userCodeLineOffset,
+      language
+    ) || "Compilation failed";
+
+    const testResults: TestResult[] = originalTestCases.map(tc => ({
+      testCase: tc,
+      passed: false,
+      actualOutput: null,
+      compileOutput: judge0Detail.compile_output,
+      stderr: judge0Detail.stderr,
+      status: "Compilation Error",
+      judge0StatusId: 6,
+      time: 0,
+      memory: 0,
+      error: errorMsg,
+    }));
+
+    return {
+      passed: false,
+      testCasesPassed: 0,
+      testCasesTotal: originalTestCases.length,
+      executionTime: 0,
+      memoryUsage: overallMemoryKb,
+      error: errorMsg,
+      testResults,
+    };
+  }
+
+  // Check for TLE (status 5) or MLE (status 12) — process was killed
+  const isTleOrMle = judge0Detail.status.id === 5 || judge0Detail.status.id === 12;
+  const statusLabel = judge0Detail.status.id === 5 ? "Time Limit Exceeded" : "Memory Limit Exceeded";
+
+  // Parse structured output from the wrapper
+  const parsed = parseMultiTestCaseOutput(
+    judge0Detail.stdout,
+    judge0Detail.stderr,
+    originalTestCases.length
+  );
+
+  // If no output at all and it's a runtime error, return overall failure
+  if (parsed.results.length === 0 && !isTleOrMle) {
+    const errorMsg = adjustErrorLineNumbers(
+      judge0Detail.stderr || judge0Detail.message || judge0Detail.status.description,
+      userCodeLineOffset,
+      language
+    );
+    const testResults: TestResult[] = originalTestCases.map(tc => ({
+      testCase: tc,
+      passed: false,
+      actualOutput: null,
+      status: judge0Detail.status.description,
+      judge0StatusId: judge0Detail.status.id,
+      time: 0,
+      memory: 0,
+      error: errorMsg,
+    }));
+
+    return {
+      passed: false,
+      testCasesPassed: 0,
+      testCasesTotal: originalTestCases.length,
+      executionTime: 0,
+      memoryUsage: overallMemoryKb,
+      error: errorMsg,
+      testResults,
+    };
+  }
+
+  // Build per-test-case results from parsed output
+  let passedCount = 0;
+  let maxTimeMs = 0;
+  const testResults: TestResult[] = [];
+
+  for (let i = 0; i < parsed.results.length; i++) {
+    const tcResult = parsed.results[i];
+    const tcIndex = tcResult.i;
+    const originalTc = originalTestCases[tcIndex];
+    if (!originalTc) continue;
+
+    if (tcResult.t > maxTimeMs) maxTimeMs = tcResult.t;
+
+    if (tcResult.s === 'err') {
+      const adjustedError = adjustErrorLineNumbers(tcResult.e, userCodeLineOffset, language);
+      testResults.push({
+        testCase: originalTc,
+        passed: false,
+        actualOutput: null,
+        status: 'Runtime Error',
+        judge0StatusId: 11,
+        time: tcResult.t,
+        memory: 0,
+        error: adjustedError,
+      });
+      continue;
+    }
+
+    // Compare output using existing intelligent comparison
+    const actualOutputStr = tcResult.o !== null && tcResult.o !== undefined
+      ? JSON.stringify(tcResult.o)
+      : String(tcResult.o);
+    const passed = compareOutputs(actualOutputStr, originalTc.expectedStdout);
+
+    if (passed) passedCount++;
+
+    testResults.push({
+      testCase: originalTc,
+      passed,
+      actualOutput: tcResult.o as TestCaseOutput,
+      stdout: actualOutputStr,
+      status: passed ? 'Accepted' : 'Wrong Answer',
+      judge0StatusId: passed ? 3 : 4,
+      time: tcResult.t,
+      memory: 0,
+      error: null,
+    });
+  }
+
+  // For TLE/MLE: add the offending test case (the one after last completed)
+  if (isTleOrMle) {
+    const completedIndices = new Set(parsed.results.map(r => r.i));
+    // Find the first test case that didn't complete
+    let offendingIndex = -1;
+    for (let i = 0; i < originalTestCases.length; i++) {
+      if (!completedIndices.has(i)) {
+        offendingIndex = i;
+        break;
+      }
+    }
+
+    if (offendingIndex >= 0) {
+      testResults.push({
+        testCase: originalTestCases[offendingIndex],
+        passed: false,
+        actualOutput: null,
+        status: statusLabel,
+        judge0StatusId: judge0Detail.status.id,
+        time: 0,
+        memory: 0,
+        error: `${statusLabel} on test case ${offendingIndex + 1}`,
+      });
+    }
+  }
+
+  const allPassed = passedCount === originalTestCases.length;
+  let overallError: string | null = null;
+  if (isTleOrMle) {
+    const offendingIdx = parsed.results.length;
+    overallError = `${statusLabel} on test case ${offendingIdx + 1}`;
+  } else if (!allPassed) {
+    const firstFailed = testResults.find(r => !r.passed);
+    overallError = firstFailed?.error || null;
+  }
+
+  return {
+    passed: allPassed,
+    testCasesPassed: passedCount,
+    testCasesTotal: originalTestCases.length,
+    executionTime: maxTimeMs,
+    memoryUsage: overallMemoryKb,
+    error: overallError,
+    testResults,
+  };
+}

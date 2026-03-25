@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Judge0SubmissionDetail } from '../../../../lib/code-execution/judge0Client';
 import { getCodeSubmission, updateCodeSubmissionStatus } from '../../../../lib/code-execution/codeExecutionUtils';
-import { aggregateBatchResults } from '../../../../lib/code-execution/codeExecution';
+import { aggregateBatchResults, aggregateMultiTestCaseResult } from '../../../../lib/code-execution/codeExecution';
 import type { CodeSubmission } from '../../../../lib/code-execution/codeExecutionUtils';
 
 // SECURITY NOTE: This endpoint is called by Judge0 servers, not by the frontend
@@ -75,13 +75,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: 'Submission already processed' }, { status: 200 });
     }
 
-    // 4. Aggregate results
-    // The aggregateBatchResults function expects TestCase[] from '../../data-types/problem'
-    // CodeSubmission.testCases is now properly typed as TestCase[]
-    const aggregatedResults = aggregateBatchResults(
-      judge0ResultsArray,
-      originalSubmissionData.testCases
-    );
+    // 4. Aggregate results using the appropriate strategy
+    const aggregatedResults = originalSubmissionData.executionMode === 'multi-test-case'
+      ? aggregateMultiTestCaseResult(
+          judge0ResultsArray[0], // Single submission in multi-TC mode
+          originalSubmissionData.testCases,
+          originalSubmissionData.userCodeLineOffset ?? 0,
+          originalSubmissionData.language
+        )
+      : aggregateBatchResults(
+          judge0ResultsArray,
+          originalSubmissionData.testCases
+        );
 
     // Process nested arrays in the aggregated results before updating Firestore
     const processedResults = processNestedArraysForFirestore(aggregatedResults);

@@ -17,6 +17,8 @@ export interface CodeSubmission {
   results?: ExecutionResults;
   comparisonConfig?: ComparisonConfig;
   fingerprint?: string; // Security fingerprint for rate limiting and abuse prevention
+  executionMode?: 'multi-test-case' | 'legacy-batch'; // Which execution strategy was used
+  userCodeLineOffset?: number; // Line offset for adjusting error line numbers in multi-TC mode
   createdAt?: Date;
   updatedAt?: Date;
 }

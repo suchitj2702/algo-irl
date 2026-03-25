@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
 import { verifyFirebaseToken } from '@algo-irl/lib/auth/verifyFirebaseTokenEdge';
 import { getCorsHeaders, getAllowedOrigins } from '@/lib/security/cors';
 
@@ -191,30 +190,7 @@ export async function middleware(request: NextRequest) {
     const internalRequest = isInternalRequest(request);
     const allowedEndpoint = findAllowedEndpoint(pathname);
 
-    // Check if IP is manually blocked (via Vercel KV) - only in production
-    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      try {
-        const blockedUntil = await kv.get<number>(`blocked:${ip}`);
-        if (blockedUntil && blockedUntil > Date.now()) {
-          console.log(`[SECURITY][ACCESS] Blocked IP attempted access: ${ip} on ${pathname}`);
-          return NextResponse.json(
-            { error: 'Access denied' },
-            {
-              status: 403,
-              headers: {
-                'Content-Type': 'application/json',
-                ...corsHeaders,
-              }
-            }
-          );
-        }
-      } catch (error) {
-        console.error('[SECURITY][KV] Error checking blocked IPs from KV:', error);
-        // Continue processing request if KV check fails
-      }
-    }
-
-    // SECURITY CHECK 1: Block access to internal-only endpoints from external sources
+// SECURITY CHECK 1: Block access to internal-only endpoints from external sources
     if (isInternalOnlyEndpoint(pathname) && !internalRequest) {
       console.log(`[SECURITY][ACCESS] Blocked external access to internal-only endpoint: ${pathname}`);
       return NextResponse.json(

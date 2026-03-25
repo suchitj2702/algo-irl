@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { getCodeSubmission, updateCodeSubmissionStatus, CodeSubmission } from '../../../../../lib/code-execution/codeExecutionUtils';
 import { Judge0Client } from '../../../../../lib/code-execution/judge0Client';
 import judge0Config from '../../../../../lib/code-execution/judge0Config';
-import { aggregateBatchResults } from '../../../../../lib/code-execution/codeExecution';
+import { aggregateBatchResults, aggregateMultiTestCaseResult } from '../../../../../lib/code-execution/codeExecution';
 import { TestCase } from '../../../../../data-types/problem';
 import { withCors } from '@/lib/shared/apiResponse';
 
@@ -85,11 +85,18 @@ export async function GET(
           });
         }
 
-        // All are completed — aggregate results and update Firestore
-        const aggregatedResults = aggregateBatchResults(
-          judge0Submissions,
-          submission.testCases as TestCase[]
-        );
+        // All are completed — aggregate results using the appropriate strategy
+        const aggregatedResults = submission.executionMode === 'multi-test-case'
+          ? aggregateMultiTestCaseResult(
+              judge0Submissions[0], // Single submission in multi-TC mode
+              submission.testCases as TestCase[],
+              submission.userCodeLineOffset ?? 0,
+              submission.language
+            )
+          : aggregateBatchResults(
+              judge0Submissions,
+              submission.testCases as TestCase[]
+            );
 
         const processedResults = processNestedArraysForFirestore(aggregatedResults);
 

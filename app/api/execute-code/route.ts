@@ -108,6 +108,8 @@ export async function POST(request: NextRequest) {
       status: 'pending',
       testCases: testCasesToStore,
       fingerprint: ip, // Use IP as fingerprint (Vercel provides this)
+      executionMode: submissionResult.executionMode,
+      userCodeLineOffset: submissionResult.userCodeLineOffset,
     });
 
     return withCors(request, {

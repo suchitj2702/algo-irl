@@ -1138,7 +1138,6 @@ When a request is rate-limited, Vercel returns an HTTP `429 Too Many Requests` r
 
 The application implements the following security measures:
 
-- **IP blocking via Vercel KV**: Manually blocked IPs are checked in middleware and denied access with HTTP 403. This is a manual process, not automatic detection.
 - **Code submission validation**: User-submitted code is checked for suspicious patterns (e.g., `import os`, `subprocess`, `child_process`, `eval`, `exec`, `__import__`) and rejected if dangerous operations are detected.
 - **Input sanitization**: All non-code string inputs are sanitized to prevent XSS and injection attacks. Code inputs are preserved to maintain syntax.
 
@@ -1190,11 +1189,7 @@ The application implements the following security measures:
    - Checks for suspicious patterns (`import os`, `subprocess`, `child_process`, `eval`, `exec`, `__import__`)
    - Enforces maximum code length (50KB)
 
-3. **IP Blocking:**
-   - Manual IP blocking via Vercel KV (checked in middleware)
-   - Request IP addresses tracked for monitoring
-
-4. **Rate Limiting:**
+3. **Rate Limiting:**
    - Handled entirely by Vercel Firewall at infrastructure level
    - Application code does not set rate limit headers
 
@@ -1255,10 +1250,6 @@ GOOGLE_GENERATIVE_AI_API_KEY=your-gemini-key
 
 # Security
 ALLOWED_ORIGINS=https://your-frontend.com,https://another-allowed-origin.com
-
-# Vercel KV (for IP blocking)
-KV_REST_API_URL=your-kv-url
-KV_REST_API_TOKEN=your-kv-token
 
 # Razorpay (Billing)
 RAZORPAY_KEY_ID=your-razorpay-key-id

@@ -105,7 +105,8 @@ IMPORTANT INSTRUCTIONS FOR AI:
     `produced when the corresponding 'stdin' is processed by the 'optimizedSolutionCode' you provide for the primary language (Python). ` +
     `Incorrect test cases are unacceptable.
 5. For each test case generated, perform a dry run of the 'optimizedSolutionCode' with the 'stdin' to ensure it is correct. IF IT IS NOT CORRECT, REMOVE IT;`  +
-`6. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.`;
+`6. If there are multiple correct values for a test case, the expectedStdout should be an array of the correct values.
+7. CRITICAL: The boilerplateCodeWithPlaceholder must NEVER contain comparison logic, permutation generation, or any combinatorial operations (itertools.permutations, itertools.combinations, etc). It should ONLY: parse stdin, call the user function, and print(json.dumps(result)). Output comparison is handled server-side.`;
 }
 
 // Define a custom error for verification failures

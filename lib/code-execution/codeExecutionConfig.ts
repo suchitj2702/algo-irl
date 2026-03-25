@@ -33,6 +33,12 @@ export interface ExecutionConfig {
   maxTestCases: number;
   /** Array of supported programming languages */
   supportedLanguages: SupportedLanguage[];
+  /** Whether multi-test-case execution mode is enabled */
+  multiTcModeEnabled: boolean;
+  /** Overall time limit for multi-TC execution in milliseconds */
+  multiTcOverallTimeLimit: number;
+  /** Per-test-case timeout for multi-TC execution in milliseconds */
+  multiTcPerTestCaseTimeout: number;
 }
 
 /**
@@ -113,10 +119,10 @@ const config: CodeExecutionConfig = {
     enableNetwork: process.env.CODE_EXECUTION_ENABLE_NETWORK === 'true',
     
     // Max number of test cases allowed per execution
-    maxTestCases: process.env.CODE_EXECUTION_MAX_TEST_CASES 
-      ? parseInt(process.env.CODE_EXECUTION_MAX_TEST_CASES, 10) 
-      : 20, // 20 test cases default limit
-    
+    maxTestCases: process.env.CODE_EXECUTION_MAX_TEST_CASES
+      ? parseInt(process.env.CODE_EXECUTION_MAX_TEST_CASES, 10)
+      : 100, // 100 test cases default limit (was 20, increased with multi-TC mode)
+
     // Supported programming languages for code execution
     supportedLanguages: [
       'javascript',
@@ -126,7 +132,20 @@ const config: CodeExecutionConfig = {
       'csharp',
       'cpp',
       'go'
-    ]
+    ],
+
+    // Multi-test-case execution mode: runs all test cases in a single Judge0 execution
+    multiTcModeEnabled: process.env.MULTI_TC_MODE_ENABLED !== 'false', // Enabled by default
+
+    // Overall time limit for multi-TC execution (ms). Capped at this value regardless of test case count.
+    multiTcOverallTimeLimit: process.env.MULTI_TC_OVERALL_TIME_LIMIT
+      ? parseInt(process.env.MULTI_TC_OVERALL_TIME_LIMIT, 10)
+      : 20000, // 20 seconds default (Judge0 hard cap is 20s)
+
+    // Per-test-case timeout used for calculating the overall time limit (ms)
+    multiTcPerTestCaseTimeout: process.env.MULTI_TC_PER_TEST_CASE_TIMEOUT
+      ? parseInt(process.env.MULTI_TC_PER_TEST_CASE_TIMEOUT, 10)
+      : 5000, // 5 seconds default per test case
   }
 };
 
