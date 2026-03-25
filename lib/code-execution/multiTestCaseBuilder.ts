@@ -183,32 +183,11 @@ function buildPythonMultiTestCase(combinedCode: string): MultiTestCaseBuildResul
   // Indent the main body to sit inside the try block (8 spaces: for loop + try)
   const indentedMainBody = indentPython(mainBody, 8);
 
-  // Calculate user code line offset:
-  // The user's code is in the definitions section. We need to know how many
-  // wrapper lines come before the definitions in the final output.
-  const wrapperPrefixLineCount = PYTHON_WRAPPER_PREFIX.split('\n').length - 1;
-  // The definitions section is placed BEFORE the wrapper in the final code,
-  // so offset is 0 for definitions. But we need the offset from the START of
-  // the final combined code to where user code appears.
-  // Structure: definitionsSection + \n + wrapperPrefix + indentedMainBody + wrapperSuffix
-  // User code is inside definitionsSection, so offset = lines before user code in definitions.
-  // We need to find where %%USER_CODE_PYTHON%% was in the original boilerplate.
-  // Since it's already been replaced, we just count the definitions section lines.
-  // The user code starts after the boilerplate's imports/helpers.
-  // We can't know the exact offset without the original boilerplate, but we can
-  // estimate: user code is typically near the end of the definitions section.
-  // For now, we report the total lines before the definitions section (0 since
-  // definitions come first) — the important offset is for the MAIN BODY errors.
-  // Actually, errors in the main body come from the boilerplate's try block,
-  // not from user code. User code errors will have correct line numbers since
-  // the definitions section (which contains user code) starts at line 1.
-
   const finalCode = `${definitionsSection}\n${PYTHON_WRAPPER_PREFIX}${indentedMainBody}${PYTHON_WRAPPER_SUFFIX}`;
 
   // userCodeLineOffset = 0 because the definitions section (containing user code)
-  // starts at line 1 of the final code. The wrapper comes AFTER definitions.
-  // Errors in user code functions will reference lines in the definitions section,
-  // which hasn't moved from its original position.
+  // starts at line 1 of the final code. The wrapper comes AFTER definitions,
+  // so user code line numbers are unchanged.
   const userCodeLineOffset = 0;
 
   return { code: finalCode, userCodeLineOffset };
